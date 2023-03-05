@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+
+require "vaporware"
+
+v = Vaporware.new
+
+iseq = v.iseq(File.read(ARGV.shift))
+binding.irb
