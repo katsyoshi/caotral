@@ -2,7 +2,4 @@
 
 require "vaporware"
 
-v = Vaporware.new
-
-iseq = v.iseq(File.read(ARGV.shift))
-binding.irb
+Vaporware::Compiler.compile(ARGV.shift)
