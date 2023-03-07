@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
 
 require "vaporware"
-
-Vaporware::Compiler.compile(ARGV.shift)
+src = ARGV.shift
+Vaporware::Compiler.compile(src)
