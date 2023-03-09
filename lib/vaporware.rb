@@ -13,50 +13,54 @@ module Vaporware
       s.compile
     end
 
-    def initialize(source) = @ast = Parser::CurrentRuby.parse(File.read(File.expand_path(source)))
-
-    def compile
-      STDERR.puts ast
-      puts ".intel_syntax noprefix"
-      puts ".globl main"
-      puts "main:"
-      gen(ast)
-      puts "   pop rax"
-      puts "   ret"
+    def initialize(source, output = "tmp.s")
+      @output = output
+      @ast = Parser::CurrentRuby.parse(File.read(File.expand_path(source)))
     end
 
-    def gen(node)
+    def compile
+      output = File.open(@output, "w")
+      output.puts ".intel_syntax noprefix"
+      output.puts ".globl main"
+      output.puts "main:"
+      gen(ast, output)
+      output.puts "   pop rax"
+      output.puts "   ret"
+      output.close
+    end
+
+    def gen(node, output)
       center = case node.type
       when :int
-        puts "   push #{node.children.last}"
+        output.puts "   push #{node.children.last}"
         return
       when :begin
-        gen(node.children.first)
+        gen(node.children.first, output)
         :bigin
       when :send
         children = node.children
         left = children[0]
         right = children[2]
-        gen(left)
-        gen(right)
+        gen(left, output)
+        gen(right, output)
 
-        puts "   pop rdi"
-        puts "   pop rax"
+        output.puts "   pop rdi"
+        output.puts "   pop rax"
         children[1]
       end
 
       case center
       when :+
-        puts "   add rax, rdi"
+        output.puts "   add rax, rdi"
       when :-
-        puts "   sub rax, rdi"
+        output.puts "   sub rax, rdi"
       when :*
-        puts "   imul rax, rdi"
+        output.puts "   imul rax, rdi"
       when :/
-        puts "   cqo"
-        puts "   idiv rdi"
+        output.puts "   cqo"
+        output.puts "   idiv rdi"
       end
-      puts "   push rax" unless center == :bigin
+      output.puts "   push rax" unless center == :bigin
     end
   end
 end
