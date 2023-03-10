@@ -27,6 +27,15 @@ module Vaporware
       output.puts "   pop rax"
       output.puts "   ret"
       output.close
+      call_compiler(@output)
+    end
+
+    private
+
+    def call_compiler(output, compiler = "gcc")
+      base_name = File.basename(output, ".*")
+      IO.popen([compiler, "-o", base_name, output]).close
+      File.delete(output)
     end
 
     def gen(node, output)
