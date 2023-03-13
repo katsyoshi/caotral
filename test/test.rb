@@ -1,23 +1,27 @@
 require "vaporware"
 
 class VaporwareTest
-  def initialize(file, debug = false) = @vaporware = Vaporware::Compiler.new(file, debug:)
+  def initialize(file, debug = false)
+    @vaporware = Vaporware::Compiler.new(file, debug:)
+    @debug = debug
+  end
 
   def test_sample_plus
     @vaporware.compile
     IO.popen("./tmp").close
     exit_code, handle_code = check_process($?.to_i)
     puts [exit_code == 9, handle_code == 0].all?
-    File.delete("tmp")
+    puts exit_code, handle_code if @debug
+    File.delete("tmp") unless @debug
   end
 
   def test_sample_variable
     @vaporware.compile
     IO.popen("./tmp").close
     exit_code, handle_code = check_process($?.to_i)
-    puts exit_code
-    puts handle_code
-    File.delete("tmp")
+    puts [exit_code == 1, handle_code == 0].all?
+    puts exit_code, handle_code if @debug
+    File.delete("tmp") unless @debug
   end
 
   private
@@ -30,7 +34,6 @@ class VaporwareTest
   end
 end
 
-exit 1 unless [
-  VaporwareTest.new("sample/plus.rb", true).test_sample_plus,
-  VaporwareTest.new("sample/variable.rb", true).test_sample_variable,
-].all?
+debug = ARGV.shift
+VaporwareTest.new("sample/plus.rb", debug).test_sample_plus
+VaporwareTest.new("sample/variable.rb", debug).test_sample_variable

@@ -7,6 +7,7 @@ module Vaporware
   class Error < StandardError; end
   # Your code goes here...
   class Compiler
+    MEM_ADDR = 26 * 8
     attr_reader :ast, :_precompile, :debug
     def self.compile(source, dest: "tmp.s", debug: false)
       s = new(source, _precompile: dest, debug:)
@@ -21,12 +22,12 @@ module Vaporware
     def compile
       puts ast if debug
       output = File.open(_precompile, "w")
-      output.puts ".intel_syntax noprefix"
-      output.puts ".globl main"
+      output.puts "  .intel_syntax noprefix"
+      output.puts "  .globl main"
       output.puts "main:"
       output.puts "  push rbp"
       output.puts "  mov rbp, rsp"
-      output.puts "  sub rsp, 208"
+      output.puts "  sub rsp, #{MEM_ADDR}"
       gen(ast, output)
       output.puts "  mov rsp, rbp"
       output.puts "  pop rbp"
@@ -43,14 +44,51 @@ module Vaporware
       File.delete(output) unless debug
     end
 
+    def gen_lvar(var, output)
+      output.puts "  mov rax, rbp"
+      output.puts "  sub rax, #{MEM_ADDR - lvar_offset(var) * 8}"
+      output.puts "  push rax"
+    end
+
+    def lvar_offset(var)
+      @var.index(var).then do |index|
+        unless index
+          @var << var
+          index = @var.size - 1
+        end
+        index
+      end
+    end
+
     def gen(node, output)
       center = case node.type
       when :int
         output.puts "  push #{node.children.last}"
         return
       when :begin
-        gen(node.children.first, output)
-        :bigin
+        node.children.each do |child|
+          gen(child, output)
+          output.puts "  pop rax"
+        end
+      when :lvar
+        gen_lvar(node.children.last, output)
+        # lvar
+        output.puts "  pop rax"
+        output.puts "  mov rax, [rax]"
+        output.puts "  push rax"
+        return
+      when :lvasgn
+        left, right = node.children
+
+        # rvar
+        gen_lvar(left, output)
+        gen(right, output)
+
+        output.puts "  pop rdi"
+        output.puts "  pop rax"
+        output.puts "  mov [rax], rdi"
+        output.puts "  push rdi"
+        output.puts "  pop rax"
       when :send
         children = node.children
         left = children[0]
@@ -74,7 +112,7 @@ module Vaporware
         output.puts "  cqo"
         output.puts "  idiv rdi"
       end
-      output.puts "   push rax" unless node.type == :begin
+      output.puts "  push rax"
     end
   end
 end
