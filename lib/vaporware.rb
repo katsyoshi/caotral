@@ -7,19 +7,20 @@ module Vaporware
   class Error < StandardError; end
   # Your code goes here...
   class Compiler
-    attr_reader :ast
-    def self.compile(source)
-      s = new(source)
+    attr_reader :ast, :_precompile, :debug
+    def self.compile(source, dest: "tmp.s", debug: false)
+      s = new(source, _precompile: dest, debug:)
       s.compile
     end
 
-    def initialize(source, output = "tmp.s")
-      @output = output
+    def initialize(source, _precompile: "tmp.s", debug: false)
+      @_precompile, @debug, @var = _precompile, debug, []
       @ast = Parser::CurrentRuby.parse(File.read(File.expand_path(source)))
     end
 
     def compile
-      output = File.open(@output, "w")
+      puts ast if debug
+      output = File.open(_precompile, "w")
       output.puts ".intel_syntax noprefix"
       output.puts ".globl main"
       output.puts "main:"
@@ -36,10 +37,10 @@ module Vaporware
 
     private
 
-    def call_compiler(output, compiler = "gcc")
+    def call_compiler(output = _precompile, compiler = "gcc")
       base_name = File.basename(output, ".*")
-      IO.popen([compiler, "-o", base_name, output]).close
-      File.delete(output)
+      IO.popen([compiler, "-O0", "-o", base_name, output]).close
+      File.delete(output) unless debug
     end
 
     def gen(node, output)
