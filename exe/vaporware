@@ -2,4 +2,4 @@
 
 require "vaporware"
 src = ARGV.shift
-Vaporware::Compiler.compile(src)
+Vaporware::Compiler.compile(src, debug: ARGV.shift)

@@ -23,11 +23,15 @@ module Vaporware
       output.puts ".intel_syntax noprefix"
       output.puts ".globl main"
       output.puts "main:"
+      output.puts "  push rbp"
+      output.puts "  mov rbp, rsp"
+      output.puts "  sub rsp, 208"
       gen(ast, output)
-      output.puts "   pop rax"
-      output.puts "   ret"
+      output.puts "  mov rsp, rbp"
+      output.puts "  pop rbp"
+      output.puts "  ret"
       output.close
-      call_compiler(@output)
+      call_compiler
     end
 
     private
@@ -41,7 +45,7 @@ module Vaporware
     def gen(node, output)
       center = case node.type
       when :int
-        output.puts "   push #{node.children.last}"
+        output.puts "  push #{node.children.last}"
         return
       when :begin
         gen(node.children.first, output)
@@ -53,23 +57,23 @@ module Vaporware
         gen(left, output)
         gen(right, output)
 
-        output.puts "   pop rdi"
-        output.puts "   pop rax"
+        output.puts "  pop rdi"
+        output.puts "  pop rax"
         children[1]
       end
 
       case center
       when :+
-        output.puts "   add rax, rdi"
+        output.puts "  add rax, rdi"
       when :-
-        output.puts "   sub rax, rdi"
+        output.puts "  sub rax, rdi"
       when :*
-        output.puts "   imul rax, rdi"
+        output.puts "  imul rax, rdi"
       when :/
-        output.puts "   cqo"
-        output.puts "   idiv rdi"
+        output.puts "  cqo"
+        output.puts "  idiv rdi"
       end
-      output.puts "   push rax" unless center == :bigin
+      output.puts "   push rax" unless node.type == :begin
     end
   end
 end
