@@ -9,9 +9,9 @@ module Vaporware
   class Compiler
     MEM_ADDR = 26 * 8
     attr_reader :ast, :_precompile, :debug
-    def self.compile(source, dest: "tmp.s", debug: false)
-      s = new(source, _precompile: dest, debug:)
-      s.compile
+    def self.compile(source, compiler: "gcc", dest: "tmp", debug: false, compiler_options: ["-O0"])
+      s = new(source, _precompile: dest + ".s", debug:)
+      s.compile(compiler:, compiler_options:)
     end
 
     def initialize(source, _precompile: "tmp.s", debug: false)
@@ -19,7 +19,7 @@ module Vaporware
       @ast = Parser::CurrentRuby.parse(File.read(File.expand_path(source)))
     end
 
-    def compile
+    def compile(compiler: "gcc", compiler_options: ["-O0"])
       puts ast if debug
       output = File.open(_precompile, "w")
       output.puts "  .intel_syntax noprefix"
@@ -33,14 +33,15 @@ module Vaporware
       output.puts "  pop rbp"
       output.puts "  ret"
       output.close
-      call_compiler
+      call_compiler(compiler:, compiler_options:)
     end
 
     private
 
-    def call_compiler(output = _precompile, compiler = "gcc")
+    def call_compiler(output: _precompile, compiler: "gcc", compiler_options: ["-O0"])
       base_name = File.basename(output, ".*")
-      IO.popen([compiler, "-O0", "-o", base_name, output]).close
+      compile_commands = [compiler, *compiler_options, "-o", base_name, output].compact
+      IO.popen(compile_commands).close
       File.delete(output) unless debug
     end
 
