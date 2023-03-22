@@ -1,5 +1,20 @@
 #!/usr/bin/env ruby
 
 require "vaporware"
-src = ARGV.shift
-Vaporware::Compiler.compile(src, debug: ARGV.shift)
+require "optparse"
+opt = OptionParser.new
+options = {}
+opt.on("-c", "--compiler [VAL]", "this option is selecting compiler precompiled file, default: gcc") { |v| options[:compiler] = v }
+opt.on("-D", "--debug") { |v| options[:debug] = v }
+opt.on("-o", "--objects [VAL]") { |v| options[:dest] = v }
+opt.on("--compiler-options[=VAL]", "compiler options") { |v| options[:compiler_options] = v.split(",") }
+
+begin
+  opt.parse!(ARGV)
+  raise "please compile target file" if ARGV.empty?
+rescue => e
+  STDERR.puts(e.message)
+  exit 1
+end
+
+Vaporware::Compiler.compile(ARGV.shift, **options)
