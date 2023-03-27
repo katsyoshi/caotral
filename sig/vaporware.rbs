@@ -1,4 +1,15 @@
 module Vaporware
   VERSION: String
   # See the writing guide of rbs: https://github.com/ruby/rbs#guides
+  class Compiler
+    @_precompile: String
+    @var: Array[Symbol]
+    @debug: bool
+    # temporarily using untyped types since parser.gem's rbs information is unchecked.
+    @ast: untyped
+
+    def initialize: (String, ?_precompile: String, ?debug: bool) -> self
+    def self.compile: (String, ?compiler: String, ?dest: String, ?debug: bool, ?compiler_options: Array[String]) -> nil
+    def compile: (?compiler: String, ?compiler_options: Array[String]) -> nil
+  end
 end
