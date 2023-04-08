@@ -7,9 +7,16 @@ module Vaporware
     @debug: bool
     # temporarily using untyped types since parser.gem's rbs information is unchecked.
     @ast: untyped
+    MEM_ADDR: Integer
 
     def initialize: (String, ?_precompile: String, ?debug: bool) -> self
     def self.compile: (String, ?compiler: String, ?dest: String, ?debug: bool, ?compiler_options: Array[String]) -> nil
     def compile: (?compiler: String, ?compiler_options: Array[String]) -> nil
+    def gen: (untyped, File) -> nil
+    def gen_lvar: (untyped, File) -> nil
+    def lvar_offset: (Symbol) -> Integer
+    def precompile: -> String
+    def ast: -> untyped
+    def debug: -> bool
   end
 end

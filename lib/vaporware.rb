@@ -17,6 +17,7 @@ module Vaporware
     def initialize(source, _precompile: "tmp.s", debug: false)
       @_precompile, @debug, @var = _precompile, debug, []
       @ast = Parser::CurrentRuby.parse(File.read(File.expand_path(source)))
+      @seq = 0
     end
 
     def compile(compiler: "gcc", compiler_options: ["-O0"])
