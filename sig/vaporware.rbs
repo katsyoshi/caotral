@@ -5,18 +5,25 @@ module Vaporware
     @_precompile: String
     @var: Array[Symbol]
     @debug: bool
+    @origin: String
     # temporarily using untyped types since parser.gem's rbs information is unchecked.
     @ast: untyped
-    MEM_ADDR: Integer
+    @seq: Integer
+    @offset: Integer
 
-    def initialize: (String, ?_precompile: String, ?debug: bool) -> self
+    MEM_ADDR: Integer
+    def ast: -> untyped
+    def debug: -> bool
+    def _precompile: -> String
+    def origin: -> String
+
+    def initialize: (String, ?_precompile: String, ?debug: bool) -> untyped
     def self.compile: (String, ?compiler: String, ?dest: String, ?debug: bool, ?compiler_options: Array[String]) -> nil
     def compile: (?compiler: String, ?compiler_options: Array[String]) -> nil
     def gen: (untyped, File) -> nil
     def gen_lvar: (untyped, File) -> nil
     def lvar_offset: (Symbol) -> Integer
-    def precompile: -> String
-    def ast: -> untyped
-    def debug: -> bool
+    def call_compiler: (?output: String, ?compiler: String, ?compiler_options: Array[String]) -> nil
+    def init_variables: -> Integer
   end
 end
