@@ -7,7 +7,7 @@ module Vaporware
   class Error < StandardError; end
   # Your code goes here...
   class Compiler
-    attr_reader :ast, :_precompile, :debug, :origin
+    attr_reader :ast, :_precompile, :debug, :origin, :seq
     def self.compile(source, compiler: "gcc", dest: "tmp", debug: false, compiler_options: ["-O0"])
       s = new(source, _precompile: dest + ".s", debug:)
       s.compile(compiler:, compiler_options:)
@@ -17,7 +17,7 @@ module Vaporware
       @_precompile, @debug, @var, @seq = _precompile, debug, Set.new, 0
       @origin = File.read(File.expand_path(source))
       @ast = Parser::CurrentRuby.parse(@origin)
-     end
+    end
 
     def compile(compiler: "gcc", compiler_options: ["-O0"])
       puts ast if debug
@@ -29,7 +29,7 @@ module Vaporware
       output.puts "main:"
       output.puts "  push rbp"
       output.puts "  mov rbp, rsp"
-      output.puts "  sub rsp, #{init_variables}"
+      output.puts "  sub rsp, #{variable_num}"
       gen(ast, output)
       # epilogue
       output.puts "  mov rsp, rbp"
@@ -41,7 +41,7 @@ module Vaporware
 
     private
 
-    def init_variables = RubyVM::AbstractSyntaxTree.parse(origin).children.first.size * 8
+    def variable_num = RubyVM::AbstractSyntaxTree.parse(origin).children.first.size * 8
 
     def call_compiler(output: _precompile, compiler: "gcc", compiler_options: ["-O0"])
       base_name = File.basename(output, ".*")
@@ -65,6 +65,13 @@ module Vaporware
       @var.size
     end
 
+    def gen_ret(output)
+      output.puts "  pop rax"
+      output.puts "  mov rsp, rbp"
+      output.puts "  pop rbp"
+      output.puts "  ret"
+    end
+
     def gen(node, output)
       center = case node.type
       when :int
@@ -74,6 +81,7 @@ module Vaporware
         node.children.each do |child|
           gen(child, output)
         end
+        return
       when :lvar
         gen_lvar(node.children.last, output)
         # lvar
@@ -93,6 +101,17 @@ module Vaporware
         output.puts "  mov [rax], rdi"
         output.puts "  push rdi"
         output.puts "  pop rax"
+        return
+      when :if
+        cond, tblock, _fblock = node.children
+        gen(cond, output)
+        output.puts "  pop rax"
+        output.puts "  push rax"
+        output.puts "  cmp rax, 0"
+        output.puts "  je .Lend#{seq}"
+        gen(tblock, output)
+        gen_ret(output)
+        output.puts ".Lend#{seq}:"
         return
       when :send
         left, center, right = node.children

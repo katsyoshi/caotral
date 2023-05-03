@@ -16,6 +16,7 @@ module Vaporware
     def debug: -> bool
     def _precompile: -> String
     def origin: -> String
+    def seq: -> Integer
 
     def initialize: (String, ?_precompile: String, ?debug: bool) -> untyped
     def self.compile: (String, ?compiler: String, ?dest: String, ?debug: bool, ?compiler_options: Array[String]) -> nil
