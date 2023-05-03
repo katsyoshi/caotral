@@ -1,31 +1,34 @@
 module Vaporware
   VERSION: String
   # See the writing guide of rbs: https://github.com/ruby/rbs#guides
+  class Error
+  end
   class Compiler
     @_precompile: String
     @var: Array[Symbol]
     @debug: bool
-    @origin: String
     # temporarily using untyped types since parser.gem's rbs information is unchecked.
     @ast: untyped
     @seq: Integer
-    @offset: Integer
 
-    MEM_ADDR: Integer
     def ast: -> untyped
     def debug: -> bool
     def _precompile: -> String
-    def origin: -> String
     def seq: -> Integer
+    def var: -> untyped # Set
 
     def initialize: (String, ?_precompile: String, ?debug: bool) -> untyped
     def self.compile: (String, ?compiler: String, ?dest: String, ?debug: bool, ?compiler_options: Array[String]) -> nil
     def compile: (?compiler: String, ?compiler_options: Array[String]) -> nil
     def gen: (untyped, File) -> nil
     def gen_lvar: (untyped, File) -> nil
-    def lvar_offset: (Symbol) -> Integer
+    def gen_comp: (String, File) -> nil
+    def gen_prologue: (untyped, File) -> nil
+    def gen_method: (untyped, File) -> nil
+    def gen_ret: (File) -> nil
+    def lvar_offset: (Symbol | nil) -> Integer
     def call_compiler: (?output: String, ?compiler: String, ?compiler_options: Array[String]) -> nil
-    def variable_num: -> Integer
-    def gen_ret: (untyped) -> nil
+    def register_var_and_method: (untyped) -> Integer
+    def variable_or_method?: (untyped) -> bool
   end
 end

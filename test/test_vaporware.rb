@@ -44,6 +44,16 @@ class VaporwareTest < Test::Unit::TestCase
     assert_equal(0, handle_code)
   end
 
+  def test_sample_while
+    @file = "sample/while.rb"
+    @vaporware = Vaporware::Compiler.new(@file)
+    @vaporware.compile
+    IO.popen("./tmp").close
+    exit_code, handle_code = check_process($?.to_i)
+    assert_equal(55, exit_code)
+    assert_equal(0, handle_code)
+  end
+
   private
 
   def check_process(pid)
