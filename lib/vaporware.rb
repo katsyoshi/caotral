@@ -103,15 +103,27 @@ module Vaporware
         output.puts "  pop rax"
         return
       when :if
-        cond, tblock, _fblock = node.children
+        cond, tblock, fblock = node.children
         gen(cond, output)
         output.puts "  pop rax"
         output.puts "  push rax"
         output.puts "  cmp rax, 0"
-        output.puts "  je .Lend#{seq}"
-        gen(tblock, output)
-        gen_ret(output)
-        output.puts ".Lend#{seq}:"
+        if fblock
+          output.puts "  je .Lelse#{seq}"
+          gen(tblock, output)
+          gen_ret(output)
+          output.puts "  jmp .Lend#{seq}"
+          output.puts ".Lelse#{seq}:"
+          gen(fblock, output)
+          gen_ret(output)
+          output.puts ".Lend#{seq}:"
+        else
+          output.puts "  je .Lend#{seq}"
+          gen(tblock, output)
+          gen_ret(output)
+          output.puts ".Lend#{seq}:"
+        end
+        @seq += 1
         return
       when :send
         left, center, right = node.children

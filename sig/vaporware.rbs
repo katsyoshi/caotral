@@ -25,6 +25,7 @@ module Vaporware
     def gen_lvar: (untyped, File) -> nil
     def lvar_offset: (Symbol) -> Integer
     def call_compiler: (?output: String, ?compiler: String, ?compiler_options: Array[String]) -> nil
-    def init_variables: -> Integer
+    def variable_num: -> Integer
+    def gen_ret: (untyped) -> nil
   end
 end
