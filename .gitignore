@@ -8,3 +8,4 @@
 /tmp/
 /Gemfile.lock
 /*.s
+/.gem_rbs_collection
