@@ -8,6 +8,7 @@ opt.on("-c", "--compiler [VAL]", "this option is selecting compiler precompiled 
 opt.on("-D", "--debug") { |v| options[:debug] = v }
 opt.on("-o", "--objects [VAL]") { |v| options[:dest] = v }
 opt.on("--compiler-options[=VAL]", "compiler options") { |v| options[:compiler_options] = v.split(",") }
+opt.on("-s", "--shared") { |v| options[:shared] = v }
 
 begin
   opt.parse!(ARGV)

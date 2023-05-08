@@ -4,30 +4,43 @@ module Vaporware
   class Error
   end
   class Compiler
+    # instance variables
     @_precompile: String
-    @var: Array[Symbol]
     @debug: bool
+    @doned: Set[Symbol]
+    @var: Set[Symbol]
+    @seq: Integer
+    @main: bool
+
     # temporarily using untyped types since parser.gem's rbs information is unchecked.
     @ast: untyped
-    @seq: Integer
 
-    def ast: -> untyped
-    def debug: -> bool
+    # attr reader for instance variables
     def _precompile: -> String
+    def ast: -> untyped # Parser::AST::Node
+    def var: -> Set[Symbol] # Set
+    def debug: -> bool
+    def doned: -> Set[Symbol] # Set
     def seq: -> Integer
-    def var: -> untyped # Set
 
-    def initialize: (String, ?_precompile: String, ?debug: bool) -> untyped
+    # class methods
     def self.compile: (String, ?compiler: String, ?dest: String, ?debug: bool, ?compiler_options: Array[String]) -> nil
+    def initialize: (String, ?_precompile: String, ?debug: bool) -> untyped
+
+    # instance methods
     def compile: (?compiler: String, ?compiler_options: Array[String]) -> nil
-    def gen: (untyped, File) -> nil
-    def gen_lvar: (untyped, File) -> nil
+
+    # instance private methods
+    def call_compiler: (?output: String, ?compiler: String, ?compiler_options: Array[String]) -> nil
+    def define_methods: -> Array[Symbol]
+    def gen: (untyped, File, ?bool) -> nil
     def gen_comp: (String, File) -> nil
+    def gen_lvar: (untyped, File) -> nil
+    def gen_method: (Symbol, untyped, File) -> nil
     def gen_prologue: (untyped, File) -> nil
-    def gen_method: (untyped, File) -> nil
+    def gen_prologue_methods: (File) -> nil
     def gen_ret: (File) -> nil
     def lvar_offset: (Symbol | nil) -> Integer
-    def call_compiler: (?output: String, ?compiler: String, ?compiler_options: Array[String]) -> nil
     def register_var_and_method: (untyped) -> Integer
     def variable_or_method?: (untyped) -> bool
   end
