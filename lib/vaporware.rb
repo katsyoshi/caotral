@@ -61,17 +61,14 @@ module Vaporware
     def compile_shared_option = %w(-shared -fPIC)
 
     def register_var_and_method(node)
-      node.children.each do |child|
-        next unless child.kind_of?(Parser::AST::Node)
-        type = child.type
-        if variable_or_method?(child)
-          name, _ = child.children
-          name = [:lvasgn, :arg].include?(type) ? "lvar_#{name}".to_sym : name
-          type == :def ? @define_methods << name : @var << name
-          next unless type == :def
-        end
-        register_var_and_method(child)
+      return unless node.kind_of?(Parser::AST::Node)
+      type = node.type
+      if variable_or_method?(node)
+        name, _ = node.children
+        name = [:lvasgn, :arg].include?(type) ? "lvar_#{name}".to_sym : name
+        type == :def ? @define_methods << name : @var << name
       end
+      node.children.each { |n| register_var_and_method(n) }
     end
 
     def already_build_methods? = define_methods.sort == @doned.to_a.sort
