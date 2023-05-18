@@ -14,7 +14,8 @@ jobs:
     strategy:
       matrix:
         ruby:
-          - '3.2.1'
+          - '3.2'
+          - '3.3.0-preview1' # temporarily check preview1
 
     steps:
     - uses: actions/checkout@v3
