@@ -8,17 +8,17 @@ module Vaporware
   # Your code goes here...
   class Compiler
     REGISTER = %w(r9 r8 rcx rdx rsi rdi).reverse
-    attr_reader :ast, :_precompile, :debug, :seq, :var, :doned, :main, :shared, :define_methods
+    attr_reader :ast, :_precompile, :debug, :seq, :defined_variables, :doned, :main, :shared, :defined_methods
     def self.compile(source, compiler: "gcc", dest: "tmp", debug: false, compiler_options: ["-O0"], shared: false)
       _precompile = "#{dest}.s"
-      s = new(source, _precompile:, debug:, shared:)
+      s = new(source, _precompile: _precompile, debug:, shared:)
       s.compile(compiler:, compiler_options:)
     end
 
     def initialize(source, _precompile: "tmp.s", debug: false, shared: false)
       @_precompile, @debug, @seq, @shared = _precompile, debug, 0, shared
-      @var = Set.new
-      @define_methods = Set.new
+      @defined_methods = Set.new
+      @defined_variables = Set.new
       @doned = Set.new
       src = File.read(File.expand_path(source))
       @ast = Parser::CurrentRuby.parse(src)
@@ -33,13 +33,13 @@ module Vaporware
       output = File.open(_precompile, "w")
       # prologue
       output.puts ".intel_syntax noprefix"
-      if define_methods.empty?
+      if defined_methods.empty?
         @main = true
         output.puts ".globl main"
         output.puts "main:"
         output.puts "  push rbp"
         output.puts "  mov rbp, rsp"
-        output.puts "  sub rsp, #{var.size * 8}"
+        output.puts "  sub rsp, #{defined_variables.size * 8}"
         gen(ast, output)
         # epilogue
         gen_epilogue(output)
@@ -51,8 +51,7 @@ module Vaporware
         gen_epilogue(output)
       end
       output.close
-      compiler_options << compile_shared_option if shared
-      compiler_options.flatten!
+      compiler_options += compile_shared_option if shared
       call_compiler(compiler:, compiler_options:)
     end
 
@@ -61,21 +60,18 @@ module Vaporware
     def compile_shared_option = %w(-shared -fPIC)
 
     def register_var_and_method(node)
-      node.children.each do |child|
-        next unless child.kind_of?(Parser::AST::Node)
-        type = child.type
-        if variable_or_method?(child)
-          name, _ = child.children
-          name = [:lvasgn, :arg].include?(type) ? "lvar_#{name}".to_sym : name
-          type == :def ? @define_methods << name : @var << name
-          next unless type == :def
-        end
-        register_var_and_method(child)
+      return unless node.kind_of?(Parser::AST::Node)
+      type = node.type
+      if variable_or_method?(type)
+        name, _ = node.children
+        name = [:lvasgn, :arg].include?(type) ? "lvar_#{name}".to_sym : name
+        type == :def ? @defined_methods << name : @defined_variables << name
       end
+      node.children.each { |n| register_var_and_method(n) }
     end
 
-    def already_build_methods? = define_methods.sort == @doned.to_a.sort
-    def variable_or_method?(node) = [:lvasgn, :arg, :def].include?(node.type)
+    def already_build_methods? = defined_methods.sort == @doned.to_a.sort
+    def variable_or_method?(type) = [:lvasgn, :arg, :def].include?(type)
 
     def call_compiler(output: _precompile, compiler: "gcc", compiler_options: ["-O0"])
       base_name = File.basename(output, ".*")
@@ -94,7 +90,7 @@ module Vaporware
     end
 
     def gen_prologue_methods(output)
-      define_methods.each do |name|
+      defined_methods.each do |name|
         output.puts ".globl #{name}"
         output.puts ".type #{name}, @function" if shared
       end
@@ -152,7 +148,7 @@ module Vaporware
         output.puts "  pop #{REGISTER[i]}"
       end
 
-      output.puts "  call def_#{name}"
+      output.puts "  call #{name}"
       output.puts "  pop rdi"
       output.puts "  cmp rdi, 0"
       output.puts "  je .Lpostcall#{seq}"
@@ -179,8 +175,8 @@ module Vaporware
     end
 
     def lvar_offset(var)
-      return @var.size if var.nil?
-      @var.find_index(var).then do |i|
+      return @defined_variables.size if var.nil?
+      @defined_variables.find_index(var).then do |i|
         raise "unknown local variable...: #{var}" if i.nil?
         i + 1
       end
@@ -203,6 +199,7 @@ module Vaporware
       when :begin
         node.children.each do |child|
           if already_build_methods? && !@main
+            return if shared
             output.puts "main:"
             output.puts "  push rbp"
             output.puts "  mov rbp, rsp"
