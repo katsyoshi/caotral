@@ -3,7 +3,7 @@
 require_relative "lib/vaporware/version"
 
 Gem::Specification.new do |spec|
-  spec.name = "vaporware"
+  spec.name = "vaporware-compiler"
   spec.version = Vaporware::VERSION
   spec.authors = ["MATSUMOTO, Katsuyoshi"]
   spec.email = ["github@katsyoshi.org"]
