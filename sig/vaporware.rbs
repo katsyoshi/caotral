@@ -7,7 +7,7 @@ module Vaporware
     # class methods
     def self.compile: (String, ?compiler: String, ?dest: String, ?debug: bool, ?compiler_options: Array[String], ?shared: bool) -> nil
     def initialize: (String, ?_precompile: String, ?debug: bool, ?shared: bool) -> untyped
-    @generator: untyped
+    @generator: Vaporware::Compiler::Generator
     # instance methods
     def compile: (?compiler: String, ?compiler_options: Array[String]) -> nil
     class Generator
