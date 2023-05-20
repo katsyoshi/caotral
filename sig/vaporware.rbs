@@ -35,7 +35,8 @@ module Vaporware
       def doned: -> Set[Symbol]
       def seq: -> Integer
       def shared: -> bool
-      # instance private methods
+
+      # instance methods
       def already_build_methods?: -> bool
       def args: (untyped, File) -> nil
       def build: (untyped, File, ?bool) -> nil
