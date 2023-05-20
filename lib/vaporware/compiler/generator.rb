@@ -36,7 +36,7 @@ module Vaporware
         compile_commands = [compiler, *compiler_options, "-o", name, output].compact
         IO.popen(compile_commands).close
 
-        puts File.read(output) if debug
+        File.delete(output) unless debug
         nil
       end
 
