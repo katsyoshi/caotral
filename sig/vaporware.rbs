@@ -13,7 +13,7 @@ module Vaporware
     class Generator
       REGISTER: Array[String]
       # instance variables
-      @_precompile: String
+      @precompile: String
       @debug: bool
       @doned: Set[Symbol]
       @defined_methods: Set[Symbol]
@@ -24,10 +24,10 @@ module Vaporware
       # temporarily using untyped types since parser.gem's rbs information is unchecked.
       @ast: untyped
       # class methods
-      def initialize: (String, _precompile: String, debug: bool, shared: bool) -> untyped
+      def initialize: (String, precompile: String, debug: bool, shared: bool) -> untyped
 
       # attr reader for instance variables
-      def _precompile: -> String
+      def precompile: -> String
       def ast: -> untyped # Parser::AST::Node
       def defined_methods: -> Set[Symbol]
       def defined_variables: -> Set[Symbol]

@@ -2,8 +2,6 @@
 
 require_relative "compiler/generator"
 
-require "parser/current"
-
 module Vaporware
   # Your code goes here...
   class Compiler
@@ -14,13 +12,13 @@ module Vaporware
     end
 
     def initialize(source, _precompile: "tmp.s", debug: false, shared: false)
-      @generator = Vaporware::Compiler::Generator.new(source, _precompile:, debug:, shared:)
+      @generator = Vaporware::Compiler::Generator.new(source, precompile: _precompile, debug:, shared:)
     end
 
     def compile(compiler: "gcc", compiler_options: ["-O0"])
       @generator.register_var_and_method(@generator.ast)
 
-      output = File.open(@generator._precompile, "w")
+      output = File.open(@generator.precompile, "w")
       # prologue
       output.puts ".intel_syntax noprefix"
       if @generator.defined_methods.empty?

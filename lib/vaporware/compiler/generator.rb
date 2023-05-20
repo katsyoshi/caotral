@@ -1,12 +1,13 @@
 # frozen_string_literal: true
+require "parser/current"
 
 module Vaporware
   class Compiler
     class Generator
       attr_accessor :main
-      attr_reader :ast, :_precompile, :debug, :seq, :defined_variables, :doned, :shared, :defined_methods
-      def initialize(source, _precompile:, debug:, shared:)
-        @_precompile, @debug, @shared = _precompile, debug, shared
+      attr_reader :ast, :precompile, :debug, :seq, :defined_variables, :doned, :shared, :defined_methods
+      def initialize(source, precompile:, debug:, shared:)
+        @precompile, @debug, @shared = precompile, debug, shared
         @doned, @defined_methods, @defined_variables = Set.new, Set.new, Set.new
         @seq, @main = 0, false
         src = File.read(File.expand_path(source))
@@ -29,7 +30,7 @@ module Vaporware
       def already_build_methods? = defined_methods.sort == @doned.to_a.sort
       def variable_or_method?(type) = [:lvasgn, :arg, :def].include?(type)
 
-      def call_compiler(output: _precompile, compiler: "gcc", compiler_options: ["-O0"], debug: false)
+      def call_compiler(output: precompile, compiler: "gcc", compiler_options: ["-O0"], debug: false)
         base_name = File.basename(output, ".*")
         name = shared ? "lib#{base_name}.so" : base_name
         compile_commands = [compiler, *compiler_options, "-o", name, output].compact
