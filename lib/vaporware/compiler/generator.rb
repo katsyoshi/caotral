@@ -31,15 +31,21 @@ module Vaporware
 
       def already_build_methods? = defined_methods.sort == @doned.to_a.sort
 
-      def call_compiler(output: precompile, compiler: "gcc", compiler_options: ["-O0"])
-        base_name = File.basename(output, ".*")
+      def to_elf(input: precompile, compiler: "gcc", compiler_options: ["-O0"], debug: false)
+        base_name = File.basename(input, ".*")
         name = shared ? "lib#{base_name}.so" : base_name
-        compile_commands = [compiler, *compiler_options, "-o", name, output].compact
-        IO.popen(compile_commands).close
+        if compiler.nil?
+          Vaporware::Compiler::Assemble.compile!(name, input)
+        else
+          compile_commands = [compiler, *compiler_options, "-o", name, input].compact
+          call_compiler(compile_commands)
+        end
 
-        File.delete(output) unless debug
+        File.delete(input) unless debug
         nil
       end
+
+      def call_compiler(compile_commands) = IO.popen(compile_commands).close
 
       def epilogue(output)
         output.puts "  mov rsp, rbp"

@@ -40,7 +40,7 @@ module Vaporware
       end
       output.close
       compiler_options += @generator.compile_shared_option if @generator.shared
-      @generator.call_compiler(compiler:, compiler_options:)
+      @generator.to_elf(input: @generator.precompile, compiler:, compiler_options:, debug: @generator.debug)
     end
   end
 end
