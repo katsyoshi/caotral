@@ -4,54 +4,55 @@ module Vaporware
   class Error
   end
   class Compiler
-    REGISTER: Array[String]
-    # instance variables
-    @_precompile: String
-    @debug: bool
-    @doned: Set[Symbol]
-    @defined_methods: Set[Symbol]
-    @defined_variables: Set[Symbol]
-    @seq: Integer
-    @main: bool
-    @shared: bool
-
-    # temporarily using untyped types since parser.gem's rbs information is unchecked.
-    @ast: untyped
-
-    # attr reader for instance variables
-    def _precompile: -> String
-    def ast: -> untyped # Parser::AST::Node
-    def defined_methods: -> Set[Symbol]
-    def defined_variables: -> Set[Symbol]
-    def debug: -> bool
-    def doned: -> Set[Symbol]
-    def seq: -> Integer
-    def shared: -> bool
-
     # class methods
     def self.compile: (String, ?compiler: String, ?dest: String, ?debug: bool, ?compiler_options: Array[String], ?shared: bool) -> nil
     def initialize: (String, ?_precompile: String, ?debug: bool, ?shared: bool) -> untyped
-
+    @generator: untyped
     # instance methods
     def compile: (?compiler: String, ?compiler_options: Array[String]) -> nil
+    class Generator
+      REGISTER: Array[String]
+      # instance variables
+      @precompile: String
+      @debug: bool
+      @doned: Set[Symbol]
+      @defined_methods: Set[Symbol]
+      @defined_variables: Set[Symbol]
+      @seq: Integer
+      @main: bool
+      @shared: bool
+      # temporarily using untyped types since parser.gem's rbs information is unchecked.
+      @ast: untyped
+      # class methods
+      def initialize: (String, precompile: String, debug: bool, shared: bool) -> untyped
 
-    # instance private methods
-    def already_build_methods?: -> bool
-    def call_compiler: (?output: String, ?compiler: String, ?compiler_options: Array[String]) -> nil
-    def compile_shared_option: () -> Array[String]
-    def gen: (untyped, File, ?bool) -> nil
-    def gen_args: (untyped, File) -> nil
-    def gen_call_method: (untyped, File, bool) -> nil
-    def gen_comp: (String, File) -> nil
-    def gen_lvar: (untyped, File) -> nil
-    def gen_method: (Symbol, untyped, File) -> nil
-    def gen_define_method_prologue: (untyped, File) -> nil
-    def gen_epilogue: (File) -> nil
-    def gen_prologue: (untyped, File) -> nil
-    def gen_prologue_methods: (File) -> nil
-    def gen_ret: (File) -> nil
-    def lvar_offset: (Symbol | nil) -> Integer
-    def register_var_and_method: (untyped) -> nil
-    def variable_or_method?: (Symbol) -> bool
+      # attr reader for instance variables
+      def precompile: -> String
+      def ast: -> untyped # Parser::AST::Node
+      def defined_methods: -> Set[Symbol]
+      def defined_variables: -> Set[Symbol]
+      def debug: -> bool
+      def doned: -> Set[Symbol]
+      def seq: -> Integer
+      def shared: -> bool
+      # instance private methods
+      def already_build_methods?: -> bool
+      def args: (untyped, File) -> nil
+      def build: (untyped, File, ?bool) -> nil
+      def call_compiler: (?output: String, ?compiler: String, ?compiler_options: Array[String], ?debug: bool) -> nil
+      def call_method: (untyped, File, bool) -> nil
+      def comp: (String, File) -> nil
+      def compile_shared_option: () -> Array[String]
+      def define_method_prologue: (untyped, File) -> nil
+      def epilogue: (File) -> nil
+      def lvar: (untyped, File) -> nil
+      def method: (Symbol, untyped, File) -> nil
+      def prologue: (untyped, File) -> nil
+      def prologue_methods: (File) -> nil
+      def ret: (File) -> nil
+      def lvar_offset: (Symbol | nil) -> Integer
+      def register_var_and_method: (untyped) -> nil
+      def variable_or_method?: (Symbol) -> bool
+    end
   end
 end
