@@ -27,6 +27,6 @@ jobs:
     - name: Install rbs
       run: bundle exec rbs collection install
     - name: Run type check
-      run: bundle exec steep check
+      run: bundle exec rake steep:check
     - name: Run the default task
       run: bundle exec rake
