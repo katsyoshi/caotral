@@ -10,6 +10,19 @@ module Vaporware
     @generator: Vaporware::Compiler::Generator
     # instance methods
     def compile: (?compiler: String, ?compiler_options: Array[String]) -> nil
+
+    class Assemble
+      @input: String
+      @output: String
+      @target_file: File
+      # class methods
+      def self.compile!: (String, ?String) -> Vaporware::Compiler::Assemble
+      def initialize: (String, ?String) -> untyped
+
+      # instance methods
+      def compile: (?Array[String]) -> self
+    end
+
     class Generator
       REGISTER: Array[String]
       # instance variables
