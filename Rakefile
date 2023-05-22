@@ -7,15 +7,20 @@ require "steep/cli"
 
 task default: %i[test]
 
-namespace :steep do
-  desc "steep type check"
-  task :check do
-    steep_cmd_task(["check"])
-  end
-end
-
 Rake::TestTask.new do |t|
   t.test_files = FileList['test/test*.rb']
 end
 
-def steep_cmd_task(argv) = Steep::CLI.new(argv: argv, stdout: STDOUT, stdin: STDIN, stderr: STDERR).run
+namespace :steep do
+  desc "steep type check"
+  task :check do |_t, options|
+    steep_cmd_task(:check, *options.to_a)
+  end
+
+  desc "steep type annotations"
+  task :annotations do |_t, options|
+    steep_cmd_task(:annotations, *options.to_a)
+  end
+end
+
+def steep_cmd_task(*commands) = Steep::CLI.new(argv: commands, stdout: STDOUT, stdin: STDIN, stderr: STDERR).run
