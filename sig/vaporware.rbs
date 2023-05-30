@@ -35,6 +35,7 @@ module Vaporware
       def doned: -> Set[Symbol]
       def seq: -> Integer
       def shared: -> bool
+
       # instance private methods
       def already_build_methods?: -> bool
       def args: (untyped, File) -> nil
@@ -45,12 +46,12 @@ module Vaporware
       def define_method_prologue: (untyped, File) -> nil
       def epilogue: (File) -> nil
       def lvar: (untyped, File) -> nil
+      def lvar_offset: (Symbol | nil) -> Integer
       def method: (Symbol, untyped, File) -> nil
       def prologue: (untyped, File) -> nil
       def prologue_methods: (File) -> nil
-      def ret: (File) -> nil
-      def lvar_offset: (Symbol | nil) -> Integer
       def register_var_and_method: (untyped) -> nil
+      def ret: (File) -> nil
       def to_asm: (untyped, File, ?bool) -> nil
       def variable_or_method?: (Symbol) -> bool
     end
