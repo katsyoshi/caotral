@@ -30,7 +30,7 @@ module Vaporware
       def already_build_methods? = defined_methods.sort == @doned.to_a.sort
       def variable_or_method?(type) = [:lvasgn, :arg, :def].include?(type)
 
-      def call_compiler(output: precompile, compiler: "gcc", compiler_options: ["-O0"], debug: false)
+      def call_compiler(output: precompile, compiler: "gcc", compiler_options: ["-O0"])
         base_name = File.basename(output, ".*")
         name = shared ? "lib#{base_name}.so" : base_name
         compile_commands = [compiler, *compiler_options, "-o", name, output].compact

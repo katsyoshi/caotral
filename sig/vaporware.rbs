@@ -38,7 +38,7 @@ module Vaporware
       # instance private methods
       def already_build_methods?: -> bool
       def args: (untyped, File) -> nil
-      def call_compiler: (?output: String, ?compiler: String, ?compiler_options: Array[String], ?debug: bool) -> nil
+      def call_compiler: (?output: String, ?compiler: String, ?compiler_options: Array[String]) -> nil
       def call_method: (untyped, File, bool) -> nil
       def comp: (String, File) -> nil
       def compile_shared_option: () -> Array[String]
