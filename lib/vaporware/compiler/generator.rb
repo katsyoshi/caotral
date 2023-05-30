@@ -70,7 +70,7 @@ module Vaporware
         define_method_prologue(node, output)
         node.children.each do |child|
           next unless child.kind_of?(Parser::AST::Node)
-          build(child, output, true)
+          to_asm(child, output, true)
         end
         ret(output)
         @doned << method
@@ -101,7 +101,7 @@ module Vaporware
         output.puts "  push rax"
         _, name, *args = node.children
         args.each_with_index do |arg, i|
-          build(arg, output, method_tree)
+          to_asm(arg, output, method_tree)
           output.puts "  pop #{REGISTER[i]}"
         end
 
@@ -146,7 +146,7 @@ module Vaporware
         output.puts "  ret"
       end
 
-      def build(node, output, method_tree = false)
+      def to_asm(node, output, method_tree = false)
         return unless node.kind_of?(Parser::AST::Node)
         type = node.type
         center = case type
@@ -164,7 +164,7 @@ module Vaporware
               output.puts "  push rax"
               @main = true
             end
-            build(child, output)
+            to_asm(child, output)
           end
           return
         when :def
@@ -189,7 +189,7 @@ module Vaporware
           # rvar
           name = "lvar_#{left}".to_sym
           lvar(name, output)
-          build(right, output, method_tree)
+          to_asm(right, output, method_tree)
 
           output.puts "  pop rdi"
           output.puts "  pop rax"
@@ -199,22 +199,22 @@ module Vaporware
           return
         when :if
           cond, tblock, fblock = node.children
-          build(cond, output)
+          to_asm(cond, output)
           output.puts "  pop rax"
           output.puts "  push rax"
           output.puts "  cmp rax, 0"
           if fblock
             output.puts "  je .Lelse#{seq}"
-            build(tblock, output, method_tree)
+            to_asm(tblock, output, method_tree)
             ret(output)
             output.puts "  jmp .Lend#{seq}"
             output.puts ".Lelse#{seq}:"
-            build(fblock, output, method_tree)
+            to_asm(fblock, output, method_tree)
             ret(output)
             output.puts ".Lend#{seq}:"
           else
             output.puts "  je .Lend#{seq}"
-            build(tblock, output, method_tree)
+            to_asm(tblock, output, method_tree)
             ret(output)
             output.puts ".Lend#{seq}:"
           end
@@ -223,23 +223,23 @@ module Vaporware
         when :while
           cond, tblock = node.children
           output.puts ".Lbegin#{seq}:"
-          build(cond, output, method_tree)
+          to_asm(cond, output, method_tree)
           output.puts "  pop rax"
           output.puts "  push rax"
           output.puts "  cmp rax, 0"
           output.puts "  je .Lend#{seq}"
-          build(tblock, output, method_tree)
+          to_asm(tblock, output, method_tree)
           output.puts "  jmp .Lbegin#{seq}"
           output.puts ".Lend#{seq}:"
           @seq += 1
           return
         when :send
           left, center, right = node.children
-          build(left, output, method_tree) unless left.nil?
+          to_asm(left, output, method_tree) unless left.nil?
           if left.nil?
             call_method(node, output, method_tree)
           else
-            build(right, output, method_tree)
+            to_asm(right, output, method_tree)
             output.puts "  pop rdi"
           end
           output.puts "  pop rax"

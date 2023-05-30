@@ -38,7 +38,6 @@ module Vaporware
       # instance private methods
       def already_build_methods?: -> bool
       def args: (untyped, File) -> nil
-      def build: (untyped, File, ?bool) -> nil
       def call_compiler: (?output: String, ?compiler: String, ?compiler_options: Array[String], ?debug: bool) -> nil
       def call_method: (untyped, File, bool) -> nil
       def comp: (String, File) -> nil
@@ -52,6 +51,7 @@ module Vaporware
       def ret: (File) -> nil
       def lvar_offset: (Symbol | nil) -> Integer
       def register_var_and_method: (untyped) -> nil
+      def to_asm: (untyped, File, ?bool) -> nil
       def variable_or_method?: (Symbol) -> bool
     end
   end

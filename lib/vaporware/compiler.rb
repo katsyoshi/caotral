@@ -28,13 +28,13 @@ module Vaporware
         output.puts "  push rbp"
         output.puts "  mov rbp, rsp"
         output.puts "  sub rsp, #{@generator.defined_variables.size * 8}"
-        @generator.build(@generator.ast, output)
+        @generator.to_asm(@generator.ast, output)
         # epilogue
         @generator.epilogue(output)
       else
         @generator.prologue_methods(output)
         output.puts ".globl main" unless @generator.shared
-        @generator.build(@generator.ast, output)
+        @generator.to_asm(@generator.ast, output)
         # epilogue
         @generator.epilogue(output)
       end
