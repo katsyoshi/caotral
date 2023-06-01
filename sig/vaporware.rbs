@@ -12,29 +12,25 @@ module Vaporware
     def compile: (?compiler: String, ?compiler_options: Array[String]) -> nil
     class Generator
       REGISTER: Array[String]
-      # instance variables
-      @precompile: String
-      @debug: bool
-      @doned: Set[Symbol]
-      @defined_methods: Set[Symbol]
-      @defined_variables: Set[Symbol]
-      @seq: Integer
+
+      # attr_accessor and define instance variables
       @main: bool
-      @shared: bool
+      attr_accessor main (): bool
+
+      # attr_reader for instance variables
+      attr_reader debug: bool
+      attr_reader doned: Set[Symbol]
+      attr_reader defined_methods: Set[Symbol]
+      attr_reader defined_variables: Set[Symbol]
+      attr_reader precompile: String
+      attr_reader seq: Integer
+      attr_reader shared: bool
+
       # temporarily using untyped types since parser.gem's rbs information is unchecked.
-      @ast: untyped
+      attr_reader ast: untyped
+
       # class methods
       def initialize: (String, precompile: String, debug: bool, shared: bool) -> untyped
-
-      # attr reader for instance variables
-      def precompile: -> String
-      def ast: -> untyped # Parser::AST::Node
-      def defined_methods: -> Set[Symbol]
-      def defined_variables: -> Set[Symbol]
-      def debug: -> bool
-      def doned: -> Set[Symbol]
-      def seq: -> Integer
-      def shared: -> bool
 
       # instance private methods
       def already_build_methods?: -> bool
