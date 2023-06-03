@@ -7,51 +7,49 @@ module Vaporware
     # class methods
     def self.compile: (String, ?compiler: String, ?dest: String, ?debug: bool, ?compiler_options: Array[String], ?shared: bool) -> nil
     def initialize: (String, ?_precompile: String, ?debug: bool, ?shared: bool) -> untyped
+
     @generator: Vaporware::Compiler::Generator
     # instance methods
     def compile: (?compiler: String, ?compiler_options: Array[String]) -> nil
     class Generator
       REGISTER: Array[String]
-      # instance variables
-      @precompile: String
-      @debug: bool
-      @doned: Set[Symbol]
-      @defined_methods: Set[Symbol]
-      @defined_variables: Set[Symbol]
-      @seq: Integer
+
+      # attr_accessor and define instance variables
       @main: bool
-      @shared: bool
+      attr_accessor main (): bool
+
+      # attr_reader for instance variables
+      attr_reader debug: bool
+      attr_reader doned: Set[Symbol]
+      attr_reader defined_methods: Set[Symbol]
+      attr_reader defined_variables: Set[Symbol]
+      attr_reader precompile: String
+      attr_reader seq: Integer
+      attr_reader shared: bool
+
       # temporarily using untyped types since parser.gem's rbs information is unchecked.
-      @ast: untyped
+      attr_reader ast: RubyVM::AbstractSyntaxTree::Node
+
       # class methods
       def initialize: (String, precompile: String, debug: bool, shared: bool) -> untyped
 
-      # attr reader for instance variables
-      def precompile: -> String
-      def ast: -> untyped # Parser::AST::Node
-      def defined_methods: -> Set[Symbol]
-      def defined_variables: -> Set[Symbol]
-      def debug: -> bool
-      def doned: -> Set[Symbol]
-      def seq: -> Integer
-      def shared: -> bool
       # instance private methods
       def already_build_methods?: -> bool
       def args: (untyped, File) -> nil
-      def build: (untyped, File, ?bool) -> nil
-      def call_compiler: (?output: String, ?compiler: String, ?compiler_options: Array[String], ?debug: bool) -> nil
+      def call_compiler: (?output: String, ?compiler: String, ?compiler_options: Array[String]) -> nil
       def call_method: (untyped, File, bool) -> nil
       def comp: (String, File) -> nil
       def compile_shared_option: () -> Array[String]
       def define_method_prologue: (untyped, File) -> nil
       def epilogue: (File) -> nil
       def lvar: (untyped, File) -> nil
+      def lvar_offset: (Symbol | nil) -> Integer
       def method: (Symbol, untyped, File) -> nil
       def prologue: (untyped, File) -> nil
       def prologue_methods: (File) -> nil
+      def register_var_and_method: (RubyVM::AbstractSyntaxTree::Node) -> nil
       def ret: (File) -> nil
-      def lvar_offset: (Symbol | nil) -> Integer
-      def register_var_and_method: (untyped) -> nil
+      def to_asm: (untyped, File, ?bool) -> nil
       def variable_or_method?: (Symbol) -> bool
     end
   end
