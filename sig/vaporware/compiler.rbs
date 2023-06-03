@@ -1,0 +1,10 @@
+class Vaporware::Compiler
+  # class methods
+  def self.compile: (String, ?compiler: String, ?dest: String, ?debug: bool, ?compiler_options: Array[String], ?shared: bool) -> void
+  def initialize: (String, ?_precompile: String, ?debug: bool, ?shared: bool) -> void
+
+  @generator: Vaporware::Compiler::Generator
+  # instance methods
+  def compile: (?compiler: String, ?compiler_options: Array[String]) -> void
+end
+

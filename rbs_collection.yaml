@@ -17,6 +17,5 @@ gems:
     ignore: true
   - name: vaporware
     ignore: true
-  - name: parser
   - name: set
     ignore: true
