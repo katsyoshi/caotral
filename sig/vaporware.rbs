@@ -7,6 +7,7 @@ module Vaporware
     # class methods
     def self.compile: (String, ?compiler: String, ?dest: String, ?debug: bool, ?compiler_options: Array[String], ?shared: bool) -> nil
     def initialize: (String, ?_precompile: String, ?debug: bool, ?shared: bool) -> untyped
+
     @generator: Vaporware::Compiler::Generator
     # instance methods
     def compile: (?compiler: String, ?compiler_options: Array[String]) -> nil
@@ -27,7 +28,7 @@ module Vaporware
       attr_reader shared: bool
 
       # temporarily using untyped types since parser.gem's rbs information is unchecked.
-      attr_reader ast: untyped
+      attr_reader ast: RubyVM::AbstractSyntaxTree::Node
 
       # class methods
       def initialize: (String, precompile: String, debug: bool, shared: bool) -> untyped
@@ -46,7 +47,7 @@ module Vaporware
       def method: (Symbol, untyped, File) -> nil
       def prologue: (untyped, File) -> nil
       def prologue_methods: (File) -> nil
-      def register_var_and_method: (untyped) -> nil
+      def register_var_and_method: (RubyVM::AbstractSyntaxTree::Node) -> nil
       def ret: (File) -> nil
       def to_asm: (untyped, File, ?bool) -> nil
       def variable_or_method?: (Symbol) -> bool

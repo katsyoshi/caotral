@@ -1,34 +1,35 @@
 # frozen_string_literal: true
-require "parser/current"
 
 module Vaporware
   class Compiler
     class Generator
+      REGISTER = %w(rdi rsi rdx rcx r8 r9)
       attr_accessor :main
       attr_reader :ast, :precompile, :debug, :seq, :defined_variables, :doned, :shared, :defined_methods
       def initialize(source, precompile:, debug:, shared:)
         @precompile, @debug, @shared = precompile, debug, shared
         @doned, @defined_methods, @defined_variables = Set.new, Set.new, Set.new
         @seq, @main = 0, false
-        src = File.read(File.expand_path(source))
-        @ast = Parser::CurrentRuby.parse(src)
+        @ast = RubyVM::AbstractSyntaxTree.parse_file(source)
       end
 
       def compile_shared_option = %w(-shared -fPIC)
 
       def register_var_and_method(node)
-        return unless node.kind_of?(Parser::AST::Node)
+        return unless node.kind_of?(RubyVM::AbstractSyntaxTree::Node)
         type = node.type
-        if variable_or_method?(type)
-          name, _ = node.children
-          name = [:lvasgn, :arg].include?(type) ? "lvar_#{name}".to_sym : name
-          type == :def ? @defined_methods << name : @defined_variables << name
+        variables, *_ = node.children
+        case type
+        when :SCOPE
+          variables.each { |v| @defined_variables << v }
+        when :DEFN
+          @defined_methods << variables
         end
         node.children.each { |n| register_var_and_method(n) }
+        nil
       end
 
       def already_build_methods? = defined_methods.sort == @doned.to_a.sort
-      def variable_or_method?(type) = [:lvasgn, :arg, :def].include?(type)
 
       def call_compiler(output: precompile, compiler: "gcc", compiler_options: ["-O0"])
         base_name = File.basename(output, ".*")
@@ -69,7 +70,7 @@ module Vaporware
         output.puts "#{method}:"
         define_method_prologue(node, output)
         node.children.each do |child|
-          next unless child.kind_of?(Parser::AST::Node)
+          next unless child.kind_of?(RubyVM::AbstractSyntaxTree::Node)
           to_asm(child, output, true)
         end
         ret(output)
@@ -79,7 +80,7 @@ module Vaporware
 
       def args(node, output)
         node.children.each do |child|
-          name = "arg_#{child.children.first}".to_sym
+          name = "arg_#{child.children.first}".to_sym rescue binding.irb
           lvar(name, output)
           output.puts "  pop rax"
           output.puts "  mov rax, [rax]"
@@ -147,13 +148,16 @@ module Vaporware
       end
 
       def to_asm(node, output, method_tree = false)
-        return unless node.kind_of?(Parser::AST::Node)
+        return unless node.kind_of?(RubyVM::AbstractSyntaxTree::Node)
         type = node.type
         center = case type
-        when :int
+        when :LIT
           output.puts "  push #{node.children.last}"
           return
-        when :begin
+        when :LIST, :BLOCK
+          node.children.each { |n| to_asm(n, output, method_tree) }
+          return
+        when :SCOPE
           node.children.each do |child|
             if already_build_methods? && !@main
               return if shared
@@ -167,27 +171,23 @@ module Vaporware
             to_asm(child, output)
           end
           return
-        when :def
+        when :DEFN
           name, _ = node.children
           method(name, node, output)
           return
-        when :args
-          args(node, output)
-          return
-        when :lvar
+        when :LVAR
           return if method_tree
-          name = "lvar_#{node.children.last}".to_sym
+          name = node.children.last
           lvar(name, output)
           # lvar
           output.puts "  pop rax"
           output.puts "  mov rax, [rax]"
           output.puts "  push rax"
           return
-        when :lvasgn
-          left, right = node.children
+        when :LASGN
+          name, right = node.children
 
           # rvar
-          name = "lvar_#{left}".to_sym
           lvar(name, output)
           to_asm(right, output, method_tree)
 
@@ -197,7 +197,7 @@ module Vaporware
           output.puts "  push rdi"
           output.puts "  pop rax"
           return
-        when :if
+        when :IF
           cond, tblock, fblock = node.children
           to_asm(cond, output)
           output.puts "  pop rax"
@@ -220,7 +220,7 @@ module Vaporware
           end
           @seq += 1
           return
-        when :while
+        when :WHILE
           cond, tblock = node.children
           output.puts ".Lbegin#{seq}:"
           to_asm(cond, output, method_tree)
@@ -233,7 +233,7 @@ module Vaporware
           output.puts ".Lend#{seq}:"
           @seq += 1
           return
-        when :send
+        when :OPCALL
           left, center, right = node.children
           to_asm(left, output, method_tree) unless left.nil?
           if left.nil?
