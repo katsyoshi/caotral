@@ -78,16 +78,6 @@ module Vaporware
         nil
       end
 
-      def args(node, output)
-        node.children.each do |child|
-          name = "arg_#{child.children.first}".to_sym rescue binding.irb
-          lvar(name, output)
-          output.puts "  pop rax"
-          output.puts "  mov rax, [rax]"
-          output.puts "  push rax"
-        end
-      end
-
       def call_method(node, output, method_tree)
         output.puts "  mov rax, rsp"
         output.puts "  mov rdi, 16"
