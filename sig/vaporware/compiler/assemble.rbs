@@ -1,0 +1,9 @@
+class Vaporware::Compiler::Assemble
+  attr_reader input: String
+  attr_reader output: String
+
+  @target_file: File
+
+  def initialize: (String, String) -> void
+  def compile: (?compiler_options: Array[String]) -> void
+end

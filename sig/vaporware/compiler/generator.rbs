@@ -22,7 +22,6 @@ class Vaporware::Compiler::Generator
 
   # instance private methods
   def already_build_methods?: -> bool
-  def call_compiler: (?output: String, ?compiler: String, ?compiler_options: Array[String]) -> void
   def call_method: (RubyVM::AbstractSyntaxTree::Node, File, bool) -> void
   def comp: (String, File) -> void
   def compile_shared_option: () -> Array[String]

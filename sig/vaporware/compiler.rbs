@@ -5,6 +5,8 @@ class Vaporware::Compiler
 
   @generator: Vaporware::Compiler::Generator
   # instance methods
+  def assemble: (?output: String, ?compiler: String, ?compiler_options: Array[String]) -> void
+  def link: (?output: String, ?linker: String, ?linker_options: Array[String]) -> void
   def compile: (?compiler: String, ?compiler_options: Array[String]) -> void
 end
 
