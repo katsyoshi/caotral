@@ -3,13 +3,6 @@
 module Vaporware
   class Compiler
     class Assemble
-      EXEC_ELF_HEADER = %w(
-        7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00
-        01 00 3e 00 01 00 00 00 00 00 00 00 00 00 00 00
-        00 00 00 00 00 00 00 00 20 01 00 00 00 00 00 00
-        00 00 00 00 40 00 00 00 00 00 40 00 08 00 07 00
-      ).map { _1.to_i(16) }.pack("C*")
-
       NOTE_GNU_PROPERTY_SECTION = %w(
         04 00 00 00 20 00 00 00 05 00 00 00 47 4e 55 00
         02 00 01 c0 04 00 00 00 00 00 00 00 00 00 00 00
@@ -33,48 +26,40 @@ module Vaporware
         REX_W: 0x48,
       }
 
-      REGISTER_CODE = {
-        RAX: 0,
-        RDI: 7,
-      }
-
-      OPECODE = {
-        ADD: 0x01,
-        CQO: 0x99,
-        IDIV: 0xf7,
-        IMUL: 0x0f,
-        MOV: 0x89,
-        SUB: 0x83,
-      }.freeze
-
       attr_reader :input, :output
+
       def self.assemble!(input, output = File.basename(input, ".*") + ".o") = new(input, output).assemble
 
-      def initialize(input, output = File.basename(input, ".*") + ".o")
+      def initialize(input, output = File.basename(input, ".*") + ".o", type: :relocator, debug: false)
         @input, @output = input, output
         @target_file = File.open(output, "wb")
+        @elf_header = ELF::Header.new(type:)
+        @text = ELF::Section::Text.new
+        @symtabs = [ELF::Section::Symtab.new, ELF::Section::Symtab.new]
+        @strtab = ELF::Section::Strtab.new
+        @shsymtab = ELF::Section::Shsymtab.new
+        @section_headers = [ELF::SectionHeader.new.set_null!]
+        @debug = debug
       end
 
       def assemble(assemble_command: "as", assemble_options: [], input: @input, f: @target_file)
         read = { main: false }
-        opecodes = []
         program_size = 0
+        text = @section[:text]
         File.open(input, "r") do |r|
           r.each_line do |line|
             read[:main] = /main:/.match(line) unless read[:main]
             next unless read[:main] && !/main:/.match(line)
-            op, *args = line.split(/\s+/).reject{ _1 == "" }.map { _1.gsub(/,/, "") }
-            puts "% 10x: %s\t%s\t%s" % [program_size, opecode(op, args).map{ "%02x" % _1 }.join(" ").ljust(25), op, args.join(", ")]
-            opecodes << opecode(op, args).pack("C*")
-            program_size += opecodes.last.bytesize
+            text.assemble(line)
+            puts "% 10x: %s\t%s\t%s" % [text.size, text.bytes.last.map{ "%02x" % _1 }.join(" ").ljust(25), op, args.join(", ")] if @debug
           end
         end
-        f.write(EXEC_ELF_HEADER)
-        opecodes << [0].pack("C*") until opecodes.map(&:bytesize).sum % 8 == 0
-        opecodes.each { |op| f.write(op) }
+        f.write(@elf_header.build!)
+        text << [0].pack("C*") until text.bytes.map(&:bytesize).sum % 8 == 0
+        @sections.values.map { |section| section.
         section_headers = section_header(str_section_names: "main")
         section_headers << [0].pack("C*") until section_headers.map(&:bytesize).sum % 8 == 0
-        section_headers << null_section_header
+
         ps = ("%016x" % program_size).scan(/.{1,2}/).reverse.map { |p| p.to_i(16) }
         section_headers << text_section_header(name: [0x1b, *[0]*3], size: ps)
         section_headers << data_section_header
@@ -83,7 +68,7 @@ module Vaporware
         section_headers << symtab_section_header
         section_headers << strtab_section_header(size: [0x06, *[0] * 7])
         section_headers << shstrtab_section_header
-        section_headers.map { |section| f.write(section) }
+        section_headers.map { |section| f.write(section.build!) }
         f.close
         f.path
       end
