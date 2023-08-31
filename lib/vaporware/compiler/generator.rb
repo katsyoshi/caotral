@@ -35,7 +35,7 @@ module Vaporware
         base_name = File.basename(input, ".*")
         name = shared ? "lib#{base_name}.so" : base_name
         if compiler.nil?
-          Vaporware::Compiler::Assemble.assemble!(name, input)
+          Vaporware::Compiler::Assembler.assemble!(name, input)
         else
           compile_commands = [compiler, *compiler_options, "-o", name, input].compact
           call_compiler(compile_commands)

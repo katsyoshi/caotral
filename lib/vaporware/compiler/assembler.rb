@@ -1,14 +1,16 @@
 # frozen_string_literal: true
+require_relative "assembler/elf"
+require_relative "assembler/elf/header"
+require_relative "assembler/elf/section"
+require_relative "assembler/elf/section/note"
+require_relative "assembler/elf/section/text"
+require_relative "assembler/elf/section/symtab"
+require_relative "assembler/elf/section/shsymtab"
+require_relative "assembler/elf/section_header"
 
 module Vaporware
   class Compiler
-    class Assemble
-      NOTE_GNU_PROPERTY_SECTION = %w(
-        04 00 00 00 20 00 00 00 05 00 00 00 47 4e 55 00
-        02 00 01 c0 04 00 00 00 00 00 00 00 00 00 00 00
-        01 00 01 c0 04 00 00 00 01 00 00 00 00 00 00 00
-      ).map { _1.to_i(16) }.pack("C*")
-
+    class Assembler
       SYMTAB_SECTION = %w(
         00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
         00 00 00 00 00 00 00 00 01 00 00 00 10 00 01 00
@@ -22,10 +24,6 @@ module Vaporware
         65 2e 67 6e 75 2e 70 72 6f 70 65 72 74 79 00
       ).map { _1.to_i(16) }.pack("C*")
 
-      PREFIX = {
-        REX_W: 0x48,
-      }
-
       attr_reader :input, :output
 
       def self.assemble!(input, output = File.basename(input, ".*") + ".o") = new(input, output).assemble
@@ -34,41 +32,36 @@ module Vaporware
         @input, @output = input, output
         @target_file = File.open(output, "wb")
         @elf_header = ELF::Header.new(type:)
-        @text = ELF::Section::Text.new
-        @symtabs = [ELF::Section::Symtab.new, ELF::Section::Symtab.new]
-        @strtab = ELF::Section::Strtab.new
-        @shsymtab = ELF::Section::Shsymtab.new
-        @section_headers = [ELF::SectionHeader.new.set_null!]
+        @sections = {
+          null: { body: nil, header: ELF::SectionHeader.new.null! },
+          text: { body: ELF::Section::Text.new, header: ELF::SectionHeader.new.text! },
+          note: { body: ELF::Section::Note.new.gnu_property!, header: ELF::SectionHeader.new.note! },
+          symtab: { body: ELF::Section::Symtab.new, header: ELF::SectionHeader.new.symtab! },
+          strtab: { body: ELF::Section::Strtab.new, header: ELF::SectionHeader.new.strtab! },
+          shsymtab: { body: ELF::Section::Shsymtab.new, header: ELF::SectionHeader.new.shsymtab! },
+        }
         @debug = debug
       end
 
       def assemble(assemble_command: "as", assemble_options: [], input: @input, f: @target_file)
         read = { main: false }
         program_size = 0
-        text = @section[:text]
+        text = @section[:text][:body]
         File.open(input, "r") do |r|
           r.each_line do |line|
             read[:main] = /main:/.match(line) unless read[:main]
             next unless read[:main] && !/main:/.match(line)
-            text.assemble(line)
-            puts "% 10x: %s\t%s\t%s" % [text.size, text.bytes.last.map{ "%02x" % _1 }.join(" ").ljust(25), op, args.join(", ")] if @debug
+            text.assemble!(line)
           end
         end
         f.write(@elf_header.build!)
-        text << [0].pack("C*") until text.bytes.map(&:bytesize).sum % 8 == 0
-        @sections.values.map { |section| section.
-        section_headers = section_header(str_section_names: "main")
-        section_headers << [0].pack("C*") until section_headers.map(&:bytesize).sum % 8 == 0
+        bins = []
+        section_headers = []
+        @sections.values.map do |section|
+          bins << section[:body].build
+          section_headers << section[:header].build
+        end
 
-        ps = ("%016x" % program_size).scan(/.{1,2}/).reverse.map { |p| p.to_i(16) }
-        section_headers << text_section_header(name: [0x1b, *[0]*3], size: ps)
-        section_headers << data_section_header
-        section_headers << bss_section_header
-        section_headers << note_section_header
-        section_headers << symtab_section_header
-        section_headers << strtab_section_header(size: [0x06, *[0] * 7])
-        section_headers << shstrtab_section_header
-        section_headers.map { |section| f.write(section.build!) }
         f.close
         f.path
       end

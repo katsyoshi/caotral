@@ -24,7 +24,7 @@ module Vaporware
         compile_commands = [compiler, *compiler_options, "-o", name, input].compact
         call_compiler(compile_commands)
       else
-        Vaporware::Compiler::Assemble.assemble!(input, name)
+        Vaporware::Compiler::Assembler.assemble!(input, name)
       end
 
       File.delete(input) unless debug

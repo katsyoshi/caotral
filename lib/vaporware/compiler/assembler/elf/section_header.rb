@@ -1,66 +1,40 @@
-class Vaporware::Compiler::Assembler::ELF
-  class SectionHeader
-    def initialize(endian: :littel, addr: [0]*8)
-      @name = nil
-      @type = nil
-      @flags = nil
-      @addr = addr
-      @offset = nil
-      @size = nil
-      @link = nil
-      @info = nil
-      @addralign = nil
-      @entsize = nil
-    end
-
-    def build!
-      [
-        @name,
-        @type,
-        @flags,
-        @addr,
-        @offset,
-        @size,
-        @link,
-        @info,
-        @addralign,
-        @entsize,
-      ].flatten.pack("C*")
-    end
-
-    def set!(name: nil, type: nil, flags: nil, addr: nil,
-      offset: nil, size: nil, link: nil, info: nil,
-      addralign: nil, entsize: nil
-    )
-      @name = name if check(name, 4)
-      @type = type if check(type, 4)
-      @flags = flags if check(flags, 8)
-      @addr = addr if check(addr, 8)
-      @offset = offset if check(offset, 8)
-      @size = size if check(size, 8)
-      @link = link if check(link, 4)
-      @info = info if check(info, 4)
-      @addralign = addralign if check(addralign, 8)
-      @entsize = entsize if check(entsize, 8)
-    end
-
-    def set_null!
-      @name = num2bytes(@name, bytes: 4)
-      @type = num2bytes(@type, bytes: 4)
-      @flags = num2bytes(@flags)
-      @addr = num2bytes(@addr)
-      @offset = num2bytes(@offset)
-      @size = num2bytes(@size)
-      @link = num2bytes(@link, bytes: 4)
-      @info = num2bytes(@info, bytes: 4)
-      @addralign = num2bytes(@addralign)
-      @entsize = num2bytes(@entsie)
-   end
-
-    private
-
-    def check(val, bytes) = val.is_a?(Array) && val.all? { |v| v.is_a?(Integer) } && val.size == bytes
-
-    def num2bytes(val, bytes: 8, endian: :littel) = ("%0#{byte}x" % val).scan(/.{1,2}/).map { |x| x.to_i(16) }.then { |a| endian == :littel ? a.reverse : a }
+class Vaporware::Compiler::Assembler::ELF::SectionHeader
+  def initialize
+    @name = nil
+    @type = nil
+    @flags = nil
+    @addr = nil
+    @offset = nil
+    @size = nil
+    @link = nil
+    @info = nil
+    @addralign = nil
+    @entsize = nil
   end
+
+  def build = [@name, @type, @flags, @addr, @offset, @size, @link, @info, @addralign, @entsize,].flatten.pack("C*")
+
+  def set!(name: nil, type: nil, flags: nil, addr: nil,
+           offset: nil, size: nil, link: nil, info: nil,
+           addralign: nil, entsize: nil)
+    @name = num2bytes(name, 4) if check(name, 4)
+    @type = num2bytes(type, 4) if check(type, 4)
+    @flags = num2bytes(flags, 8)  if check(flags, 8)
+    @addr = num2bytes(addr, 8) if check(addr, 8)
+    @offset = num2bytes(offset, 8) if check(offset, 8)
+    @size = num2bytes(size, 8) if check(size, 8)
+    @link = num2bytes(link, 4) if check(link, 4)
+    @info = num2bytes(info, 4) if check(info, 4)
+    @addralign = num2bytes(addralign, 8) if check(addralign, 8)
+    @entsize = num2bytes(entsize, 8) if check(entsize, 8)
+  end
+
+  def null! = set!(name: 0, type: 0, flags: 0, addr: 0, offset: 0, size: 0, link: 0, info: 0, addralign: 0, entsize: 0)
+  def text! = set!(flags: 0x06, addralign: 0x01)
+  def note! = set!(type: 0x07, flags: 0x02, size: 0x30, addralign: 0x08)
+
+  private
+
+  def check(val, bytes) = (val.is_a?(Array) && val.all? { |v| v.is_a?(Integer) } && val.size == bytes) || val.is_a?(Integer)
+  def num2bytes(val, bytes) = ("%0#{bytes}x" % val).scan(/.{1,2}/).map { |x| x.to_i(16) }.reverse
 end
