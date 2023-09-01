@@ -1,0 +1,18 @@
+class Vaporware::Compiler::Assembler::ELF::SectionHeader
+  @name: Array[Integer]
+  @type: Array[Integer]
+  @flags: Array[Integer]
+  @addr: Array[Integer]
+  @offset: Array[Integer]
+  @size: Array[Integer]
+  @link: Array[Integer]
+  @info: Array[Integer]
+  @addralign: Array[Integer]
+  @entsize: Array[Integer]
+
+  def build: () -> String
+  def set!: (?name: Integer, ?type: Integer, ?flags: Integer, ?addr: Integer, ?offset: Integer, ?size: Integer, ?link: Integer, ?info: Integer, ?addralign: Integer, ?entsize: Integer) -> void
+  def null!: () -> void
+  def text!: () -> void
+  def note!: () -> void
+end

@@ -49,6 +49,8 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
       pop(operands)
     when "ret"
       [0xc3]
+    else
+      raise Compiler::Assembler::ERROR
     end
   end
 

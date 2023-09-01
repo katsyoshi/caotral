@@ -12,7 +12,7 @@ class Vaporware::Compiler::Assembler::ELF::SectionHeader
     @entsize = nil
   end
 
-  def build = [@name, @type, @flags, @addr, @offset, @size, @link, @info, @addralign, @entsize,].flatten.pack("C*")
+  def build = bytes.flatten.pack("C*")
 
   def set!(name: nil, type: nil, flags: nil, addr: nil,
            offset: nil, size: nil, link: nil, info: nil,
@@ -34,7 +34,7 @@ class Vaporware::Compiler::Assembler::ELF::SectionHeader
   def note! = set!(type: 0x07, flags: 0x02, size: 0x30, addralign: 0x08)
 
   private
-
+  def bytes = [@name, @type, @flags, @addr, @offset, @size, @link, @info, @addralign, @entsize,]
   def check(val, bytes) = (val.is_a?(Array) && val.all? { |v| v.is_a?(Integer) } && val.size == bytes) || val.is_a?(Integer)
   def num2bytes(val, bytes) = ("%0#{bytes}x" % val).scan(/.{1,2}/).map { |x| x.to_i(16) }.reverse
 end

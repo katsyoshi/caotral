@@ -24,8 +24,6 @@ module Vaporware
         65 2e 67 6e 75 2e 70 72 6f 70 65 72 74 79 00
       ).map { _1.to_i(16) }.pack("C*")
 
-      attr_reader :input, :output
-
       def self.assemble!(input, output = File.basename(input, ".*") + ".o") = new(input, output).assemble
 
       def initialize(input, output = File.basename(input, ".*") + ".o", type: :relocator, debug: false)

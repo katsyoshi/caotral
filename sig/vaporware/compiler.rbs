@@ -9,4 +9,3 @@ class Vaporware::Compiler
   def link: (?output: String, ?linker: String, ?linker_options: Array[String]) -> void
   def compile: (?compiler: String, ?compiler_options: Array[String]) -> void
 end
-

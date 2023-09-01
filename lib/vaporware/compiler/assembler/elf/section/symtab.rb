@@ -1,5 +1,4 @@
 class Vaporware::Compiler::Assembler::ELF::Section::Symtab
-  attr_reader :bytes
   def initialize(name: 0, info: 0, other: 0, shndx: 0, value: 0, size: 0)
     @name = num2bytes(name, 4)
     @info = num2bytes(info, 1)
@@ -7,10 +6,9 @@ class Vaporware::Compiler::Assembler::ELF::Section::Symtab
     @shndx = num2bytes(shndx, 4)
     @value = num2bytes(value, 8)
     @size = num2bytes(size, 8)
-    @bytes = [@name, @info, @other, @shndx, @value, @size]
   end
 
-  def build = @bytes.flatten.pack("C*")
+  def build = bytes.flatten.pack("C*")
 
   def set!(name: nil, info: nil, other: nil, shndx: nil, value: nil, size: nil)
     @name = num2bytes(name, 4) if check(name, 4)
@@ -22,7 +20,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Symtab
   end
 
   private
-
+  def bytes = [@name, @info, @other, @shndx, @value, @size]
   def num2bytes(val, bytes) = ("%0#{bytes}x" % val).scan(/.{1,2}/).map { |v| v.to_i(16) }.revert
   def check(val, bytes) = (val.is_a?(Array) && val.all? { |v| v.is_a?(Integer) } && val.size == bytes) || val.is_a?(Integer)
 end

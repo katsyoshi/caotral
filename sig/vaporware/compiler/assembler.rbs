@@ -1,0 +1,8 @@
+class Vaporware::Compiler::Assembler
+  @input: String
+  @output: String
+  @target_file: File
+  @elf_header: Vaporware::Compiler::Assembler::ELF::Header
+  def initialize: (String, ?String, type: Symbol, debug: bool) -> void
+  def assemble: (?asemble_command: String, ?assemble_options: Array[String], input: String, f: File) -> void
+end

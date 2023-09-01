@@ -1,5 +1,9 @@
 class Vaporware::Compiler::Assembler::ELF::Section::Note
-  def self.gnu_property = new.gnu_property!
+  def self.gnu_property
+    note = new
+    note.gnu_property!
+    note.build
+  end
   def initialize
     @nsize = nil
     @dsize = nil
