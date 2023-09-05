@@ -5,8 +5,7 @@ class VaporwareTest < Test::Unit::TestCase
   def tear_down = File.delete("tmp") rescue File.delete(@generated)
   def test_sample_plus
     @file = "sample/plus.rb"
-    @vaporware = Vaporware::Compiler.new(@file)
-    @vaporware.compile
+    @vaporware = Vaporware::Compiler.compile(@file)
     IO.popen("./tmp").close
     exit_code, handle_code = check_process($?.to_i)
     assert_equal(9, exit_code)
@@ -15,8 +14,7 @@ class VaporwareTest < Test::Unit::TestCase
 
   def test_sample_variable
     @file = "sample/variable.rb"
-    @vaporware = Vaporware::Compiler.new(@file)
-    @vaporware.compile
+    @vaporware = Vaporware::Compiler.compile(@file)
     IO.popen("./tmp").close
     exit_code, handle_code = check_process($?.to_i)
     assert_equal(1, exit_code)
@@ -25,8 +23,7 @@ class VaporwareTest < Test::Unit::TestCase
 
   def test_sample_if
     @file = "sample/if.rb"
-    @vaporware = Vaporware::Compiler.new(@file)
-    @vaporware.compile
+    @vaporware = Vaporware::Compiler.compile(@file)
     IO.popen("./tmp").close
     exit_code, handle_code = check_process($?.to_i)
     assert_equal(1, exit_code)
@@ -35,8 +32,7 @@ class VaporwareTest < Test::Unit::TestCase
 
   def test_sample_else
     @file = "sample/else.rb"
-    @vaporware = Vaporware::Compiler.new(@file)
-    @vaporware.compile
+    @vaporware = Vaporware::Compiler.compile(@file)
     IO.popen("./tmp").close
     exit_code, handle_code = check_process($?.to_i)
     assert_equal(2, exit_code)
@@ -45,8 +41,7 @@ class VaporwareTest < Test::Unit::TestCase
 
   def test_sample_while
     @file = "sample/while.rb"
-    @vaporware = Vaporware::Compiler.new(@file)
-    @vaporware.compile
+    @vaporware = Vaporware::Compiler.compile(@file)
     IO.popen("./tmp").close
     exit_code, handle_code = check_process($?.to_i)
     assert_equal(55, exit_code)
@@ -56,8 +51,7 @@ class VaporwareTest < Test::Unit::TestCase
   def test_sample_call_method
     @generated = "libtmp.so"
     @file = "sample/method.rb"
-    @vaporware = Vaporware::Compiler.new(@file, shared: true)
-    @vaporware.compile
+    @vaporware = Vaporware::Compiler.compile(@file, shared: true)
     require './sample/fiddle.rb'
     assert_equal(10, X.aibo)
   end

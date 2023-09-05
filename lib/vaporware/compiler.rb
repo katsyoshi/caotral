@@ -10,6 +10,7 @@ class Vaporware::Compiler
     s.compile(compiler:, compiler_options:)
     obj_file = s.assemble(input: _precompile, assembler: "as", debug:)
     s.link(obj_file)
+    File.delete(_precompile) if debug
   end
 
   def initialize(source, _precompile: "tmp.s", debug: false, shared: false)
