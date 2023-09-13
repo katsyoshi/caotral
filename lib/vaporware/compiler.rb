@@ -31,7 +31,7 @@ class Vaporware::Compiler
     output
   end
 
-  def link(input:, output: File.basename(input, ".*"), linker: "mold", linker_options: [], dyn_ld_path: ["-dynamic-linker", "/lib64/ld-linux-x86-64.so.2"], ld_path: ["/lib64/libc.so.6", "/usr/lib64/crt1.o"], shared: false)
+  def link(input:, output: File.basename(input, ".*"), linker: "ld", linker_options: [], dyn_ld_path: ["-dynamic-linker", "/lib64/ld-linux-x86-64.so.2"], ld_path: ["/lib64/libc.so.6", "/usr/lib64/crt1.o"], shared: false)
     if shared
       dyn_ld_path = []
       ld_path = ["/usr/lib64/crti.o", "/usr/lib/gcc/x86_64-pc-linux-gnu/13/crtbeginS.o", "/usr/lib/gcc/x86_64-pc-linux-gnu/13/crtendS.o", "/usr/lib64/crtn.o",]

@@ -6,16 +6,16 @@ class Vaporware::Compiler::Assembler::ELF::Header
   @type: Integer
   @arch: Array[Integer]
   @version: Array[Integer]
-  @entry: Array[Integer] | nil
-  @phoffset: Array[Integer] | nil
-  @shoffset: Array[Integer] | nil
+  @entry: Array[Integer]?
+  @phoffset: Array[Integer]?
+  @shoffset: Array[Integer]?
   @flags: Array[Integer]
   @ehsize: Array[Integer]
   @phsize: Array[Integer]
   @ehnum: Array[Integer]
   @shentsize: Array[Integer]
-  @shnum: Array[Integer] | nil
-  @shstrndx: Array[Integer] | nil
+  @shnum: Array[Integer]?
+  @shstrndx: Array[Integer]?
 
   def initialize: (?endian: Symbol, ?type: Symbol, ?arche: Symbol) -> void
   def build: () -> String

@@ -21,6 +21,6 @@ class Vaporware::Compiler::Assembler::ELF::Section::Symtab
 
   private
   def bytes = [@name, @info, @other, @shndx, @value, @size]
-  def num2bytes(val, bytes) = ("%0#{bytes}x" % val).scan(/.{1,2}/).map { |v| v.to_i(16) }.revert
+  def num2bytes(val, bytes) = ("%0#{bytes}x" % val).scan(/.{1,2}/).map { |v| v.to_i(16) }.reverse
   def check(val, bytes) = (val.is_a?(Array) && val.all? { |v| v.is_a?(Integer) } && val.size == bytes) || val.is_a?(Integer)
 end
