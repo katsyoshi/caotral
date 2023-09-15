@@ -1,7 +1,7 @@
 require "vaporware"
 require "test/unit"
 
-class VaporwareTest < Test::Unit::TestCase
+class Vaporware::CompilerTest < Test::Unit::TestCase
   def tear_down = File.delete("tmp") rescue File.delete(@generated)
   def test_sample_plus
     @file = "sample/plus.rb"

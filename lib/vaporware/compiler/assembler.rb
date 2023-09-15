@@ -15,7 +15,7 @@ require_relative "assembler/elf/section_header"
 class Vaporware::Compiler::Assembler
   def self.assemble!(input, output = File.basename(input, ".*") + ".o") = new(input:, output:).assemble
 
-  def initialize(input:, output: File.basename(input, ".*") + ".o", type: :relocator, debug: false)
+  def initialize(input:, output: File.basename(input, ".*") + ".o", assembler: "as", type: :relocator, debug: false)
     @input, @output = input, output
     @elf_header = ELF::Header.new(type:)
     @sections = {
@@ -31,7 +31,18 @@ class Vaporware::Compiler::Assembler
     @debug = debug
   end
 
-  def assemble(assemble_command: "as", assemble_options: [], input: @input, output: @output)
+  def assemble(assembler: "as", assembler_options: [], input: @input, output: @output, debug: false)
+    if ["gcc", "as"].include?(assembler)
+      IO.popen([assembler, *assembler_options, "-o", output, input].join(" ")).close
+    else
+      to_elf(input:, output:)
+    end
+    output
+  end
+  def obj_file = @output
+
+  private
+  def to_elf(input: @input, output: @output, debug: false)
     f = File.open(output, "wb")
     read = { main: false }
     program_size = 0

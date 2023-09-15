@@ -1,4 +1,8 @@
 class Vaporware::Compiler
+  GCC_LD_PATH: String
+  LD_PATH: String
+  DYN_LD_PATH: String
+  SHARED_LD_PATH: String
   # class methods
   def self.compile: (String, ?compiler: String, ?dest: String, ?debug: bool, ?compiler_options: Array[String], ?shared: bool) -> void
   def initialize: (input: String, ?output: String, ?debug: bool, ?shared: bool) -> void
