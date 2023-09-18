@@ -1,7 +1,9 @@
 class Vaporware::Compiler::Assembler
   @input: String
   @output: String
+  @assembler: String
   @elf_header: Vaporware::Compiler::Assembler::ELF::Header
+  @sections: Hash[Symbol, Hash[Symbol, Object]]
   @debug: bool
 
   def initialize: (input: String, ?output: String, ?type: Symbol, ?debug: bool) -> void

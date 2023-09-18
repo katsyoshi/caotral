@@ -1,0 +1,8 @@
+class Vaporware::Compiler::Assembler::ELF::Section::Shsymtab
+  attr_reader size: Integer
+  attr_reader offset: Integer
+
+  def build: () -> String
+  def set!: () -> self
+  private def bytes: () -> Array[Array[Integer]?]
+end

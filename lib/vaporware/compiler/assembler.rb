@@ -1,15 +1,7 @@
 # frozen_string_literal: true
 require_relative "assembler/elf"
 require_relative "assembler/elf/header"
-require_relative "assembler/elf/section"
-require_relative "assembler/elf/section/text"
-require_relative "assembler/elf/section/bss"
-require_relative "assembler/elf/section/data"
-require_relative "assembler/elf/section/note"
-require_relative "assembler/elf/section/symtab"
-require_relative "assembler/elf/section/strtab"
-require_relative "assembler/elf/section/shsymtab"
-require_relative "assembler/elf/section/shstrtab"
+require_relative "assembler/elf/sections"
 require_relative "assembler/elf/section_header"
 
 class Vaporware::Compiler::Assembler
@@ -18,20 +10,12 @@ class Vaporware::Compiler::Assembler
   def initialize(input:, output: File.basename(input, ".*") + ".o", assembler: "as", type: :relocator, debug: false)
     @input, @output = input, output
     @elf_header = ELF::Header.new(type:)
-    @sections = {
-      null: { body: nil, header: ELF::SectionHeader.new.null! },
-      text: { body: ELF::Section::Text.new, header: ELF::SectionHeader.new.text! },
-      data: { body: ELF::Section::Data.new, header: ELF::SectionHeader.new.data! },
-      bss: { body: ELF::Section::BSS.new, header: ELF::SectionHeader.new.bss! },
-      note: { body: ELF::Section::Note.new.gnu_property!, header: ELF::SectionHeader.new.note! },
-      symtab: { body: ELF::Section::Symtab.new, header: ELF::SectionHeader.new.symtab! },
-      strtab: { body: ELF::Section::Strtab.new, header: ELF::SectionHeader.new.strtab! },
-      shsymtab: { body: ELF::Section::Shsymtab.new, header: ELF::SectionHeader.new.shsymtab! },
-    }
+    @assembler = assembler
+    @sections = Vaporware::Compiler::Assembler::ELF::Sections.new
     @debug = debug
   end
 
-  def assemble(assembler: "as", assembler_options: [], input: @input, output: @output, debug: false)
+  def assemble(assembler: @assembler, assembler_options: [], input: @input, output: @output, debug: false)
     if ["gcc", "as"].include?(assembler)
       IO.popen([assembler, *assembler_options, "-o", output, input].join(" ")).close
     else
@@ -41,7 +25,6 @@ class Vaporware::Compiler::Assembler
   end
   def obj_file = @output
 
-  private
   def to_elf(input: @input, output: @output, debug: false)
     f = File.open(output, "wb")
     read = { main: false }

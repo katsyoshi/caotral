@@ -1,2 +1,6 @@
 class Vaporware::Compiler::Assembler::ELF::Section
+  @header: Vaporware::Compiler::Assembler::ELF::SectionHeader
+  @body: Vaporware::Compiler::Assembler::ELF::Section::Text | Vaporware::Compiler::Assembler::ELF::Section | Vaporware::Compiler::Assembler::ELF::Section::Data | Vaporware::Compiler::Assembler::ELF::Section::BSS | Vaporware::Compiler::Assembler::ELF::Section::Symtab | Vaporware::Compiler::Assembler::ELF::Section::Shsymtab | Vaporware::Compiler::Assembler::ELF::Section::Strtab | Vaporware::Compiler::Assembler::ELF::Section::Note
+
+  def initialize: (type: (String | Symbol)) -> void
 end
