@@ -1,4 +1,5 @@
 class Vaporware::Compiler::Assembler::ELF::SectionHeader
+  include Vaporware::Compiler::Assembler::ELF::Utils
   def initialize
     @name = nil
     @type = nil
@@ -33,14 +34,9 @@ class Vaporware::Compiler::Assembler::ELF::SectionHeader
   def null! = set!(name: 0, type: 0, flags: 0, addr: 0, offset: 0, size: 0, link: 0, info: 0, addralign: 0, entsize: 0)
   def text! = set!(flags: 0x06, addralign: 0x01)
   def note! = set!(type: 0x07, flags: 0x02, size: 0x30, addralign: 0x08)
-  def data! = set!
+  def data! = set!()
   def symtab! = set!
   def strtab! = set!
   def bss! = set!
   def shsymtab! = set!
-
-  private
-  def bytes = [@name, @type, @flags, @addr, @offset, @size, @link, @info, @addralign, @entsize,].then { |v| v.compact.size == v.size ? v : raise Vaporware::Error, "must be to fill all attributes" }
-  def check(val, bytes) = (val.is_a?(Array) && val.all? { |v| v.is_a?(Integer) } && val.size == bytes) || val.is_a?(Integer)
-  def num2bytes(val, bytes) = ("%0#{bytes}x" % val).scan(/.{1,2}/).map { |x| x.to_i(16) }.reverse
 end

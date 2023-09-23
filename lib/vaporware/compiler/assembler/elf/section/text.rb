@@ -17,23 +17,16 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     SUB: 0x83,
   }.freeze
 
-  attr_reader :bytes, :size, :offset
-
-  def initialize
-    @bytes = []
-    @size = 0
-    @offset = 0
-  end
+  def initialize = @bytes = []
 
   def assemble!(line)
     op, *operands = line.split(/\s+/).reject { |o| o.empty? }.map { |op| op.gsub(/,/, "") }
     @bytes << opecode(op, *operands)
-    @size += @bytes.last.bytesize
   end
 
-  def align!(bytes)
-    @bytes << [0x00] until @bytes.map(:bytesize).sum % bytes == 0
-  end
+  def build = @bytes.flatten.pack("C*")
+  def size = build.bytesize
+  def align(val, bytes) = (val << [0] until @bytes.map(:bytesize).sum % bytes == 0)
 
   private
 

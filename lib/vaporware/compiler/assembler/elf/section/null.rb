@@ -1,10 +1,7 @@
-class Vaporware::Compiler::Assembler::ELF::Section::BSS
+class Vaporware::Compiler::Assembler::ELF::Section::Null
   include Vaporware::Compiler::Assembler::ELF::Utils
   def initialize = nil
   def build = bytes.flatten.pack("C*")
   def set! = self
-
-  private
-  def bytes = []
-  def check(val, bytes) = false
+  private def bytes = []
 end

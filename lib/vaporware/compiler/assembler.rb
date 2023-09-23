@@ -11,7 +11,7 @@ class Vaporware::Compiler::Assembler
     @input, @output = input, output
     @elf_header = ELF::Header.new(type:)
     @assembler = assembler
-    @sections = Vaporware::Compiler::Assembler::ELF::Sections.new
+    @sections = ELF::Sections.new
     @debug = debug
   end
 
@@ -26,26 +26,39 @@ class Vaporware::Compiler::Assembler
   def obj_file = @output
 
   def to_elf(input: @input, output: @output, debug: false)
-    f = File.open(output, "wb")
-    read = { main: false }
     program_size = 0
-    text = @sections[:text][:body]
+    read(input:)
+    header = @elf_header.build
+
+    offset = 0
+    section_headers = []
+    name = []
+    bins = []
+    @sections.each do |section|
+      name << section.name
+      bin = section.body.build
+      size = bin.bytesize
+      offset += size
+      section.body.align(bin, 8)
+      bins << bin
+      header = section.header
+      header.set!(offset:)
+      section_headers << header.build
+    end
+    f = File.open(output, "wb")
+  ensure
+    f.close
+    f.path
+  end
+
+  def read(input: @input)
+    read = { main: false }
     File.open(input, "r") do |r|
       r.each_line do |line|
         read[:main] = /main:/.match(line) unless read[:main]
         next unless read[:main] && !/main:/.match(line)
-        text.assemble!(line)
+        @sections.text.assemble!(line)
       end
     end
-    f.write(@elf_header.build)
-    bins = []
-    section_headers = []
-    @sections.values.map do |section|
-      bins << section[:body].build
-      section_headers << section[:header].build
-    end
-
-    f.close
-    f.path
   end
 end
