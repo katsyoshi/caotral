@@ -1,0 +1,8 @@
+class Vaporware::Compiler::Assembler::ELF::Section::Shstrtab
+  @strtab: Array[Integer]
+
+  def build: () -> String
+  def set!: (name: String | Array[Integer]) -> self
+  private def bytes: () -> Array[Array[Integer]?]
+  private def set_name: (String | Array[Integer]) -> Array[Integer]?
+end

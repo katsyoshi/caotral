@@ -6,5 +6,7 @@ class Vaporware::Compiler::Assembler::ELF::Sections
   attr_reader note: Vaporware::Compiler::Assembler::ELF::Section
   attr_reader symtab: Vaporware::Compiler::Assembler::ELF::Section
   attr_reader strtab: Vaporware::Compiler::Assembler::ELF::Section
-  attr_reader shsymtab: Vaporware::Compiler::Assembler::ELF::Section
+  attr_reader shstrtab: Vaporware::Compiler::Assembler::ELF::Section
+
+  def each: (){ (Vaporware::Compiler::Assembler::ELF::Section) -> void } -> void
 end
