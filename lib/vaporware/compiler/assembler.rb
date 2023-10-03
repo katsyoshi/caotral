@@ -28,7 +28,7 @@ class Vaporware::Compiler::Assembler
   def to_elf(input: @input, output: @output, debug: false)
     program_size = 0
     read(input:)
-    header = @elf_header.build
+    elf_header = @elf_header.build
 
     offset = 0
     section_headers = []
@@ -51,13 +51,13 @@ class Vaporware::Compiler::Assembler
     f.path
   end
 
-  def read(input: @input)
+  def read(input: @input, text: @sections.text.body)
     read = { main: false }
     File.open(input, "r") do |r|
       r.each_line do |line|
         read[:main] = /main:/.match(line) unless read[:main]
         next unless read[:main] && !/main:/.match(line)
-        @sections.text.assemble!(line)
+        text.assemble!(line)
       end
     end
   end

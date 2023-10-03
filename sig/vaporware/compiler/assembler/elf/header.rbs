@@ -19,7 +19,7 @@ class Vaporware::Compiler::Assembler::ELF::Header
 
   def initialize: (?endian: Symbol, ?type: Symbol, ?arche: Symbol) -> void
   def build: () -> String
-  def set!: (?entry: (nil | Integer), ?phoffset: (nil | Integer), ?shoffset: (nil | Integer), ?shnum: (nil | Integer), ?shstrndx: (nil | Integer)) -> void
+  def set!: (?entry: Integer?, ?phoffset: Integer?, ?shoffset: Integer?, ?shnum: Integer?, ?shstrndx: Integer?) -> void
 
   private
   def check: (Array[Integer] | Integer, Integer) -> bool
