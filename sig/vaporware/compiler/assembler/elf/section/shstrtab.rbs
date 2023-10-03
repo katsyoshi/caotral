@@ -3,6 +3,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Shstrtab
 
   def build: () -> String
   def set!: (name: String | Array[Integer]) -> self
+  def set: (name:  String | Array[Integer]) -> Array[Integer]?
   private def bytes: () -> Array[Array[Integer]?]
-  private def set_name: (String | Array[Integer]) -> Array[Integer]?
+  private def name!: (String | Array[Integer]) -> Array[Integer]?
 end

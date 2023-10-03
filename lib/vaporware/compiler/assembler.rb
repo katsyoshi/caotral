@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require_relative "assembler/elf"
+require_relative "assembler/elf/utils"
 require_relative "assembler/elf/header"
 require_relative "assembler/elf/sections"
 require_relative "assembler/elf/section_header"

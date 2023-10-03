@@ -1,4 +1,4 @@
-module Vaporware::Utils
+module Vaporware::Compiler::Assembler::ELF::Utils
   def build: () -> String
   private def align: (Array[Integer], Integer) -> void
   private def check: (Array[Integer]?, Integer) -> bool

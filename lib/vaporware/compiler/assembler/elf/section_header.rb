@@ -38,5 +38,5 @@ class Vaporware::Compiler::Assembler::ELF::SectionHeader
   def symtab! = set!
   def strtab! = set!
   def bss! = set!
-  def shsymtab! = set!
+  def shstrtab! = set!
 end
