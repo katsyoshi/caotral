@@ -40,7 +40,7 @@ class Vaporware::Compiler::Assembler
       bin = section.body.build
       size = bin.bytesize
       offset += size
-      section.body.align(bin, 8)
+      bin = section.body.align(bin, 8)
       bins << bin
       header = section.header
       header.set!(offset:)

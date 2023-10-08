@@ -15,8 +15,8 @@ class Vaporware::Compiler::Assembler::ELF::Sections
   end
 
   def each(&block)
-    ATTRIBUTES.each do |t|
-      yield t
+    (ATTRIBUTES - [:shstrtab]).each do |t|
+      yield send(t)
     end
   end
 end

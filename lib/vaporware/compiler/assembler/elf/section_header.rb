@@ -39,4 +39,6 @@ class Vaporware::Compiler::Assembler::ELF::SectionHeader
   def strtab! = set!
   def bss! = set!
   def shstrtab! = set!
+
+  private def bytes = [@name, @type, @flags, @addr, @offset, @size, @link, @info, @addralign, @entsize]
 end

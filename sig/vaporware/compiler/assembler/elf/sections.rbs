@@ -1,4 +1,5 @@
 class Vaporware::Compiler::Assembler::ELF::Sections
+  ATTRIBUTES: Array[Symbol]
   attr_reader null: Vaporware::Compiler::Assembler::ELF::Section
   attr_reader text: Vaporware::Compiler::Assembler::ELF::Section
   attr_reader data: Vaporware::Compiler::Assembler::ELF::Section

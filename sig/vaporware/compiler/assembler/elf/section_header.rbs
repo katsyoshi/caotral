@@ -16,7 +16,7 @@ class Vaporware::Compiler::Assembler::ELF::SectionHeader
   def text!: () -> Vaporware::Compiler::Assembler::ELF::SectionHeader
   def note!: () -> Vaporware::Compiler::Assembler::ELF::SectionHeader
 
-  private def bytes: () -> Array[Array[Integer]]
+  private def bytes: () -> Array[Array[Integer]?]
   private def check: ((Array[Integer] | Integer)?, Integer) -> bool
   private def num2bytes: (Integer?, Integer) -> Array[Integer]
 end
