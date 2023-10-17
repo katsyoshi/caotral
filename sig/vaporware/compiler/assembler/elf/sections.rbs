@@ -1,13 +1,15 @@
+use Vaporware::Compiler::Assembler::ELF::Section
+
 class Vaporware::Compiler::Assembler::ELF::Sections
   ATTRIBUTES: Array[Symbol]
-  attr_reader null: Vaporware::Compiler::Assembler::ELF::Section
-  attr_reader text: Vaporware::Compiler::Assembler::ELF::Section
-  attr_reader data: Vaporware::Compiler::Assembler::ELF::Section
-  attr_reader bss: Vaporware::Compiler::Assembler::ELF::Section
-  attr_reader note: Vaporware::Compiler::Assembler::ELF::Section
-  attr_reader symtab: Vaporware::Compiler::Assembler::ELF::Section
-  attr_reader strtab: Vaporware::Compiler::Assembler::ELF::Section
-  attr_reader shstrtab: Vaporware::Compiler::Assembler::ELF::Section
+  attr_reader null: Section
+  attr_reader text: Section
+  attr_reader data: Section
+  attr_reader bss: Section
+  attr_reader note: Section
+  attr_reader symtab: Section
+  attr_reader strtab: Section
+  attr_reader shstrtab: Section
 
   def each: (){ (Vaporware::Compiler::Assembler::ELF::Section) -> void } -> void
 end
