@@ -1,8 +1,10 @@
+use Vaporware::Compiler::Assembler::ELF::Error
+
 module Vaporware::Compiler::Assembler::ELF::Utils
   def build: () -> String
   private def align: (Array[Integer], Integer) -> void
   private def check: ((Array[Integer] | Integer)?, Integer) -> bool
   private def num2bytes: (Integer, Integer) -> Array[Integer]
   private def bytes: () -> Array[Array[Integer]?]
-  private def hexes: (Integer, Integer) -> Array[Array[Integer]?]
+  private def hexas: (Integer, Integer) -> Array[Integer]
 end
