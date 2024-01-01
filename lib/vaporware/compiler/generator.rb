@@ -157,7 +157,7 @@ module Vaporware
         when :LIT, :INTEGER
           output.puts "  push #{node.children.last}"
           return
-        when :LIST, :BLOCK
+        when :LIST, :BLOCK, :BEGIN
           node.children.each { |n| to_asm(n, output, method_tree) }
           return
         when :SCOPE
