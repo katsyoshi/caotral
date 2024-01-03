@@ -5,7 +5,7 @@ class Vaporware::CompilerTest < Test::Unit::TestCase
   def tear_down = File.delete("tmp") rescue File.delete(@generated)
   def test_sample_plus
     @file = "sample/plus.rb"
-    @vaporware = Vaporware::Compiler.compile(@file)
+    @vaporware = Vaporware::Compiler.compile(@file, debug: true)
     IO.popen("./tmp").close
     exit_code, handle_code = check_process($?.to_i)
     assert_equal(9, exit_code)
