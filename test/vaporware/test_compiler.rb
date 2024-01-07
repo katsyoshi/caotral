@@ -51,7 +51,7 @@ class Vaporware::CompilerTest < Test::Unit::TestCase
   def test_sample_call_method
     @generated = "libtmp.so"
     @file = "sample/method.rb"
-    @vaporware = Vaporware::Compiler.compile(@file, shared: true)
+    @vaporware = Vaporware::Compiler.compile(@file, dest: "./libtmp.so", shared: true)
     require './sample/fiddle.rb'
     assert_equal(10, X.aibo)
   end

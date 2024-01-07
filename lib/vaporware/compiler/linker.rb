@@ -10,7 +10,7 @@ class Vaporware::Compiler::Linker
 
   def link(input: @input, output: @output, debug: @debug, shared: @shared) = IO.popen(link_command).close
 
-  def link_command
+  def link_command(input: @input, output: @output, debug: @debug, shared: @shared)
     ld_path = []
     if @shared
       ld_path << "--shared"
@@ -26,6 +26,7 @@ class Vaporware::Compiler::Linker
       # for not static compile
       ld_path << "#{gcc_libpath}/crtend.o"
     end
+
     ld_path << "#{libpath}/libc.so"
     ld_path << "#{libpath}/crtn.o"
     cmd = [@linker, "-o", @output, "-m", "elf_x86_64", *@options, *ld_path, @input].join(' ')
