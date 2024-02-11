@@ -1,4 +1,7 @@
+require_relative "../elf"
+
 class Vaporware::Compiler::Assembler::ELF::Header
+  include Vaporware::Compiler::Assembler::ELF::Utils
   IDENT = [0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, ].freeze
   ELF_FILE_TYPE = { NONE: 0, REL: 1, EXEC: 2, DYN: 3, CORE: 4 }.freeze
 
@@ -20,9 +23,7 @@ class Vaporware::Compiler::Assembler::ELF::Header
   end
 
   def build
-    unless [@entry, @phoffset, @shoffset, @shentsize, @shnum, @shstrndx].all?
-      raise Vaporware::Assembler::ELF::ERROR
-    end
+    raise Vaporware::Compiler::Assembler::ELF::Error, "input for the following variables: #{empties}" unless empties.empty?
     bytes.flatten.pack("C*")
   end
 
@@ -31,15 +32,11 @@ class Vaporware::Compiler::Assembler::ELF::Header
     @phoffset = num2bytes(phoffset, 8) if check(phoffset, 8)
     @shoffset = num2bytes(shoffset, 8) if check(shoffset, 8)
     @shnum = num2bytes(shnum, 4) if check(shnum, 4)
-    @shstrndx = num2bytes(shstrndex, 4) if check(shstrndx, 4)
+    @shstrndx = num2bytes(shstrndx, 4) if check(shstrndx, 4)
   end
 
   private
 
-  def check(val, bytes) =
-    (val.is_a?(Array) && val.all? { |v| v.is_a?(Integer) } && val.size == bytes) || val.is_a?(Integer)
-
-  def num2bytes(val, bytes) = ("%0#{bytes}x" % val).scan(/.{1,2}/).map { |x| x.to_i(16) }.reverse
   def bytes = [
     @e_ident, @type, @machine, @version, @entry, @phoffset,
     @shoffset, @flags, @ehsize, @phsize, @phnum, @shentsize,
