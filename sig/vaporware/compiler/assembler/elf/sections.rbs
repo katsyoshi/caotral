@@ -11,5 +11,6 @@ class Vaporware::Compiler::Assembler::ELF::Sections
   attr_reader strtab: Section
   attr_reader shstrtab: Section
 
+  def initialize: () -> void
   def each: (){ (Vaporware::Compiler::Assembler::ELF::Section) -> void } -> void
 end

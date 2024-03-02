@@ -3,10 +3,12 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
   REGISTER_CODE: Hash[Symbol, Integer]
   OPECODE: Hash[Symbol, Integer]
 
-  attr_reader bytes: Array[Integer]
+  @bytes: Array[untyped]?
+
   attr_reader size: Integer
   attr_reader offset: Integer
 
+  def initialize: () -> void
   def assemble!: (String) -> void
   def align!: (Integer) -> void
 
