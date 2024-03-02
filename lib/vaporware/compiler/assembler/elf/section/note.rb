@@ -20,6 +20,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Note
     @type = num2bytes(type, 4) if check(type, 4)
     @name = name!(name) if name
     @desc = desc!(desc) if desc
+    self
   end
 
   def gnu_property! = set!(nsize: 0x04, dsize: 0x20, type: 0x05, name: "GNU", desc: %w(02 00 01 c0 04 00 00 00 00 00 00 00 00 00 00 00 01 00 01 c0 04 00 00 00 01 00 00 00 00 00 00 00).map { |val| val.to_i(16) })
