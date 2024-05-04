@@ -1,5 +1,5 @@
 class Vaporware::Compiler::Assembler::ELF::Section::Symtab
-  @name: Array[Integer]
+  @name: Array[Integer]?
   @info: Array[Integer]
   @other: Array[Integer]
   @shndx: Array[Integer]
@@ -14,6 +14,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Symtab
   private def desc!: (String) -> void
   private def bytes: () -> Array[Array[Integer]?]
   private def align!: (Array[Integer], Integer) -> void
-  private def num2bytes: (Integer, Integer) -> Array[Integer]
-  private def check: (Integer | Array[Integer], Integer) -> bool
+  private def num2bytes: (Integer?, Integer) -> Array[Integer]
+  private def check: ((String | Integer | Array[Integer])?, Integer) -> bool
+  private def name2bytes: ((String | Integer | Array[Integer])?, Integer) -> Array[Integer]?
 end
