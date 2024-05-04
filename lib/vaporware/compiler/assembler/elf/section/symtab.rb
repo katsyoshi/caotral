@@ -10,7 +10,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Symtab
   end
 
   def set!(name: nil, info: nil, other: nil, shndx: nil, value: nil, size: nil)
-    @name = num2bytes(name, 4) if check(name, 4)
+    @name = name2bytes(name, 4) if check(name, 4)
     @info = num2bytes(info, 1) if check(info, 4)
     @other = num2bytes(other, 1) if check(other, 1)
     @shndx = num2bytes(shndx, 4) if check(shndx, 4)
@@ -20,4 +20,16 @@ class Vaporware::Compiler::Assembler::ELF::Section::Symtab
 
   private
   def bytes = [@name, @info, @other, @shndx, @value, @size]
+  def name2bytes(name, bytes)
+    case name
+    when String
+      name.bytes.reverse
+    when Array
+      name[0..bytes]
+    when Integer
+      num2bytes(name, bytes)
+    else
+      [0] * bytes
+    end
+  end
 end
