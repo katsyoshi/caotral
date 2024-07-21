@@ -26,7 +26,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
 
   def build = @bytes.flatten.pack("C*")
   def size = build.bytesize
-  def align(val, bytes) = (val << [0] until @bytes.map(:bytesize).sum % bytes == 0)
+  def align(val, bytes) = (val << [0] until @bytes.map(&:bytesize).sum % bytes == 0)
 
   private
 
