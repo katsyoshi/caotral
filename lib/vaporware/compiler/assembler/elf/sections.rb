@@ -2,6 +2,7 @@ require_relative "section"
 
 class Vaporware::Compiler::Assembler::ELF::Sections
   ATTRIBUTES = %i|null text data bss note symtab strtab shstrtab|
+  HAND_ASSEMBLES = %i|text shstrtab|
   attr_reader *ATTRIBUTES
   def initialize
     @null = Vaporware::Compiler::Assembler::ELF::Section.new(type: :null)
@@ -14,9 +15,5 @@ class Vaporware::Compiler::Assembler::ELF::Sections
     @shstrtab = Vaporware::Compiler::Assembler::ELF::Section.new(type: :shstrtab)
   end
 
-  def each(&block)
-    (ATTRIBUTES - [:shstrtab]).each do |t|
-      yield send(t)
-    end
-  end
+  def each(&block) = (ATTRIBUTES - HAND_ASSEMBLES).each { |t|  yield send(t) }
 end
