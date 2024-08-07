@@ -1,6 +1,6 @@
 class Vaporware::Compiler::Assembler::ELF::Section::BSS
   include Vaporware::Compiler::Assembler::ELF::Utils
-  def initialize = nil
+  def initialize(**opts) = nil
   def build = bytes.flatten.pack("C*")
   def set! = self
 

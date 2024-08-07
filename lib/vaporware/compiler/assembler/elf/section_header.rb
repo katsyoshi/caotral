@@ -34,10 +34,10 @@ class Vaporware::Compiler::Assembler::ELF::SectionHeader
   def null! = set!(name: 0, type: 0, flags: 0, addr: 0, offset: 0, size: 0, link: 0, info: 0, addralign: 0, entsize: 0)
   def text! = set!(flags: 0x06, addralign: 0x01)
   def note! = set!(type: 0x07, flags: 0x02, size: 0x30, addralign: 0x08)
-  def data! = null!
+  def data! = null! # unsupported in the current implementation
   def symtab! = set!
   def strtab! = set!
-  def bss! = null!
+  def bss! = null! #unsupported in the current implementation
   def shstrtab! = set!
 
   private def bytes = [@name, @type, @flags, @addr, @offset, @size, @link, @info, @addralign, @entsize]
