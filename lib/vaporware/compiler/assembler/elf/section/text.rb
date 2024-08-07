@@ -17,7 +17,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     SUB: 0x83,
   }.freeze
 
-  def initialize = @bytes = []
+  def initialize(**opts) = @bytes = []
 
   def assemble!(line)
     op, *operands = line.split(/\s+/).reject { |o| o.empty? }.map { |op| op.gsub(/,/, "") }

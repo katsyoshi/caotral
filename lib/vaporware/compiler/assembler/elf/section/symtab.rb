@@ -1,6 +1,6 @@
 class Vaporware::Compiler::Assembler::ELF::Section::Symtab
   include Vaporware::Compiler::Assembler::ELF::Utils
-  def initialize
+  def initialize(**opts)
     @name = num2bytes(0, 4)
     @info = num2bytes(0, 1)
     @other = num2bytes(0, 1)

@@ -1,6 +1,6 @@
 class Vaporware::Compiler::Assembler::ELF::Section::Shstrtab
   include Vaporware::Compiler::Assembler::ELF::Utils
-  def initialize = @name = []
+  def initialize(**opts) = @name = []
   def build = bytes.flatten.pack("C*")
   def set!(name:) = (@name << name!(name); self)
 

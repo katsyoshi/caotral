@@ -6,12 +6,13 @@ class Vaporware::Compiler::Assembler::ELF::Section::Note
     note.build
   end
 
-  def initialize
+  def initialize(type: nil)
     @nsize = nil
     @dsize = nil
     @type = nil
     @name = nil
     @desc = nil
+    gnu_property! if type == :gnu
   end
 
   def set!(nsize: nil, dsize: nil, type: nil, name: nil, desc: nil)
