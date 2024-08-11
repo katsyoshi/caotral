@@ -29,27 +29,23 @@ class Vaporware::Compiler::Assembler
   def to_elf(input: @input, output: @output, debug: false)
     program_size = 0
     read(input:)
-    elf_header = @elf_header.build
 
     offset = 0
     section_headers = []
-    name = []
+    names = []
     bins = []
     @sections.each do |section|
-      name << section.name
+      names << name = section.name
       bin = section.body.build
       size = bin.bytesize
       offset += size
-      bin = section.body.align(bin, 8)
       bins << bin
       header = section.header
       header.set!(offset:)
       section_headers << header.build
     end
-    f = File.open(output, "wb")
-  ensure
-    f.close
-    f.path
+    @elf_header.set!(phoffset: offset, shnum: 6, entry: 3, shstrndx: 6, shoffset: offset)
+    [@elf_header.build, *bins]
   end
 
   def read(input: @input, text: @sections.text.body)

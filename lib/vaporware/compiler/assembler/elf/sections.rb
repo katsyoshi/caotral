@@ -2,7 +2,7 @@ require_relative "section"
 
 class Vaporware::Compiler::Assembler::ELF::Sections
   ATTRIBUTES = %i|null text data bss note symtab strtab shstrtab|
-  HAND_ASSEMBLES = %i|text shstrtab note|
+  HAND_ASSEMBLES = %i|text shstrtab note symtab strtab|
   attr_reader *ATTRIBUTES
 
   def initialize
