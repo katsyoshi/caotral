@@ -8,7 +8,7 @@ require_relative "assembler/elf/section_header"
 class Vaporware::Compiler::Assembler
   def self.assemble!(input, output = File.basename(input, ".*") + ".o") = new(input:, output:).assemble
 
-  def initialize(input:, output: File.basename(input, ".*") + ".o", assembler: "as", type: :relocator, debug: false)
+  def initialize(input:, output: File.basename(input, ".*") + ".o", assembler: "as", type: :relocatable, debug: false)
     @input, @output = input, output
     @elf_header = ELF::Header.new(type:)
     @assembler = assembler
@@ -44,7 +44,6 @@ class Vaporware::Compiler::Assembler
       header.set!(offset:)
       section_headers << header.build
     end
-    @elf_header.set!(phoffset: offset, shnum: 6, entry: 3, shstrndx: 6, shoffset: offset)
     [@elf_header.build, *bins]
   end
 

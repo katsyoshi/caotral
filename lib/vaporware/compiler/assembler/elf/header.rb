@@ -2,30 +2,27 @@ require_relative "../elf"
 
 class Vaporware::Compiler::Assembler::ELF::Header
   include Vaporware::Compiler::Assembler::ELF::Utils
-  IDENT = [0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, ].freeze
+  IDENT = [0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00].freeze
   ELF_FILE_TYPE = { NONE: 0, REL: 1, EXEC: 2, DYN: 3, CORE: 4 }.freeze
 
-  def initialize(endian: :littel, type: :reloacatable, arch: :amd64)
-    @e_ident = IDENT
-    @type = ELF_FILE_TYPE[elf(type)]
-    @arch = arch(arch)
+  def initialize(endian: :littel, type: :rel, arc: :amd64)
+    @ident = IDENT
+    @type = num2bytes(ELF_FILE_TYPE[elf(type)], 2)
+    @arch = arch(arc)
     @version = num2bytes(1, 4)
-    @entry = nil
-    @phoffset = nil
-    @shoffset = nil
-    @flags = num2bytes(0, 4)
+    @entry = num2bytes(0x00, 8)
+    @phoffset = num2bytes(0x00, 8)
+    @shoffset = num2bytes(0x0220, 8)
+    @flags = num2bytes(0x00, 4)
     @ehsize = num2bytes(0x40, 2)
     @phsize = num2bytes(0x00, 2)
     @phnum = num2bytes(0x00, 2)
     @shentsize = num2bytes(0x40, 2)
-    @shnum = nil
-    @shstrndx = nil
+    @shnum = num2bytes(0x08, 2)
+    @shstrndx = num2bytes(0x07, 2)
   end
 
-  def build
-    raise Vaporware::Compiler::Assembler::ELF::Error, "input for the following variables: #{empties}" unless empties.empty?
-    bytes.flatten.pack("C*")
-  end
+  def build = bytes.flatten.pack("C*")
 
   def set!(entry: nil, phoffset: nil, shoffset: nil, shnum: nil, shstrndx: nil)
     @entry = num2bytes(entry, 8) if check(entry, 8)
@@ -38,7 +35,7 @@ class Vaporware::Compiler::Assembler::ELF::Header
   private
 
   def bytes = [
-    @e_ident, @type, @machine, @version, @entry, @phoffset,
+    @ident, @type, @arch, @version, @entry, @phoffset,
     @shoffset, @flags, @ehsize, @phsize, @phnum, @shentsize,
     @shnum, @shstrndx
   ]
