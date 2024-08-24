@@ -2,8 +2,10 @@ use Vaporware::Compiler::Assembler::ELF::SectionHeader
 use Vaporware::Compiler::Assembler::ELF::Section::*
 
 class Vaporware::Compiler::Assembler::ELF::Section
-  @header: SectionHeader
-  @body: Text | Null | Data | BSS | Symtab | Shstrtab | Strtab | Note
-
+  attr_reader name: String
+  attr_reader header: SectionHeader
+  attr_reader body: Text | Null | Data | BSS | Symtab | Shstrtab | Strtab | Note
+  attr_reader section_name: String
   def initialize: (type: (String | Symbol)) -> void
+  def name=: (String) -> void
 end

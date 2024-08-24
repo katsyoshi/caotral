@@ -14,5 +14,12 @@ class Vaporware::Compiler::Assembler
   def assemble: (?assembler: String, ?assembler_options: Array[String] | [], ?input: String, ?output: String, ?debug: bool) -> String
   def obj_file: () -> String
   def to_elf: (?input: String, ?output: String, ?debug: bool) -> void
-  def read: (?input: String, ?text: Text) -> void
+  
+  private def read!: (?input: String, ?text: Text) -> void
+  private def init_assemble!: () -> void
+  private def note!: () -> void
+  private def text!: () -> void
+  private def symtab!: () -> void
+  private def strtab!: () -> void
+  private def shstrtab!: () -> void
 end
