@@ -28,33 +28,62 @@ class Vaporware::Compiler::Assembler
 
   def to_elf(input: @input, output: @output, debug: false)
     program_size = 0
-    read(input:)
+    read!(input:)
+    init_assemble!
 
-    offset = 0
+    offset = 0x40
     section_headers = []
     names = []
-    bins = []
+    bodies = {
+      null: nil,
+      text: nil,
+      data: nil,
+      bss: nil,
+      note: nil,
+      symtab: nil,
+      strtab: nil,
+      shstrtab: nil,
+    }
+    name_idx = 0
+    padding = nil
     @sections.each do |section|
-      names << name = section.name
+      name = section.name
+      names << name
+      section.body.set!(name: names.join + "\0") if name == "\0.shstrtab"
       bin = section.body.build
       size = bin.bytesize
-      offset += size
-      bins << bin
+      bin << "\0" until (bin.bytesize % 8) == 0 if ["\0.text", "\0.shstrtab"].include?(name)
+      bodies[section.section_name.to_sym] = bin
       header = section.header
-      header.set!(offset:)
+      padding = bin.size - size if offset > 0x40 && size > 0
+      if offset > 0x40 && size > 0 && padding > 0
+        offset += padding
+        padding = nil
+      end
+        
+      header.set!(name: name_idx, offset:, size:) unless name == ""
+      offset += size
       section_headers << header.build
+      name_idx += name == "" ? 1 : name.size
     end
-    [@elf_header.build, *bins]
+    w = File.open(output, "wb")
+    w.write([@elf_header.build, *bodies.values, *section_headers].join)
+    w.close
+    [@elf_header.build, *bodies.values, *section_headers]
   end
 
-  def read(input: @input, text: @sections.text.body)
+  private
+  def init_assemble! = (note!; symtab!)
+  def read!(input: @input, text: @sections.text.body)
     read = { main: false }
     File.open(input, "r") do |r|
       r.each_line do |line|
-        read[:main] = /main:/.match(line) unless read[:main]
+        read[:main] = line.match(/main:/) unless read[:main]
         next unless read[:main] && !/main:/.match(line)
         text.assemble!(line)
       end
     end
   end
+  def note! = @sections.note.body.gnu_property!
+  def symtab! = @sections.symtab.body.set!(entsize: 0x18, name: 1, info: 0x10, other: 0, shndx: 1)
 end

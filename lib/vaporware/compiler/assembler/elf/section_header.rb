@@ -32,13 +32,13 @@ class Vaporware::Compiler::Assembler::ELF::SectionHeader
   end
 
   def null! = set!(name: 0, type: 0, flags: 0, addr: 0, offset: 0, size: 0, link: 0, info: 0, addralign: 0, entsize: 0)
-  def text! = set!(flags: 0x06, addralign: 0x01)
-  def note! = set!(type: 0x07, flags: 0x02, size: 0x30, addralign: 0x08)
-  def data! = null! # unsupported in the current implementation
-  def symtab! = set!
-  def strtab! = set!
-  def bss! = null! #unsupported in the current implementation
-  def shstrtab! = set!
+  def text! = set!(flags: 0x06, addralign: 0x01, addr: 0, type: 1, entsize: 0, link: 0, info: 0)
+  def data! = set!(type: 0x01, flags: 0x03, addralign: 1, addr: 0, info: 0, link: 0, entsize: 0)
+  def bss! = set!(type: 0x8, flags: 3, addralign: 1, addr: 0, info: 0, link: 0, entsize: 0)
+  def note! = set!(type: 0x07, flags: 0x02, size: 0x30, addralign: 0x08, addr: 0, link: 0, info: 0, entsize: 0)
+  def symtab! = set!(type: 2, info: 1, addr: 0, link: 6, entsize: 0x18, addralign: 8, flags: 0)
+  def strtab! = set!(type: 3, info: 0, addr: 0, link: 0, entsize: 0, addralign: 1, flags: 0)
+  def shstrtab! = set!(type: 3, info: 0, addr: 0, link: 0, entsize: 0, addralign: 1, flags: 0)
 
   private def bytes = [@name, @type, @flags, @addr, @offset, @size, @link, @info, @addralign, @entsize]
 end
