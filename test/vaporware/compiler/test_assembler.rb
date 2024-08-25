@@ -3,15 +3,13 @@ require "test/unit"
 require "tempfile"
 
 class Vaporware::Compiler::Assembler::ELFTest < Test::Unit::TestCase
-  def reference_binary = ""
-
   def test_to_elf
     input = __dir__ + "/amd64.s"
 
     assembler = Vaporware::Compiler::Assembler.new(input:, output: "amd64.o")
     header, null, text, data, bss, note, symtab, strtab, shstrtab, *section_headers = assembler.to_elf
     sh_null, sh_text, sh_data, sh_bss, sh_note, sh_symtab, sh_strtab, sh_shstrtab = section_headers
-    r_header, r_null, r_text, r_data, r_bss, r_note, r_symtab, r_strtab, r_shstrtab, *r_section_headers = readelf
+    r_header, r_null, r_text, r_data, r_bss, r_note, r_symtab, r_strtab, r_shstrtab, *r_section_headers = dumped_references
     r_sh_null, r_sh_text, r_sh_data, r_sh_bss, r_sh_note, r_sh_symtab, r_sh_strtab, r_sh_shstrtab = r_section_headers
     assert_equal(r_header, header.unpack("C*"))
     assert_equal(r_null, null.unpack("C*"))
@@ -34,9 +32,9 @@ class Vaporware::Compiler::Assembler::ELFTest < Test::Unit::TestCase
     assert_equal(r_sh_shstrtab, sh_shstrtab.unpack("C*"))
   end
 
-  def readelf
+  def dumped_references
     [
-      [127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 62, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 64, 0, 8, 0, 7, 0], # elf header
+      [127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 62, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 64, 0, 8, 0, 7, 0], # elf header
       [], # null section
       [85, 72, 137, 229, 72, 131, 236, 0, 106, 1, 106, 2, 95, 88, 72, 1, 248, 80, 106, 3, 95, 88, 72, 15, 175, 199, 80, 106,5, 106, 4, 95, 88, 72, 41, 248, 80, 95, 88, 72, 153, 72, 247, 255, 80, 72, 137, 236, 93, 195], # text section
       [], # data section

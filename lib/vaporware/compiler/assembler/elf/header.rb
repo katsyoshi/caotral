@@ -12,7 +12,7 @@ class Vaporware::Compiler::Assembler::ELF::Header
     @version = num2bytes(1, 4)
     @entry = num2bytes(0x00, 8)
     @phoffset = num2bytes(0x00, 8)
-    @shoffset = num2bytes(0x0220, 8)
+    @shoffset = num2bytes(0x00, 8)
     @flags = num2bytes(0x00, 4)
     @ehsize = num2bytes(0x40, 2)
     @phsize = num2bytes(0x00, 2)
