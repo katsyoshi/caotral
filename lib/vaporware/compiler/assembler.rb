@@ -49,18 +49,18 @@ class Vaporware::Compiler::Assembler
     @sections.each do |section|
       name = section.name
       names << name
-      section.body.set!(name: names.join + "\0") if name == "\0.shstrtab"
+      section.body.set!(name: names.join) if name == "\0.shstrtab"
       bin = section.body.build
       size = bin.bytesize
       bin << "\0" until (bin.bytesize % 8) == 0 if ["\0.text", "\0.shstrtab"].include?(name)
+      bin << "\0" until ((bin.bytesize + offset) % 8) == 0 if ["\0.shstrtab"].include?(name)
       bodies[section.section_name.to_sym] = bin
       header = section.header
-      padding = bin.size - size if offset > 0x40 && size > 0
-      if offset > 0x40 && size > 0 && padding > 0
+      if offset > 0x40 && size > 0 && padding&.>(0)
         offset += padding
         padding = nil
       end
-        
+      padding = bin.size - size if size > 0
       header.set!(name: name_idx, offset:, size:) unless name == ""
       offset += size
       section_headers << header.build
@@ -84,6 +84,9 @@ class Vaporware::Compiler::Assembler
       end
     end
   end
-  def note! = @sections.note.body.gnu_property!
+  def note!
+    @sections.note.body.gnu_property!
+    @sections.note.name = "\0.note.gnu.property"
+  end
   def symtab! = @sections.symtab.body.set!(entsize: 0x18, name: 1, info: 0x10, other: 0, shndx: 1)
 end

@@ -10,9 +10,9 @@ class Vaporware::Compiler::Assembler::ELFTest < Test::Unit::TestCase
 
     assembler = Vaporware::Compiler::Assembler.new(input:, output: "amd64.o")
     header, null, text, data, bss, note, symtab, strtab, shstrtab, *section_headers = assembler.to_elf
-    sh_null, sh_text, sh_data, sh_bss, sh_note, shsymtab, sh_strtab, sh_shstrtab = section_headers
+    sh_null, sh_text, sh_data, sh_bss, sh_note, sh_symtab, sh_strtab, sh_shstrtab = section_headers
     r_header, r_null, r_text, r_data, r_bss, r_note, r_symtab, r_strtab, r_shstrtab, *r_section_headers = readelf
-    r_sh_null, r_sh_text, r_sh_data, r_sh_bss, r_sh_note, * = r_section_headers
+    r_sh_null, r_sh_text, r_sh_data, r_sh_bss, r_sh_note, r_sh_symtab, r_sh_strtab, r_sh_shstrtab = r_section_headers
     assert_equal(r_header, header.unpack("C*"))
     assert_equal(r_null, null.unpack("C*"))
     assert_equal(r_data, data.unpack("C*"))
@@ -29,6 +29,9 @@ class Vaporware::Compiler::Assembler::ELFTest < Test::Unit::TestCase
     assert_equal(r_sh_data, sh_data.unpack("C*"))
     assert_equal(r_sh_bss, sh_bss.unpack("C*"))
     assert_equal(r_sh_note, sh_note.unpack("C*"))
+    assert_equal(r_sh_symtab, sh_symtab.unpack("C*"))
+    assert_equal(r_sh_strtab, sh_strtab.unpack("C*"))
+    assert_equal(r_sh_shstrtab, sh_shstrtab.unpack("C*"))
   end
 
   def readelf
@@ -48,6 +51,9 @@ class Vaporware::Compiler::Assembler::ELFTest < Test::Unit::TestCase
       [7, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], # data
       [13, 0, 0, 0, 8, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], # bss
       [18, 0, 0, 0, 7, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 120, 0, 0, 0, 0, 0, 0, 0, 48, 0, 0, 0, 0, 0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], # note
+      [37, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 168, 0, 0, 0, 0, 0, 0, 0, 48, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0], # symtab
+      [45, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 216, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], # strtab
+      [53, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 222, 0, 0, 0, 0, 0, 0, 0, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], # shstrtab
       [],
     ]
   end
