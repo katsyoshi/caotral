@@ -66,6 +66,7 @@ class Vaporware::Compiler::Assembler
       section_headers << header.build
       name_idx += name == "" ? 1 : name.size
     end
+    @elf_header.set!(shoffset: offset + padding)
     w = File.open(output, "wb")
     w.write([@elf_header.build, *bodies.values, *section_headers].join)
     w.close
