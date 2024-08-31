@@ -2,10 +2,14 @@ require "vaporware"
 require "test/unit"
 
 class Vaporware::CompilerTest < Test::Unit::TestCase
-  def tear_down = File.delete("tmp") rescue File.delete(@generated)
+  def setup = @generated = ["tmp.s", "tmp.o"]
+  def teardown
+    File.delete("tmp") if File.exist?("tmp")
+    @generated.map { File.delete(_1) }
+  end
   def test_sample_plus
     @file = "sample/plus.rb"
-    @vaporware = Vaporware::Compiler.compile(@file, debug: true)
+    @vaporware = Vaporware::Compiler.compile(@file)
     IO.popen("./tmp").close
     exit_code, handle_code = check_process($?.to_i)
     assert_equal(9, exit_code)
@@ -49,7 +53,7 @@ class Vaporware::CompilerTest < Test::Unit::TestCase
   end
 
   def test_sample_call_method
-    @generated = "libtmp.so"
+    @generated = ["libtmp.so", "libtmp.so.o", "libtmp.so.s"]
     @file = "sample/method.rb"
     @vaporware = Vaporware::Compiler.compile(@file, dest: "./libtmp.so", shared: true)
     require './sample/fiddle.rb'
