@@ -1,10 +1,11 @@
 require "vaporware"
 require "test/unit"
 require "tempfile"
+require "pathname"
 
 class Vaporware::Compiler::Assembler::ELFTest < Test::Unit::TestCase
   def test_to_elf
-    input = __dir__ + "/amd64.s"
+    input = Pathname.pwd.join('sample', 'assembler', 'plus.s').to_s
 
     assembler = Vaporware::Compiler::Assembler.new(input:, output: "amd64.o")
     header, null, text, data, bss, note, symtab, strtab, shstrtab, *section_headers = assembler.to_elf
@@ -30,6 +31,7 @@ class Vaporware::Compiler::Assembler::ELFTest < Test::Unit::TestCase
     assert_equal(r_sh_symtab, sh_symtab.unpack("C*"))
     assert_equal(r_sh_strtab, sh_strtab.unpack("C*"))
     assert_equal(r_sh_shstrtab, sh_shstrtab.unpack("C*"))
+    File.delete("amd64.o")
   end
 
   def dumped_references
