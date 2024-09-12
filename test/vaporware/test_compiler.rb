@@ -5,11 +5,11 @@ class Vaporware::CompilerTest < Test::Unit::TestCase
   def setup = @generated = ["tmp.s", "tmp.o"]
   def teardown
     File.delete("tmp") if File.exist?("tmp")
-    @generated.map { File.delete(_1) }
+    @generated.map { File.delete(_1) if File.exist?(_1) }
   end
   def test_sample_plus
     @file = "sample/plus.rb"
-    @vaporware = Vaporware::Compiler.compile(@file)
+    @vaporware = Vaporware::Compiler.compile(@file, assembler: "self")
     IO.popen("./tmp").close
     exit_code, handle_code = check_process($?.to_i)
     assert_equal(9, exit_code)
