@@ -43,7 +43,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     when "ret"
       [0xc3]
     else
-      raise Compiler::Assembler::ERROR
+      raise Vaporware::Compiler::Assembler::ELF::Error, "yet implemented operations: #{op}"
     end
   end
 
@@ -55,7 +55,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
             [0xec]
           else
             operands&.map { reg(_1) }
-          end
+          end # steep:ignore
     [OPECODE[op.upcase.to_sym], *reg]
   end
 
@@ -74,7 +74,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
       [ope_code, 0xec, *num.map { |n| n.to_i(16) }]
     in ["cqo"]
       [0x99]
-    end
+    end # steep:ignore
   end
 
   def push(operands)
@@ -85,7 +85,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
       [0x50]
     else
       [0x6a, *operands.map { reg(_1) }]
-    end
+    end # steep:ignore
   end
 
   def pop(operands)
@@ -94,21 +94,23 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
       [0x58 + REGISTER_CODE[operands.first.upcase.to_sym]]
     in ["rbp"]
       [0x5d]
-    end
+    end # steep:ignore
   end
 
   def reg(r)
     case r
-    in "rsp"
+    when "rsp"
       0xec
-    in "rbp"
+    when "rbp"
       0x5e
-    in "rax"
+    when "rax"
       0x29
-    in "rdi"
+    when "rdi"
       0xf8
-    in /\d+/
+    when /\d+/
       ("%02x" % r).to_i(16)
+    else
+      raise Vaporware::Compiler::Assembler::ELF::Error, "yet implemented operand address: #{r}"
     end
   end
 end

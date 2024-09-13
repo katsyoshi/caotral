@@ -1,4 +1,3 @@
 class Vaporware::Compiler::Assembler::ELF
-  class Error
-  end
+  Error: singleton(StandardError)
 end
