@@ -3,18 +3,18 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
   REGISTER_CODE: Hash[Symbol, Integer]
   OPECODE: Hash[Symbol, Integer]
 
-  @bytes: Array[untyped]?
+  @bytes: Array[untyped]
 
-  attr_reader size: Integer
   attr_reader offset: Integer
 
   def initialize: () -> void
   def assemble!: (String) -> void
   def align!: (Integer) -> void
+  def build: () -> String
 
   private
 
-  def opecode: ((String | Symbol), Array[String]) -> (Array[Integer] | nil)
+  def opecode: ((String | Symbol)?, *String) -> Array[Integer]
   def mov: ((String | Symbol), Array[String]) -> Array[Integer]
   def calc: ((String | Symbol), Array[String]) -> Array[Integer]
   def push: (Array[String]) -> Array[Integer]
