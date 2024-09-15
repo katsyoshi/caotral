@@ -1,3 +1,23 @@
+use Vaporware::Compiler::Assembler::ELF::Header
+use Vaporware::Compiler::Assembler::ELF::Section::Text
+use Vaporware::Compiler::Assembler::ELF::Sections
+
 class Vaporware::Compiler::Assembler::ELF
   Error: singleton(StandardError)
+
+  @input: String
+  @output: String
+  @header: Header
+  @sections: Sections
+
+  def initialize: (type: Symbol, input: String, output: String, debug: bool) -> void
+  def build: (input: String, output: String, ?debug: bool) -> void
+  
+  private def read!: (?input: String, ?text: Text) -> void
+  private def init_assemble!: () -> void
+  private def note!: () -> void
+  private def text!: () -> void
+  private def symtab!: () -> void
+  private def strtab!: () -> void
+  private def shstrtab!: () -> void
 end
