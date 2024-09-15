@@ -85,9 +85,6 @@ class Vaporware::Compiler::Assembler
       end
     end
   end
-  def note!
-    @sections.note.body.gnu_property!
-    @sections.note.name = "\0.note.gnu.property"
-  end
+  def note! = @sections.note.body.null!
   def symtab! = @sections.symtab.body.set!(entsize: 0x18, name: 1, info: 0x10, other: 0, shndx: 1)
 end
