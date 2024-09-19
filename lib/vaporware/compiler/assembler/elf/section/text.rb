@@ -45,9 +45,9 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
       pop(operands)
     when "cmp"
       [PREFIX[:REX_W], *cmp(op, operands)]
-    when "sete"
+    when "sete", "setl"
       sete(op, operands)
-    when "je"
+    when "je", "jmp"
       jump(op, operands)
     when "ret"
       [0xc3]
@@ -57,7 +57,20 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
   end
 
   def jump(op, operands)
-    [0x74, 0x08]
+    case op
+    when "je"
+      [0x74, *jaddr(operands)]
+    when "jmp"
+      [0xeb, *jaddr(operands)]
+    end
+  end
+  def jaddr(operands)
+    case operands
+    in [".Lend0"]
+      [0x08]
+    in [".Lelse0"]
+      [0x0a]
+    end
   end
 
   def mov(op, operands)
@@ -112,9 +125,11 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
   end
 
   def sete(op, operands)
-    case operands
-    in ["al"]
+    case [op, operands]
+    in ["sete", ["al"]]
       [0x0f, 0x94, 0xc0]
+    in ["setl", ["al"]]
+      [0x0f, 0x9c, 0xc0]
     end
   end
 
