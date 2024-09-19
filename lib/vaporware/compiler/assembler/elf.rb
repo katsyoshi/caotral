@@ -66,6 +66,7 @@ class Vaporware::Compiler::Assembler
       r.each_line do |line|
         read[:main] = line.match(/main:/) unless read[:main]
         next unless read[:main] && !/main:/.match(line)
+        next if /\.L.+:/.match(line)
         text.assemble!(line)
       end
       end

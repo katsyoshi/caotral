@@ -9,14 +9,16 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
   }.freeze
 
   OPECODE = {
-    ADD: 0x01,
-    CQO: 0x99,
-    IDIV: 0xf7,
-    IMUL: 0x0f,
-    MOV: 0x89,
-    MOVR: 0x8B,
-    SUB: 0x83,
-  }.freeze
+    ADD:  [0x01],
+    CMP:  [0x39],
+    CQO:  [0x99],
+    IDIV: [0xf7],
+    IMUL: [0x0f],
+    MOV:  [0x89],
+    MOVR: [0x8B],
+    MOVXZ: [0x0f, 0xb7],
+    SUB: [0x83],
+ }.freeze
 
   def initialize(**opts) = @bytes = []
 
@@ -35,17 +37,27 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     case op
     when "push"
       push(operands)
-    when "mov"
+    when "mov", "movzb"
       [PREFIX[:REX_W], *mov(op, operands)]
     when "sub", "add", "imul", "cqo", "idiv"
       [PREFIX[:REX_W], *calc(op, operands)]
     when "pop"
       pop(operands)
+    when "cmp"
+      [PREFIX[:REX_W], *cmp(op, operands)]
+    when "sete"
+      sete(op, operands)
+    when "je"
+      jump(op, operands)
     when "ret"
       [0xc3]
     else
       raise Vaporware::Compiler::Assembler::ELF::Error, "yet implemented operations: #{op}"
     end
+  end
+
+  def jump(op, operands)
+    [0x74, 0x08]
   end
 
   def mov(op, operands)
@@ -58,13 +70,16 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
             [0xec]
           in ["[rax]", "rdi"]
             [0x38]
+          in ["rax", "al"]
+            op = "MOVXZ"
+            [0xc0]
           in ["rax", "[rax]"]
             op = "MOVR"
             [0x00]
           else
             operands&.map { reg(_1) }
           end # steep:ignore
-    [OPECODE[op.upcase.to_sym], *reg]
+    [OPECODE[op.upcase.to_sym], reg].flatten
   end
 
   def calc(op, operands)
@@ -85,6 +100,22 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     in ["cqo"]
       [0x99]
     end # steep:ignore
+  end
+
+  def cmp(op, operands)
+    case operands
+    in ["rax", "rdi"]
+      [0x39, 0xf8]
+    in ["rax", "0"]
+      [0x83, 0xf8, 0x00]
+    end
+  end
+
+  def sete(op, operands)
+    case operands
+    in ["al"]
+      [0x0f, 0x94, 0xc0]
+    end
   end
 
   def push(operands)
