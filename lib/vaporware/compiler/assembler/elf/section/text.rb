@@ -14,6 +14,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     IDIV: 0xf7,
     IMUL: 0x0f,
     MOV: 0x89,
+    MOVR: 0x8B,
     SUB: 0x83,
   }.freeze
 
@@ -26,7 +27,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
 
   def build = @bytes.flatten.pack("C*")
   def size = build.bytesize
-  def align(val, bytes) = (val << [0] until @bytes.map(&:bytesize).sum % bytes == 0)
+  def align(val, bytes) = (val << [0] until build.bytesize % bytes == 0)
 
   private
 
@@ -49,10 +50,17 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
 
   def mov(op, operands)
     reg = case operands
+          in ["rax", "rbp"]
+            [0xe8]
           in ["rbp", "rsp"]
             [0xe5]
           in ["rsp", "rbp"]
             [0xec]
+          in ["[rax]", "rdi"]
+            [0x38]
+          in ["rax", "[rax]"]
+            op = "MOVR"
+            [0x00]
           else
             operands&.map { reg(_1) }
           end # steep:ignore
@@ -72,6 +80,8 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
       [ope_code, 0xff]
     in ["sub", "rsp", *num]
       [ope_code, 0xec, *num.map { |n| n.to_i(16) }]
+    in ["sub", "rax", *num]
+      [ope_code, 0xe8, *num.map { |n| n.to_i(16) }]
     in ["cqo"]
       [0x99]
     end # steep:ignore
