@@ -1,0 +1,30 @@
+class Vaporware::Compiler::Assembler::ELF::Header
+  IDENT: Array[Integer]
+  ELF_FILE_TYPE: Hash[Symbol, Integer]
+
+  @e_ident: Array[Integer]
+  @type: Integer
+  @arch: Array[Integer]
+  @version: Array[Integer]
+  @entry: Array[Integer]?
+  @phoffset: Array[Integer]?
+  @shoffset: Array[Integer]?
+  @flags: Array[Integer]
+  @ehsize: Array[Integer]
+  @phsize: Array[Integer]
+  @ehnum: Array[Integer]
+  @shentsize: Array[Integer]
+  @shnum: Array[Integer]?
+  @shstrndx: Array[Integer]?
+
+  def initialize: (?endian: Symbol, ?type: Symbol, ?arche: Symbol) -> void
+  def build: () -> String
+  def set!: (?entry: Integer?, ?phoffset: Integer?, ?shoffset: Integer?, ?shnum: Integer?, ?shstrndx: Integer?) -> void
+
+  private
+  def check: (Array[Integer] | Integer, Integer) -> bool
+  def num2bytes: (Integer, Integer) -> Array[Integer]
+  def bytes: () -> Array[Array[Integer]]
+  def arch: (String | Symbol) -> Array[Integer]
+  def elf: (String | Symbol) -> Symbol
+end
