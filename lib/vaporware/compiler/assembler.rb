@@ -18,10 +18,20 @@ class Vaporware::Compiler::Assembler
   def assemble(assembler: @assembler, assembler_options: [], input: @input, output: @output, debug: false)
     if ["gcc", "as"].include?(assembler)
       IO.popen([assembler, *assembler_options, "-o", output, input].join(" ")).close
+    elsif ["clang", "llvm"].include?(assembler)
+      IO.open([*clang_assembly(assembler), *assembler_options, "-o", output,input].join(" ")).close
     else
       to_elf(input:, output:, debug:)
     end
     output
+  end
+  def clang_assembly(assembler)
+    case assembler
+    when "clang"
+      "clang"
+    when "llvm"
+      "clang -cc1as -triple x86_64-pc-linux-gnu -filetype obj -target-cpu x86-64 -mrelocation-model pic"
+    end
   end
   def obj_file = @output
   def to_elf(input: @input, output: @output, debug: false) = @elf.build(input:, output:, debug:)
