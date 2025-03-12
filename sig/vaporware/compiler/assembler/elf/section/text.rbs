@@ -1,7 +1,7 @@
 class Vaporware::Compiler::Assembler::ELF::Section::Text
   PREFIX: Hash[Symbol, Integer]
   REGISTER_CODE: Hash[Symbol, Integer]
-  OPECODE: Hash[Symbol, Integer]
+  OPECODE: Hash[Symbol, Array[Integer]]
 
   @bytes: Array[untyped]
 
@@ -15,12 +15,12 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
   private
 
   def opecode: ((String | Symbol)?, *String) -> Array[Integer]
-  def mov: ((String | Symbol), Array[String]) -> Array[Integer]
-  def calc: ((String | Symbol), Array[String]) -> Array[Integer]
-  def push: (Array[String]) -> Array[Integer]
-  def pop: (Array[String]) -> Array[Integer]
-  def jump: ((String | Symbol), Array[String]) -> Array[Integer]
-  def cmp: ((String | Symbol), Array[String]) -> Array[Integer]
+  def mov: ((String | Symbol), *String) -> Array[Integer]
+  def calc: ((String | Symbol), *String) -> Array[Integer]
+  def jump: ((String | Symbol), *String) -> Array[Integer]
+  def push: (*String) -> Array[Integer]
+  def pop: (*String) -> Array[Integer]
+  def cmp: ((String | Symbol), *String) -> Array[Integer]
   def reg: ((String | Symbol)) -> Integer
-  def sete: ((String | Symbol), Array[String]) -> Array[Integer]
+  def sete: ((String | Symbol), *String) -> Array[Integer]
 end

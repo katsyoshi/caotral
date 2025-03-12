@@ -36,19 +36,19 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
   def opecode(op, *operands)
     case op
     when "push"
-      push(operands)
+      push(*operands)
     when "mov", "movzb"
-      [PREFIX[:REX_W], *mov(op, operands)]
+      [PREFIX[:REX_W], *mov(op, *operands)]
     when "sub", "add", "imul", "cqo", "idiv"
-      [PREFIX[:REX_W], *calc(op, operands)]
+      [PREFIX[:REX_W], *calc(op, *operands)]
     when "pop"
-      pop(operands)
+      pop(*operands)
     when "cmp"
-      [PREFIX[:REX_W], *cmp(op, operands)]
+      [PREFIX[:REX_W], *cmp(op, *operands)]
     when "sete", "setl"
-      sete(op, operands)
+      sete(op, *operands)
     when "je", "jmp"
-      jump(op, operands)
+      jump(op, *operands)
     when "ret"
       [0xc3]
     else
@@ -56,7 +56,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     end
   end
 
-  def jump(op, operands)
+  def jump(op, *operands)
     opecode = case op
               when "je"
                 [0x74]
@@ -75,7 +75,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     [opecode, addr].flatten
   end
 
-  def mov(op, operands)
+  def mov(op, *operands)
     reg = case operands
           in ["rax", "rbp"]
             [0xe8]
@@ -97,7 +97,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     [OPECODE[op.upcase.to_sym], reg].flatten
   end
 
-  def calc(op, operands)
+  def calc(op, *operands)
     ope_code = OPECODE[op.upcase.to_sym]
     case [op, *operands]
     in ["sub", "rax", "rdi"]
@@ -117,7 +117,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     end # steep:ignore
   end
 
-  def cmp(op, operands)
+  def cmp(op, *operands)
     case operands
     in ["rax", "rdi"]
       [0x39, 0xf8]
@@ -126,7 +126,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     end # steep:ignore
   end
 
-  def sete(op, operands)
+  def sete(op, *operands)
     case [op, operands]
     in ["sete", ["al"]]
       [0x0f, 0x94, 0xc0]
@@ -135,7 +135,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     end # steep:ignore
   end
 
-  def push(operands)
+  def push(*operands)
     case operands
     in ["rbp"] | ["rdi"]
       [0x55]
@@ -146,7 +146,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     end # steep:ignore
   end
 
-  def pop(operands)
+  def pop(*operands)
     case operands
     in ["rax"] | ["rdi"]
       [0x58 + REGISTER_CODE[operands.first.upcase.to_sym]]
