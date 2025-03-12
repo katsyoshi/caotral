@@ -57,20 +57,22 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
   end
 
   def jump(op, operands)
-    case op
-    when "je"
-      [0x74, *jaddr(operands)]
-    when "jmp"
-      [0xeb, *jaddr(operands)]
-    end
-  end
-  def jaddr(operands)
-    case operands
-    in [".Lend0"]
-      [0x08]
-    in [".Lelse0"]
-      [0x0a]
-    end
+    opecode = case op
+              when "je"
+                [0x74]
+              when "jmp"
+                [0xeb]
+              end
+    addr = case operands
+           in [".Lend0"]
+             [0x08]
+           in [".Lelse0"]
+             [0x0a]
+           in [".Lbegin0"]
+             opecode = [0xe9]
+             [0x48, 0xff, 0xff, 0xff]
+           end # steep:ignore
+    [opecode, addr].flatten
   end
 
   def mov(op, operands)
@@ -121,7 +123,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
       [0x39, 0xf8]
     in ["rax", "0"]
       [0x83, 0xf8, 0x00]
-    end
+    end # steep:ignore
   end
 
   def sete(op, operands)
@@ -130,7 +132,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
       [0x0f, 0x94, 0xc0]
     in ["setl", ["al"]]
       [0x0f, 0x9c, 0xc0]
-    end
+    end # steep:ignore
   end
 
   def push(operands)

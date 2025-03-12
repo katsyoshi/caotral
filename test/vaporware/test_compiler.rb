@@ -45,7 +45,7 @@ class Vaporware::CompilerTest < Test::Unit::TestCase
 
   def test_sample_while
     @file = "sample/while.rb"
-    @vaporware = Vaporware::Compiler.compile(@file)
+    @vaporware = Vaporware::Compiler.compile(@file, assembler: "self")
     IO.popen("./tmp").close
     exit_code, handle_code = check_process($?.to_i)
     assert_equal(55, exit_code)

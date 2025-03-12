@@ -19,5 +19,8 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
   def calc: ((String | Symbol), Array[String]) -> Array[Integer]
   def push: (Array[String]) -> Array[Integer]
   def pop: (Array[String]) -> Array[Integer]
+  def jump: ((String | Symbol), Array[String]) -> Array[Integer]
+  def cmp: ((String | Symbol), Array[String]) -> Array[Integer]
   def reg: ((String | Symbol)) -> Integer
+  def sete: ((String | Symbol), Array[String]) -> Array[Integer]
 end
