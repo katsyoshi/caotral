@@ -141,7 +141,7 @@ module Vaporware
         return unless node.kind_of?(RubyVM::AbstractSyntaxTree::Node)
         type = node.type
         center = case type
-        when :LIT
+        when :LIT, :INTEGER
           output.puts "  push #{node.children.last}"
           return
         when :LIST, :BLOCK
