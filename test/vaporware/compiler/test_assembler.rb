@@ -34,6 +34,16 @@ class Vaporware::Compiler::Assembler::ELFTest < Test::Unit::TestCase
     File.delete("amd64.o")
   end
 
+  def test_assembler_command
+    input = Pathname.pwd.join('sample', 'assembler', 'plus.s').to_s
+    assembler = Vaporware::Compiler::Assembler.new(input:, output: "amd64.o")
+    assert_equal("as", assembler.command("as"))
+    assert_equal("as", assembler.command("gcc"))
+    assert_equal("clang", assembler.command("clang"))
+    assert_match(/clang/, assembler.command("llvm"))
+    assert_raise(Vaporware::Compiler::Assembler::Error) { assembler.command("foo") }
+  end
+
   def dumped_references
     [
       [127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 62, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 64, 0, 8, 0, 7, 0], # elf header

@@ -15,10 +15,9 @@ module Vaporware::Compiler::Assembler::ELF::Utils
   def check(val, bytes) = ((val.is_a?(Array) && val.all? { |v| v.is_a?(Integer) } && val.size == bytes) || (val.is_a?(Integer) && (hexas(val, bytes).size == bytes)))
   def hexas(val, hex) = ("%0#{hex*2}x" % val).scan(/.{1,2}/).map { |v| v.to_i(16) }.then { |list| list.unshift(0) until list.size >= hex; list }
   def build_errors
-    if bytes.any?(&:nil?)
-      errors = []
-      bytes.each_with_index { |v, idx| errors << instance_variables[idx] if v.nil? }
-      raise Vaporware::Compiler::Assembler::ELF::Error, "unaccepted types: #{errors.join(",")}"
-    end
+    return unless bytes.any?(&:nil?)
+    errors = []
+    bytes.each_with_index { |v, idx| errors << instance_variables[idx] if v.nil? }
+    raise Vaporware::Compiler::Assembler::ELF::Error, "unaccepted types: #{errors.join(",")}"
   end
 end
