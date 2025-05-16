@@ -57,6 +57,9 @@ module Vaporware
       def epilogue(output)
         output.puts "  mov rsp, rbp"
         output.puts "  pop rbp"
+        output.puts "  mov rdi, rax"
+        output.puts "  mov rax, 0x3C"
+        output.puts "  syscall"
         output.puts "  ret"
       end
 
@@ -155,7 +158,7 @@ module Vaporware
         type = node.type
         center = case type
         when :LIT, :INTEGER
-          output.puts "  push #{node.children.last}"
+          output.puts "  push 0x#{node.children.last.to_s(16)}"
           return
         when :LIST, :BLOCK, :BEGIN
           node.children.each { |n| to_asm(n, output, method_tree) }

@@ -10,7 +10,7 @@ class Vaporware::Compiler::Assembler
       @header = Header.new(type:)
       @sections = Sections.new
     end
-        
+
     def build(input: @input, output: @output, debug: false)
       program_size = 0
       read!(input:)
@@ -60,6 +60,7 @@ class Vaporware::Compiler::Assembler
 
     private
     def init_assemble! = (note!; symtab!)
+
     def read!(input: @input, text: @sections.text.body)
       read = { main: false }
       File.open(input, "r") do |r|

@@ -18,7 +18,8 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     MOVR: [0x8B],
     MOVXZ: [0x0f, 0xb7],
     SUB: [0x83],
- }.freeze
+  }.freeze
+  HEX_PATTERN = /\A0x[0-9a-fA-F]+\z/.freeze
 
   def initialize(**opts) = @bytes = []
 
@@ -49,6 +50,8 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
       sete(op, *operands)
     when "je", "jmp"
       jump(op, *operands)
+    when "syscall"
+      [0x0f, 0x05]
     when "ret"
       [0xc3]
     else
@@ -91,6 +94,10 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
           in ["rax", "[rax]"]
             op = "MOVR"
             [0x00]
+          in ["rdi", "rax"]
+            [0xC7]
+          in ["rax", HEX_PATTERN]
+            return [0xC7, 0xC0, [operands.last.to_i(16)].pack("L").unpack("C*")]
           else
             operands&.map { reg(_1) }
           end # steep:ignore
@@ -141,8 +148,10 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
       [0x55]
     in ["rax"]
       [0x50]
+    in [HEX_PATTERN]
+       [0x68, [operands[0].to_i(16)].pack("L").unpack("C*")]
     else
-      [0x6a, *operands.map { reg(_1) }]
+      [0x6a, *operands.map { |o| reg(o) }]
     end # steep:ignore
   end
 
@@ -166,9 +175,10 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     when "rdi"
       0xf8
     when /\d+/
-      ("%02x" % r).to_i(16)
+      [r.to_i(16)].pack("C").unpack("C*")
     else
       raise Vaporware::Compiler::Assembler::ELF::Error, "yet implemented operand address: #{r}"
     end
   end
+  def immit(operand) = [operand.to_i(16)].pack("L").unpack("C*")
 end

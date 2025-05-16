@@ -11,7 +11,7 @@ class Vaporware::Compiler::Assembler
   ASSEMBLERS = GCC_ASSEMBLERS + CLANG_ASSEMBLERS
   class Error < StandardError; end
 
-  def self.assemble!(input, output = File.basename(input, ".*") + ".o") = new(input:, output:).assemble
+  def self.assemble!(input, output = File.basename(input, ".*") + ".o", options = {}) = new(input:, output:, **options).assemble
 
   def initialize(input:, output: File.basename(input, ".*") + ".o", assembler: "as", type: :relocatable, debug: false)
     @input, @output = input, output
