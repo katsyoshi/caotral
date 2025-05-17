@@ -175,7 +175,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     when "rdi"
       0xf8
     when /\d+/
-      [r.to_i(16)].pack("C").unpack("C*")
+      r.to_i(16)
     else
       raise Vaporware::Compiler::Assembler::ELF::Error, "yet implemented operand address: #{r}"
     end
