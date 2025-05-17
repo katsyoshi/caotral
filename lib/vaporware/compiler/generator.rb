@@ -57,9 +57,11 @@ module Vaporware
       def epilogue(output)
         output.puts "  mov rsp, rbp"
         output.puts "  pop rbp"
-        output.puts "  mov rdi, rax"
-        output.puts "  mov rax, 0x3C"
-        output.puts "  syscall"
+        unless @shared
+          output.puts "  mov rdi, rax"
+          output.puts "  mov rax, 0x3C"
+          output.puts "  syscall"
+        end
         output.puts "  ret"
       end
 
