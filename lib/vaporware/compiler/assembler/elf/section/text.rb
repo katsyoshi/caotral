@@ -97,7 +97,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
           in ["rdi", "rax"]
             [0xC7]
           in ["rax", HEX_PATTERN]
-            return [0xC7, 0xC0, [operands.last.to_i(16)].pack("L").unpack("C*")]
+            return [0xC7, 0xC0, *immediate(operands[1])]
           else
             operands&.map { reg(_1) }
           end # steep:ignore
@@ -149,7 +149,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     in ["rax"]
       [0x50]
     in [HEX_PATTERN]
-       [0x68, [operands[0].to_i(16)].pack("L").unpack("C*")]
+       [0x68, *immediate(operands.first)]
     else
       [0x6a, *operands.map { |o| reg(o) }]
     end # steep:ignore
@@ -180,5 +180,5 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
       raise Vaporware::Compiler::Assembler::ELF::Error, "yet implemented operand address: #{r}"
     end
   end
-  def immit(operand) = [operand.to_i(16)].pack("L").unpack("C*")
+  def immediate(operand) = [operand.to_i(16)].pack("L").unpack("C*")
 end

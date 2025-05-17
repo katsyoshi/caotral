@@ -23,4 +23,5 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
   def cmp: ((String | Symbol), *String) -> Array[Integer]
   def reg: ((String | Symbol)) -> Integer
   def sete: ((String | Symbol), *String) -> Array[Integer]
+  def immediate: (String) -> Array[(Integer | Float | String)?]
 end
