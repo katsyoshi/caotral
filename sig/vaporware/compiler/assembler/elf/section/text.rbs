@@ -1,0 +1,27 @@
+class Vaporware::Compiler::Assembler::ELF::Section::Text
+  PREFIX: Hash[Symbol, Integer]
+  REGISTER_CODE: Hash[Symbol, Integer]
+  OPECODE: Hash[Symbol, Array[Integer]]
+
+  @bytes: Array[untyped]
+
+  attr_reader offset: Integer
+
+  def initialize: () -> void
+  def assemble!: (String) -> void
+  def align!: (Integer) -> void
+  def build: () -> String
+
+  private
+
+  def opecode: ((String | Symbol)?, *String) -> Array[Integer]
+  def mov: ((String | Symbol), *String) -> Array[Integer]
+  def calc: ((String | Symbol), *String) -> Array[Integer]
+  def jump: ((String | Symbol), *String) -> Array[Integer]
+  def push: (*String) -> Array[Integer]
+  def pop: (*String) -> Array[Integer]
+  def cmp: ((String | Symbol), *String) -> Array[Integer]
+  def reg: ((String | Symbol)) -> Integer
+  def sete: ((String | Symbol), *String) -> Array[Integer]
+  def immediate: (String) -> Array[(Integer | Float | String)?]
+end

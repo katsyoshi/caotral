@@ -1,0 +1,13 @@
+use Vaporware::Compiler::Assembler::ELF
+class Vaporware::Compiler::Assembler
+  @input: String
+  @output: String
+  @assembler: String
+  @elf: ELF
+  @debug: bool
+
+  def initialize: (input: String, ?output: String, ?type: Symbol, ?debug: bool) -> void
+  def assemble: (?assembler: String, ?assembler_options: Array[String] | [], ?input: String, ?output: String, ?debug: bool) -> String
+  def obj_file: () -> String
+  def to_elf: (?input: String, ?output: String, ?debug: bool) -> void
+end

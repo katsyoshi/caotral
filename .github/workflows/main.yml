@@ -14,8 +14,6 @@ jobs:
     strategy:
       matrix:
         ruby:
-          - '3.2'
-          - '3.3'
           - '3.4'
 
     steps:
@@ -25,6 +23,7 @@ jobs:
       with:
         ruby-version: ${{ matrix.ruby }}
         bundler-cache: true
+    - uses: rui314/setup-mold@v1
     - name: Install rbs
       run: bundle exec rbs collection install
     - name: Run type check

@@ -1,30 +1,26 @@
 class Vaporware::Compiler::Generator
   REGISTER: Array[String]
 
-  # attr_accessor and define instance variables
-  @main: bool
-  attr_accessor main (): bool
-
-  # attr_reader for instance variables
-  attr_reader debug: bool
-  attr_reader doned: Set[Symbol]
-  attr_reader defined_methods: Set[Symbol]
-  attr_reader defined_variables: Set[Symbol]
+  # attr_reader
   attr_reader precompile: String
-  attr_reader seq: Integer
-  attr_reader shared: bool
 
-  # temporarily using untyped types since parser.gem's rbs information is unchecked.
-  attr_reader ast: RubyVM::AbstractSyntaxTree::Node
+  @main: bool
+  @debug: bool
+  @doned: Set[Symbol]
+  @defined_methods: Set[Symbol]
+  @defined_variables: Set[Symbol]
+  @seq: Integer
+  @shared: bool
+  @ast: RubyVM::AbstractSyntaxTree::Node
+  @source: String
 
   # class methods
-  def initialize: (String, precompile: String, debug: bool, shared: bool) -> void
+  def initialize: (input: String, ?output: String, ?debug: bool, ?shared: bool) -> void
 
   # instance private methods
   def already_build_methods?: -> bool
-  def call_compiler: (?output: String, ?compiler: String, ?compiler_options: Array[String]) -> void
   def call_method: (RubyVM::AbstractSyntaxTree::Node, File, bool) -> void
-  def comp: (String, File) -> void
+  def compile: () -> void
   def compile_shared_option: () -> Array[String]
   def define_method_prologue: (RubyVM::AbstractSyntaxTree::Node, File) -> void
   def epilogue: (File) -> void
@@ -33,7 +29,7 @@ class Vaporware::Compiler::Generator
   def method: (Symbol, RubyVM::AbstractSyntaxTree::Node, File) -> void
   def prologue: (RubyVM::AbstractSyntaxTree::Node, File) -> void
   def prologue_methods: (File) -> void
-  def register_var_and_method: (RubyVM::AbstractSyntaxTree::Node) -> void
+  def register_var_and_method: (RubyVM::AbstractSyntaxTree::Node?) -> void
   def ret: (File) -> void
   def to_asm: (RubyVM::AbstractSyntaxTree::Node, File, ?bool) -> void
   def variable_or_method?: (Symbol) -> bool

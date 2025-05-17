@@ -5,15 +5,38 @@ module Vaporware
     class Generator
       REGISTER = %w(rdi rsi rdx rcx r8 r9)
       attr_accessor :main
-      attr_reader :ast, :precompile, :debug, :seq, :defined_variables, :doned, :shared, :defined_methods
-      def initialize(source, precompile:, debug:, shared:)
-        @precompile, @debug, @shared = precompile, debug, shared
+      attr_reader :precompile, :shared
+      def initialize(input:, output: File.basename(input, "*") + ".s", debug: false, shared: false)
+        @source, @precompile, @debug, @shared = input, output, debug, shared
         @doned, @defined_methods, @defined_variables = Set.new, Set.new, Set.new
         @seq, @main = 0, false
-        @ast = RubyVM::AbstractSyntaxTree.parse_file(source)
+        @ast = RubyVM::AbstractSyntaxTree.parse_file(@source)
       end
 
       def compile_shared_option = %w(-shared -fPIC)
+      def compile
+        register_var_and_method(@ast)
+
+        output = File.open(@precompile, "w")
+        # prologue
+        output.puts "  .intel_syntax noprefix"
+        if @defined_methods.empty?
+          @main = true
+          output.puts "  .globl main"
+          output.puts "main:"
+          output.puts "  push rbp"
+          output.puts "  mov rbp, rsp"
+          output.puts "  sub rsp, #{@defined_variables.size * 8}"
+          to_asm(@ast, output)
+          epilogue(output)
+        else
+          prologue_methods(output)
+          output.puts "  .globl main" unless @shared
+          to_asm(@ast, output)
+          epilogue(output)
+        end
+        output.close
+      end
 
       def register_var_and_method(node)
         return unless node.kind_of?(RubyVM::AbstractSyntaxTree::Node)
@@ -29,26 +52,21 @@ module Vaporware
         nil
       end
 
-      def already_build_methods? = defined_methods.sort == @doned.to_a.sort
-
-      def call_compiler(output: precompile, compiler: "gcc", compiler_options: ["-O0"])
-        base_name = File.basename(output, ".*")
-        name = shared ? "lib#{base_name}.so" : base_name
-        compile_commands = [compiler, *compiler_options, "-o", name, output].compact
-        IO.popen(compile_commands).close
-
-        File.delete(output) unless debug
-        nil
-      end
+      def already_build_methods? = @defined_methods.sort == @doned.to_a.sort
 
       def epilogue(output)
         output.puts "  mov rsp, rbp"
         output.puts "  pop rbp"
+        unless @shared
+          output.puts "  mov rdi, rax"
+          output.puts "  mov rax, 0x3C"
+          output.puts "  syscall"
+        end
         output.puts "  ret"
       end
 
       def prologue_methods(output)
-        defined_methods.each do |name|
+        @defined_methods.each do |name|
           output.puts ".globl #{name}"
           output.puts ".type #{name}, @function" if shared
         end
@@ -85,10 +103,10 @@ module Vaporware
         output.puts "  idiv rdi"
         output.puts "  mov rax, 0"
         output.puts "  cmp rdi, 0"
-        output.puts "  jne .Lprecall#{seq}"
+        output.puts "  jne .Lprecall#{@seq}"
         output.puts "  push 0"
         output.puts "  mov rax, 1"
-        output.puts ".Lprecall#{seq}:"
+        output.puts ".Lprecall#{@seq}:"
         output.puts "  push rax"
         _, name, *args = node.children
         args.each_with_index do |arg, i|
@@ -99,9 +117,9 @@ module Vaporware
         output.puts "  call #{name}"
         output.puts "  pop rdi"
         output.puts "  cmp rdi, 0"
-        output.puts "  je .Lpostcall#{seq}"
+        output.puts "  je .Lpostcall#{@seq}"
         output.puts "  pop rdi"
-        output.puts ".Lpostcall#{seq}:"
+        output.puts ".Lpostcall#{@seq}:"
         output.puts "  push rax"
         @seq += 1
         nil
@@ -142,9 +160,9 @@ module Vaporware
         type = node.type
         center = case type
         when :LIT, :INTEGER
-          output.puts "  push #{node.children.last}"
+          output.puts "  push 0x#{node.children.last.to_s(16)}"
           return
-        when :LIST, :BLOCK
+        when :LIST, :BLOCK, :BEGIN
           node.children.each { |n| to_asm(n, output, method_tree) }
           return
         when :SCOPE
@@ -194,33 +212,33 @@ module Vaporware
           output.puts "  push rax"
           output.puts "  cmp rax, 0"
           if fblock
-            output.puts "  je .Lelse#{seq}"
+            output.puts "  je .Lelse#{@seq}"
             to_asm(tblock, output, method_tree)
             ret(output)
-            output.puts "  jmp .Lend#{seq}"
-            output.puts ".Lelse#{seq}:"
+            output.puts "  jmp .Lend#{@seq}"
+            output.puts ".Lelse#{@seq}:"
             to_asm(fblock, output, method_tree)
             ret(output)
-            output.puts ".Lend#{seq}:"
+            output.puts ".Lend#{@seq}:"
           else
-            output.puts "  je .Lend#{seq}"
+            output.puts "  je .Lend#{@seq}"
             to_asm(tblock, output, method_tree)
             ret(output)
-            output.puts ".Lend#{seq}:"
+            output.puts ".Lend#{@seq}:"
           end
           @seq += 1
           return
         when :WHILE
           cond, tblock = node.children
-          output.puts ".Lbegin#{seq}:"
+          output.puts ".Lbegin#{@seq}:"
           to_asm(cond, output, method_tree)
           output.puts "  pop rax"
           output.puts "  push rax"
           output.puts "  cmp rax, 0"
-          output.puts "  je .Lend#{seq}"
+          output.puts "  je .Lend#{@seq}"
           to_asm(tblock, output, method_tree)
-          output.puts "  jmp .Lbegin#{seq}"
-          output.puts ".Lend#{seq}:"
+          output.puts "  jmp .Lbegin#{@seq}"
+          output.puts ".Lend#{@seq}:"
           @seq += 1
           return
         when :OPCALL
