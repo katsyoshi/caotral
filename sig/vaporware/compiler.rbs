@@ -4,14 +4,8 @@ class Vaporware::Compiler
   DYN_LD_PATH: String
   SHARED_LD_PATH: String
   # class methods
-  def self.compile: (String, ?assembler: String, ?linker: String, ?dest: String, ?debug: bool, ?compiler_options: Array[String], ?linker_options: Array[String], ?shared: bool) -> void
-  def initialize: (input: String, ?output: String, ?assembler: String, ?linker: String, ?debug: bool, ?shared: bool) -> void
+  def self.compile!: (input: String, ?output: String, ?compiler_options: Array[String], ?debug: bool, ?shared: bool) -> void
+  def initialize: (input: String, output: String, ?debug: bool, ?shared: bool) -> void
 
-  @generator: Vaporware::Compiler::Generator
-  @assembler: Vaporware::Compiler::Assembler
-  # instance methods
-  def assemble: (input: String, ?output: String, ?assembler: String, ?assembler_options: Array[String]?, ?debug: bool) -> String
-  def link: (input: String, ?output: String, ?linker: String, ?linker_options: Array[String], ?shared: bool) -> void
-  def compile: (?compiler_options: Array[String]) -> void
-  def call_command: (Array[String]) -> void
+  def compile: (compiler_options: Array[String]) -> String
 end

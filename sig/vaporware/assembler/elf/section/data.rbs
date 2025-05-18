@@ -1,0 +1,11 @@
+class Vaporware::Assembler::ELF::Section::Data
+  PREFIX: Hash[Symbol, Integer]
+  REGISTER_CODE: Hash[Symbol, Integer]
+  OPECODE: Hash[Symbol, Integer]
+
+  attr_reader bytes: Array[Integer]
+  attr_reader size: Integer
+  attr_reader offset: Integer
+
+  def build: () -> String
+end

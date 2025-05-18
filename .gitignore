@@ -11,3 +11,5 @@
 /*.s
 /*.so
 /.gem_rbs_collection
+/node_modules
+/package*.json
