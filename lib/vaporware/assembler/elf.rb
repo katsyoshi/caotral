@@ -1,4 +1,4 @@
-class Vaporware::Compiler::Assembler
+class Vaporware::Assembler
   class ELF
     class Error < StandardError; end
     class Section; end

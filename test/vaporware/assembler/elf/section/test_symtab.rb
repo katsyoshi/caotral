@@ -1,8 +1,8 @@
 require "vaporware"
 require "test/unit"
 
-class Vaporware::Compiler::Assembler::ELF::Section::TestSymtab < Test::Unit::TestCase
-  def setup = @symtab = Vaporware::Compiler::Assembler::ELF::Section::Symtab.new
+class Vaporware::Assembler::ELF::Section::TestSymtab < Test::Unit::TestCase
+  def setup = @symtab = Vaporware::Assembler::ELF::Section::Symtab.new
 
   def test_default_values
     binary = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00".force_encoding("ASCII-8BIT")

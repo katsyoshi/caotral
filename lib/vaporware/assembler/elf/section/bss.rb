@@ -1,5 +1,5 @@
-class Vaporware::Compiler::Assembler::ELF::Section::BSS
-  include Vaporware::Compiler::Assembler::ELF::Utils
+class Vaporware::Assembler::ELF::Section::BSS
+  include Vaporware::Assembler::ELF::Utils
   def initialize(**opts) = nil
   def build = bytes.flatten.pack("C*")
   def set! = self

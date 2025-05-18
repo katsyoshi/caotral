@@ -1,4 +1,4 @@
-class Vaporware::Compiler::Assembler::ELF::Section::Text
+class Vaporware::Assembler::ELF::Section::Text
   PREFIX = {
     REX_W: 0x48,
   }.freeze
@@ -55,7 +55,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     when "ret"
       [0xc3]
     else
-      raise Vaporware::Compiler::Assembler::ELF::Error, "yet implemented operations: #{op}"
+      raise Vaporware::Assembler::ELF::Error, "yet implemented operations: #{op}"
     end
   end
 
@@ -177,7 +177,7 @@ class Vaporware::Compiler::Assembler::ELF::Section::Text
     when /\d+/
       r.to_i(16)
     else
-      raise Vaporware::Compiler::Assembler::ELF::Error, "yet implemented operand address: #{r}"
+      raise Vaporware::Assembler::ELF::Error, "yet implemented operand address: #{r}"
     end
   end
   def immediate(operand) = [operand.to_i(16)].pack("L").unpack("C*")

@@ -1,8 +1,8 @@
 require "vaporware"
 require "test/unit"
 
-class Vaporware::Compiler::Assembler::ELF::SectionHeaderTest < Test::Unit::TestCase
-  def setup = @section_header = Vaporware::Compiler::Assembler::ELF::SectionHeader.new
+class Vaporware::Assembler::ELF::SectionHeaderTest < Test::Unit::TestCase
+  def setup = @section_header = Vaporware::Assembler::ELF::SectionHeader.new
   def test_null!
     assert(@section_header.null!)
     assert_equal(@section_header.build.size, 64)

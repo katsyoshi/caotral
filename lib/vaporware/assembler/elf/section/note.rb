@@ -1,5 +1,5 @@
-class Vaporware::Compiler::Assembler::ELF::Section::Note
-  include Vaporware::Compiler::Assembler::ELF::Utils
+class Vaporware::Assembler::ELF::Section::Note
+  include Vaporware::Assembler::ELF::Utils
 
   def self.gnu_property = new.gnu_property!.build
   def self.null = new.null!.build

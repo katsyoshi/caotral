@@ -3,11 +3,11 @@ require "test/unit"
 require "tempfile"
 require "pathname"
 
-class Vaporware::Compiler::Assembler::ELFTest < Test::Unit::TestCase
+class Vaporware::Assembler::ELFTest < Test::Unit::TestCase
   def test_to_elf
     input = Pathname.pwd.join('sample', 'assembler', 'plus.s').to_s
 
-    assembler = Vaporware::Compiler::Assembler.new(input:, output: "amd64.o")
+    assembler = Vaporware::Assembler.new(input:, output: "amd64.o")
     header, null, text, data, bss, note, symtab, strtab, shstrtab, *section_headers = assembler.to_elf
     sh_null, sh_text, sh_data, sh_bss, sh_note, sh_symtab, sh_strtab, sh_shstrtab = section_headers
     r_header, r_null, r_text, r_data, r_bss, r_note, r_symtab, r_strtab, r_shstrtab, *r_section_headers = dumped_references
@@ -36,12 +36,12 @@ class Vaporware::Compiler::Assembler::ELFTest < Test::Unit::TestCase
 
   def test_assembler_command
     input = Pathname.pwd.join('sample', 'assembler', 'plus.s').to_s
-    assembler = Vaporware::Compiler::Assembler.new(input:, output: "amd64.o")
+    assembler = Vaporware::Assembler.new(input:, output: "amd64.o")
     assert_equal("as", assembler.command("as"))
     assert_equal("as", assembler.command("gcc"))
     assert_equal("clang", assembler.command("clang"))
     assert_match(/clang/, assembler.command("llvm"))
-    assert_raise(Vaporware::Compiler::Assembler::Error) { assembler.command("foo") }
+    assert_raise(Vaporware::Assembler::Error) { assembler.command("foo") }
   end
 
   def dumped_references

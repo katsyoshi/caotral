@@ -1,6 +1,6 @@
 # frozen_string_literal: true
-class Vaporware::Compiler::Linker
-  def self.link!(source, dest = "a.out", linker: "mold", options: []) = new(input: source, output: dest, linker:, options:).link
+class Vaporware::Linker
+  def self.link!(input:, output: "a.out", linker: "mold", debug: false, shared: false) = new(input:, output:, linker:, debug:, shared:).link
 
   def initialize(input:, output: "a.out", linker: "mold", linker_options: [], shared: false, debug: false)
     @input, @output, @linker = input, output, linker

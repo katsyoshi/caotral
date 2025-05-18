@@ -5,13 +5,13 @@ require_relative "assembler/elf/header"
 require_relative "assembler/elf/sections"
 require_relative "assembler/elf/section_header"
 
-class Vaporware::Compiler::Assembler
+class Vaporware::Assembler
   GCC_ASSEMBLERS = ["gcc", "as"]
   CLANG_ASSEMBLERS = ["clang", "llvm"]
   ASSEMBLERS = GCC_ASSEMBLERS + CLANG_ASSEMBLERS
   class Error < StandardError; end
 
-  def self.assemble!(input, output = File.basename(input, ".*") + ".o", options = {}) = new(input:, output:, **options).assemble
+  def self.assemble!(input:, output: File.basename(input, ".*") + ".o", assembler: "as", debug: false) = new(input:, output:, assembler:, debug:).assemble
 
   def initialize(input:, output: File.basename(input, ".*") + ".o", assembler: "as", type: :relocatable, debug: false)
     @input, @output = input, output

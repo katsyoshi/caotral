@@ -1,5 +1,5 @@
-class Vaporware::Compiler::Assembler::ELF::Section::Symtab
-  include Vaporware::Compiler::Assembler::ELF::Utils
+class Vaporware::Assembler::ELF::Section::Symtab
+  include Vaporware::Assembler::ELF::Utils
   def initialize(**opts)
     @entsize = []
     @name = num2bytes(0, 4)
