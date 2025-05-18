@@ -1,7 +1,7 @@
-use Vaporware::Compiler::Assembler::ELF::SectionHeader
-use Vaporware::Compiler::Assembler::ELF::Section::*
+use Vaporware::Assembler::ELF::SectionHeader
+use Vaporware::Assembler::ELF::Section::*
 
-class Vaporware::Compiler::Assembler::ELF::Section
+class Vaporware::Assembler::ELF::Section
   attr_reader name: String
   attr_reader header: SectionHeader
   attr_reader body: Text | Null | Data | BSS | Symtab | Shstrtab | Strtab | Note

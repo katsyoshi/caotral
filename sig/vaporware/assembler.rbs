@@ -1,5 +1,5 @@
-use Vaporware::Compiler::Assembler::ELF
-class Vaporware::Compiler::Assembler
+use Vaporware::Assembler::ELF
+class Vaporware::Assembler
   @input: String
   @output: String
   @assembler: String

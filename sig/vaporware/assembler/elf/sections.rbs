@@ -1,6 +1,6 @@
-use Vaporware::Compiler::Assembler::ELF::Section
+use Vaporware::Assembler::ELF::Section
 
-class Vaporware::Compiler::Assembler::ELF::Sections
+class Vaporware::Assembler::ELF::Sections
   ATTRIBUTES: Array[Symbol]
   attr_reader null: Section
   attr_reader text: Section
@@ -12,5 +12,5 @@ class Vaporware::Compiler::Assembler::ELF::Sections
   attr_reader shstrtab: Section
 
   def initialize: () -> void
-  def each: (){ (Vaporware::Compiler::Assembler::ELF::Section) -> void } -> void
+  def each: (){ (Vaporware::Assembler::ELF::Section) -> void } -> void
 end

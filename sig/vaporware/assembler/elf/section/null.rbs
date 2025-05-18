@@ -1,0 +1,2 @@
+class Vaporware::Assembler::ELF::Section::Null
+end

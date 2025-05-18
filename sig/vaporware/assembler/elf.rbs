@@ -1,8 +1,8 @@
-use Vaporware::Compiler::Assembler::ELF::Header
-use Vaporware::Compiler::Assembler::ELF::Section::Text
-use Vaporware::Compiler::Assembler::ELF::Sections
+use Vaporware::Assembler::ELF::Header
+use Vaporware::Assembler::ELF::Section::Text
+use Vaporware::Assembler::ELF::Sections
 
-class Vaporware::Compiler::Assembler::ELF
+class Vaporware::Assembler::ELF
   Error: singleton(StandardError)
 
   @input: String

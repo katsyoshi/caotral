@@ -1,6 +1,6 @@
-use Vaporware::Compiler::Assembler::ELF::Error
+use Vaporware::Assembler::ELF::Error
 
-module Vaporware::Compiler::Assembler::ELF::Utils
+module Vaporware::Assembler::ELF::Utils
   def build: () -> String
   def size: () -> Integer
   def empties: () -> Array[Symbol]

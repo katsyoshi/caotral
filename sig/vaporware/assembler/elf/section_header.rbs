@@ -1,6 +1,6 @@
-use Vaporware::Compiler::Assembler::ELF
+use Vaporware::Assembler::ELF
 
-class Vaporware::Compiler::Assembler::ELF::SectionHeader
+class Vaporware::Assembler::ELF::SectionHeader
   @name: Array[Integer]?
   @type: Array[Integer]?
   @flags: Array[Integer]?
@@ -13,7 +13,7 @@ class Vaporware::Compiler::Assembler::ELF::SectionHeader
   @entsize: Array[Integer]?
 
   def build: () -> String
-  def set!: (?name: Integer?, ?type: Integer?, ?flags: Integer?, ?addr: Integer?, ?offset: Integer?, ?size: Integer?, ?link: Integer?, ?info: Integer?, ?addralign: Integer?, ?entsize: Integer?) -> Vaporware::Compiler::Assembler::ELF::SectionHeader
+  def set!: (?name: Integer?, ?type: Integer?, ?flags: Integer?, ?addr: Integer?, ?offset: Integer?, ?size: Integer?, ?link: Integer?, ?info: Integer?, ?addralign: Integer?, ?entsize: Integer?) -> Vaporware::Assembler::ELF::SectionHeader
   def null!: () -> ELF::SectionHeader
   def text!: () -> ELF::SectionHeader
   def note!: () -> ELF::SectionHeader

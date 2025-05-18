@@ -1,4 +1,4 @@
-class Vaporware::Compiler::Assembler::ELF::Header
+class Vaporware::Assembler::ELF::Header
   IDENT: Array[Integer]
   ELF_FILE_TYPE: Hash[Symbol, Integer]
 

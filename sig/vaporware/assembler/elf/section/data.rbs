@@ -1,4 +1,4 @@
-class Vaporware::Compiler::Assembler::ELF::Section::Data
+class Vaporware::Assembler::ELF::Section::Data
   PREFIX: Hash[Symbol, Integer]
   REGISTER_CODE: Hash[Symbol, Integer]
   OPECODE: Hash[Symbol, Integer]
