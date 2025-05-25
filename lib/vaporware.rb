@@ -12,8 +12,17 @@ module Vaporware
     d = File.expand_path(output)
     basename = "#{File.dirname(d)}/#{File.basename(d, ".*")}"
     execf = "#{basename}#{File.extname(d)}"
-    compiler = Vaporware::Compiler.compile!(input:, output: basename + ".s", debug:, compiler_options:, shared:)
-    assembler = Vaporware::Assembler.assemble!(input: basename+".s", output: basename+".o", assembler:, debug:)
-    linker = Vaporware::Linker.link!(input: basename+".o", output: execf, linker:, debug:, shared:)
+    compile(input:, output: basename+".s", debug:, shared:)
+    assemble(input: basename+".s", output: basename+".o", assembler:, debug:, shared:)
+    link(input: basename+".o", output: execf, linker:, debug:, shared:)
+  end
+  def compile(input:, output: "tmp.s", debug: false, shared: false)
+    Vaporware::Compiler.compile!(input:, output:, debug:)
+  end
+  def assemble(input:, output: "tmp.o", debug: false, shared: false, assembler: "as")
+    Vaporware::Assembler.assemble!(input:, output:, debug:, assembler:, shared:)
+  end
+  def link(input:, output: "tmp", linker: "ld", debug: false, shared: false)
+    Vaporware::Linker.link!(input:, output:, linker:, debug:, shared:)
   end
 end
