@@ -3,21 +3,81 @@
 require "vaporware"
 require "optparse"
 opt = OptionParser.new
-options = {}
-opt.on("-c", "--compiler[=VAL]", "this option is selecting compiler precompiled file, default: \"self\"") { |v| options[:compiler] = v }
-opt.on("-a", "--assembler[=VAL]", "this option is selecting assembler assembler file, default: \"as\"") { |v| options[:assembler] = v }
-opt.on("-D", "--debug") { |v| options[:debug] = v }
-opt.on("-o", "--objects[=VAL]") { |v| options[:dest] = v }
-opt.on("--compiler-options[=VAL]", "compiler options") { |v| options[:compiler_options] = v.split(",") }
-opt.on("-s", "--shared-library") { |v| options[:shared] = v }
-opt.on("-l", "--linker[=VAL]", "selecting linker: gold, lld, and mold, default: \"gold\".") { |v| options[:linker] = v }
+options = {
+  compile: true,
+  assembly: true,
+  link: true,
+}
+
+subcommands = Hash.new do |hash, key|
+  $stderr.puts "no such subcommand: #{key}"
+  exit 1
+end
+
+subcommands["compile"] = OptionParser.new do |opt|
+  opt.on("-o", "--output=FILE", "Output file name") { |v| options[:output] = v }
+  opt.on("-c", "--assembly-only", "Assembly only, do not link") { options[:link] = false }
+  opt.on("-S", "--compile-only", "Compile only, do not assemble") do
+    options[:assembly] = false
+    options[:link] = false
+  end
+  opt.on("-a", "--assembler=ASSEMBLER", "Specify the assembler to use (e.g., as, gas)") { |v| options[:assembler] = v }
+  opt.on("-l", "--linker=LINKER", "Specify the linker to use (e.g., gold, lld, mold)") { |v| options[:linker] = v }
+
+  opt.on("-s", "--shared", "Compile as shared object") { options[:shared] = true }
+  opt.on("-d", "--debug", "Compile with debug information") { options[:debug] = true }
+end
+
+subcommands["assemble"] = OptionParser.new do |opt|
+  opt.on("-o", "--output=FILE", "Output file name") { |v| options[:output] = v }
+  opt.on("-a", "--assembler=ASSEMBLER", "Specify the assembler to use (e.g., as, gas)") { |v| options[:assembler] = v }
+
+  opt.on("-s", "--shared", "Compile as shared object") { options[:shared] = true }
+  opt.on("-d", "--debug", "Compile with debug information") { options[:debug] = true }
+end
+
+subcommands["link"] = OptionParser.new do |opt|
+  opt.on("-o", "--output=FILE", "Output file name") { |v| options[:output] = v }
+  opt.on("-l", "--linker=LINKER", "Specify the linker to use (e.g., gold, lld, mold)") { |v| options[:linker] = v }
+
+  opt.on("-s", "--shared", "Compile as shared object") { options[:shared] = true }
+  opt.on("-d", "--debug", "Compile with debug information") { options[:debug] = true }
+end
 
 begin
-  opt.parse!(ARGV)
+  subcommands[ARGV.shift].parse!(ARGV) if ARGV.any?
   raise "please compile target file" if ARGV.empty?
 rescue => e
   STDERR.puts(e.message)
   exit 1
 end
 
-Vaporware::Compiler.compile!(input: ARGV.shift, **options)
+assembler, linker = nil, nil, nil
+assembler = options[:assembler] || "self" 
+linker = options[:linker] || "mold"
+debug = options[:debug] || false
+output = options[:output] || "a.out"
+input = ARGV.first
+shared = options[:shared] || false
+
+if File.extname(input) == ".s"
+  options[:assembly] = true
+  options[:compile] = false
+end
+
+basename = File.expand_path(File.basename(input, ".*"))
+
+output = basename + ".s"
+Vaporware.compile(input:, output:, debug:) if options[:compile]
+input, output = output, basename + ".o"
+if options[:assembly]
+  Vaporware.assemble(input:, output:, assembler:, debug:)
+  File.delete(input) if File.exist?(input) && !debug
+end
+if options[:link]
+  input, output = output, basename
+  output = options[:output] || output
+  output += ".so" if options[:shared]
+  Vaporware.link(input:, output:, debug:, shared:, linker:) if options[:link]
+  File.delete(input) if File.exist?(input) && !debug
+end
