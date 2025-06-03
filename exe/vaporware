@@ -5,7 +5,7 @@ require "optparse"
 opt = OptionParser.new
 options = {
   compile: true,
-  assembly: true,
+  assemble: true,
   link: true,
 }
 
@@ -16,9 +16,9 @@ end
 
 subcommands["compile"] = OptionParser.new do |opt|
   opt.on("-o", "--output=FILE", "Output file name") { |v| options[:output] = v }
-  opt.on("-c", "--assembly-only", "Assembly only, do not link") { options[:link] = false }
+  opt.on("-c", "--assemble-only", "Assembly only, do not link") { options[:link] = false }
   opt.on("-S", "--compile-only", "Compile only, do not assemble") do
-    options[:assembly] = false
+    options[:assemble] = false
     options[:link] = false
   end
   opt.on("-a", "--assembler=ASSEMBLER", "Specify the assembler to use (e.g., as, gas)") { |v| options[:assembler] = v }
@@ -31,6 +31,7 @@ end
 subcommands["assemble"] = OptionParser.new do |opt|
   opt.on("-o", "--output=FILE", "Output file name") { |v| options[:output] = v }
   opt.on("-a", "--assembler=ASSEMBLER", "Specify the assembler to use (e.g., as, gas)") { |v| options[:assembler] = v }
+  opt.on("-c", "--assemble-only", "Assemble only, do not link") { options[:link] = false }
 
   opt.on("-s", "--shared", "Compile as shared object") { options[:shared] = true }
   opt.on("-d", "--debug", "Compile with debug information") { options[:debug] = true }
@@ -61,7 +62,7 @@ input = ARGV.first
 shared = options[:shared] || false
 
 if File.extname(input) == ".s"
-  options[:assembly] = true
+  options[:assemble] = true
   options[:compile] = false
 end
 
@@ -71,14 +72,14 @@ extname = File.extname(output) == ".so"
 output = basename + ".s"
 Vaporware.compile(input:, output:, debug:) if options[:compile]
 input, output = output, basename + ".o"
-if options[:assembly]
+if options[:assemble]
   Vaporware.assemble(input:, output:, assembler:, debug:)
-  File.delete(input) if File.exist?(input) && !debug
+  File.delete(input) if File.exist?(input) && !debug && File.extname(input) != ".s"
 end
 if options[:link]
   input, output = output, basename
   output = options[:output] || output
   output += ".so" if options[:shared] && !extname
   Vaporware.link(input:, output:, debug:, shared:, linker:) if options[:link]
-  File.delete(input) if File.exist?(input) && !debug
+  File.delete(input) if File.exist?(input) && !debug && File.extname(input) != ".o"
 end
