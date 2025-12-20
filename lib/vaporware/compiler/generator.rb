@@ -33,7 +33,6 @@ module Vaporware
           prologue_methods(output)
           output.puts "  .globl main" unless @shared
           to_asm(@ast, output)
-          epilogue(output)
         end
         output.close
       end
@@ -76,10 +75,12 @@ module Vaporware
       def define_method_prologue(node, output)
         output.puts "  push rbp"
         output.puts "  mov rbp, rsp"
-        output.puts "  sub rsp, #{lvar_offset(nil) * 8}"
-        _name, args, _block = node.children
-        args.children.each_with_index do |_, i|
-          output.puts "  mov [rbp-#{(i + 1) * 8}], #{REGISTER[i]}"
+        unless @defined_variables.empty?
+          output.puts "  sub rsp, #{lvar_offset(nil) * 8}"
+          _name, args, _block = node.children
+          args.children.each_with_index do |_, i|
+            output.puts "  mov [rbp-#{(i + 1) * 8}], #{REGISTER[i]}"
+          end
         end
         nil
       end
@@ -149,7 +150,6 @@ module Vaporware
       end
 
       def ret(output)
-        output.puts "  pop rax"
         output.puts "  mov rsp, rbp"
         output.puts "  pop rbp"
         output.puts "  ret"
@@ -160,7 +160,7 @@ module Vaporware
         type = node.type
         center = case type
         when :LIT, :INTEGER
-          output.puts "  push 0x#{node.children.last.to_s(16)}"
+          output.puts "  mov rax, 0x#{node.children.last.to_s(16)}"
           return
         when :LIST, :BLOCK, :BEGIN
           node.children.each { |n| to_asm(n, output, method_tree) }

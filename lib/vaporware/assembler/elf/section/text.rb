@@ -21,20 +21,75 @@ class Vaporware::Assembler::ELF::Section::Text
   }.freeze
   HEX_PATTERN = /\A0x[0-9a-fA-F]+\z/.freeze
 
-  def initialize(**opts) = @bytes = []
-
-  def assemble!(line)
-    op, *operands = line.split(/\s+/).reject { |o| o.empty? }.map { |op| op.gsub(/,/, "") }
-    @bytes << opecode(op, *operands)
+  def initialize(**opts)
+    @bytes = []
+    @lines = []
+    @label_positions = {}
   end
 
-  def build = @bytes.flatten.pack("C*")
+  def assemble!(line)
+    line = line.strip
+    return if line.empty?
+    @lines << line
+  end
+
+  def build
+    @label_positions.clear
+    offset = 0
+    @lines.each do |line|
+      label = label_name(line)
+      if label
+        @label_positions[label] = offset
+        next
+      end
+      offset += instruction_size(line)
+    end
+
+    @bytes = []
+    offset = 0
+    @lines.each do |line|
+      next if label_name(line)
+      bytes = encode(line, offset)
+      @bytes << bytes
+      offset += bytes.size
+    end
+
+    @bytes.flatten.pack("C*")
+  end
+
   def size = build.bytesize
   def align(val, bytes) = (val << [0] until build.bytesize % bytes == 0)
 
   private
 
-  def opecode(op, *operands)
+  def encode(line, offset)
+    op, *operands = parse_line(line)
+    opecode(op, offset, *operands)
+  end
+
+  def parse_line(line)
+    line.split(/\s+/).reject { |o| o.empty? }.map { |op| op.gsub(/,/, "") }
+  end
+
+  def label_name(line)
+    return nil unless line.end_with?(":")
+
+    line.delete_suffix(":")
+  end
+
+  def instruction_size(line)
+    op, *operands = parse_line(line)
+    case op
+    when "je"
+      6
+    when "jmp"
+      5
+    else
+      opecode(op, 0, *operands).size
+    end
+  end
+
+  def opecode(op, offset, *operands)
     case op
     when "push"
       push(*operands)
@@ -49,7 +104,7 @@ class Vaporware::Assembler::ELF::Section::Text
     when "sete", "setl"
       sete(op, *operands)
     when "je", "jmp"
-      jump(op, *operands)
+      jump(op, offset, *operands)
     when "syscall"
       [0x0f, 0x05]
     when "ret"
@@ -59,23 +114,20 @@ class Vaporware::Assembler::ELF::Section::Text
     end
   end
 
-  def jump(op, *operands)
-    opecode = case op
-              when "je"
-                [0x74]
-              when "jmp"
-                [0xeb]
-              end
-    addr = case operands
-           in [".Lend0"]
-             [0x08]
-           in [".Lelse0"]
-             [0x0a]
-           in [".Lbegin0"]
-             opecode = [0xe9]
-             [0x48, 0xff, 0xff, 0xff]
-           end # steep:ignore
-    [opecode, addr].flatten
+  def jump(op, offset, *operands)
+    label = operands.first
+    target = @label_positions.fetch(label) do
+      raise Vaporware::Compiler::Assembler::ELF::Error, "unknown label: #{label}"
+    end
+    size = op == "je" ? 6 : 5
+    rel = target - (offset + size)
+    displacement = [rel].pack("l<").unpack("C*")
+    case op
+    when "je"
+      [0x0f, 0x84, *displacement]
+    when "jmp"
+      [0xe9, *displacement]
+    end
   end
 
   def mov(op, *operands)
