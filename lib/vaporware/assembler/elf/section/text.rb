@@ -18,6 +18,7 @@ class Vaporware::Assembler::ELF::Section::Text
     MOVR: [0x8B],
     MOVXZ: [0x0f, 0xb7],
     SUB: [0x83],
+    XOR: [0x31],
   }.freeze
   HEX_PATTERN = /\A0x[0-9a-fA-F]+\z/.freeze
 
@@ -91,6 +92,8 @@ class Vaporware::Assembler::ELF::Section::Text
       [PREFIX[:REX_W], *mov(op, *operands)]
     when "sub", "add", "imul", "cqo", "idiv"
       [PREFIX[:REX_W], *calc(op, *operands)]
+    when "xor"
+      [PREFIX[:REX_W], *calc_bit(op, *operands)]
     when "pop"
       pop(*operands)
     when "cmp"
@@ -169,6 +172,15 @@ class Vaporware::Assembler::ELF::Section::Text
       [ope_code, 0xe8, *num.map { |n| n.to_i(16) }]
     in ["cqo"]
       [0x99]
+    end # steep:ignore
+  end
+
+  def calc_bit(op, *operands)
+    case [op, *operands]
+    in ["xor", "rax", "rax"]
+      [0x31, 0xc0]
+    in ["xor", "rdi", "rdi"]
+      [0x31, 0xff]
     end # steep:ignore
   end
 
