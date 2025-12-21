@@ -4,8 +4,14 @@ class Vaporware::Assembler::ELF::Section::Text
   }.freeze
 
   REGISTER_CODE = {
-    RAX: 0,
-    RDI: 7,
+    RAX: 0b000,
+    RCX: 0b001,
+    RDX: 0b010,
+    RBX: 0b011,
+    RSP: 0b100,
+    RBP: 0b101,
+    RSI: 0b110,
+    RDI: 0b111,
   }.freeze
 
   OPECODE = {
@@ -94,6 +100,8 @@ class Vaporware::Assembler::ELF::Section::Text
       [PREFIX[:REX_W], *calc(op, *operands)]
     when "xor"
       [PREFIX[:REX_W], *calc_bit(op, *operands)]
+    when "lea"
+      [PREFIX[:REX_W], *calc_addr(op, *operands)]
     when "pop"
       pop(*operands)
     when "cmp"
@@ -184,6 +192,14 @@ class Vaporware::Assembler::ELF::Section::Text
     end # steep:ignore
   end
 
+  def calc_addr(op, *operands)
+    case [op, *operands]
+    in ["lea", "rax", *addrs]
+      rm, disp = parse_addressing_mode(addrs.first)
+      [0x8D, *mod_rm(0b01, 0b000, rm), disp]
+    end # steep:ignore
+  end
+
   def cmp(op, *operands)
     case operands
     in ["rax", "rdi"]
@@ -241,4 +257,9 @@ class Vaporware::Assembler::ELF::Section::Text
     end
   end
   def immediate(operand) = [operand.to_i(16)].pack("L").unpack("C*")
+  def mod_rm(mod, reg, rm) = (mod << 6) | (reg << 3) | rm
+  def parse_addressing_mode(str)
+    m = str.match(/\[(?<reg>\w+)(?<disp>[\+\-]\d+)?\]/)
+    [REGISTER_CODE[m[:reg].upcase.to_sym], m[:disp].to_i & 0xff]
+  end
 end

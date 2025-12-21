@@ -8,7 +8,7 @@ require "steep/cli"
 task default: %i[test]
 
 Rake::TestTask.new do |t|
-  t.test_files = FileList['test/test*.rb', 'test/**/test*.rb']
+  t.test_files = FileList['test/test*.rb', 'test/**/test*.rb', 'test/**/*_test.rb']
 end
 
 namespace :steep do
