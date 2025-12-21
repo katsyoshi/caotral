@@ -33,7 +33,6 @@ module Vaporware
           prologue_methods(output)
           output.puts "  .globl main" unless @shared
           to_asm(@ast, output)
-          epilogue(output)
         end
         output.close
       end
@@ -76,10 +75,12 @@ module Vaporware
       def define_method_prologue(node, output)
         output.puts "  push rbp"
         output.puts "  mov rbp, rsp"
-        output.puts "  sub rsp, #{lvar_offset(nil) * 8}"
-        _name, args, _block = node.children
-        args.children.each_with_index do |_, i|
-          output.puts "  mov [rbp-#{(i + 1) * 8}], #{REGISTER[i]}"
+        unless @defined_variables.empty?
+          output.puts "  sub rsp, #{lvar_offset(nil) * 8}"
+          _name, args, _block = node.children
+          args.children.each_with_index do |_, i|
+            output.puts "  mov [rbp-#{(i + 1) * 8}], #{REGISTER[i]}"
+          end
         end
         nil
       end
@@ -91,6 +92,7 @@ module Vaporware
           next unless child.kind_of?(RubyVM::AbstractSyntaxTree::Node)
           to_asm(child, output, true)
         end
+        output.puts "  pop rax"
         ret(output)
         @doned << method
         nil
@@ -149,7 +151,6 @@ module Vaporware
       end
 
       def ret(output)
-        output.puts "  pop rax"
         output.puts "  mov rsp, rbp"
         output.puts "  pop rbp"
         output.puts "  ret"
@@ -214,17 +215,21 @@ module Vaporware
           if fblock
             output.puts "  je .Lelse#{@seq}"
             to_asm(tblock, output, method_tree)
-            ret(output)
+            output.puts "  pop rax"
             output.puts "  jmp .Lend#{@seq}"
             output.puts ".Lelse#{@seq}:"
             to_asm(fblock, output, method_tree)
-            ret(output)
+            output.puts "  pop rax"
             output.puts ".Lend#{@seq}:"
           else
-            output.puts "  je .Lend#{@seq}"
-            to_asm(tblock, output, method_tree)
-            ret(output)
-            output.puts ".Lend#{@seq}:"
+            if method_tree
+              to_asm(tblock, output, method_tree)
+              ret(output)
+            else
+              output.puts "  je .Lend#{@seq}"
+              to_asm(tblock, output, method_tree)
+              output.puts ".Lend#{@seq}:"
+            end
           end
           @seq += 1
           return

@@ -20,4 +20,4 @@ rescue => e
   exit 1
 end
 
-Vaporware::Compiler.compile(ARGV.shift, **options)
+Vaporware::Compiler.compile!(input: ARGV.shift, **options)
