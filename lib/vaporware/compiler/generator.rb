@@ -92,6 +92,7 @@ module Vaporware
           next unless child.kind_of?(RubyVM::AbstractSyntaxTree::Node)
           to_asm(child, output, true)
         end
+        output.puts "  pop rax"
         ret(output)
         @doned << method
         nil
@@ -160,7 +161,7 @@ module Vaporware
         type = node.type
         center = case type
         when :LIT, :INTEGER
-          output.puts "  mov rax, 0x#{node.children.last.to_s(16)}"
+          output.puts "  push 0x#{node.children.last.to_s(16)}"
           return
         when :LIST, :BLOCK, :BEGIN
           node.children.each { |n| to_asm(n, output, method_tree) }
@@ -214,17 +215,21 @@ module Vaporware
           if fblock
             output.puts "  je .Lelse#{@seq}"
             to_asm(tblock, output, method_tree)
-            ret(output)
+            output.puts "  pop rax"
             output.puts "  jmp .Lend#{@seq}"
             output.puts ".Lelse#{@seq}:"
             to_asm(fblock, output, method_tree)
-            ret(output)
+            output.puts "  pop rax"
             output.puts ".Lend#{@seq}:"
           else
-            output.puts "  je .Lend#{@seq}"
-            to_asm(tblock, output, method_tree)
-            ret(output)
-            output.puts ".Lend#{@seq}:"
+            if method_tree
+              to_asm(tblock, output, method_tree)
+              ret(output)
+            else
+              output.puts "  je .Lend#{@seq}"
+              to_asm(tblock, output, method_tree)
+              output.puts ".Lend#{@seq}:"
+            end
           end
           @seq += 1
           return
