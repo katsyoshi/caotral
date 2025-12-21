@@ -23,33 +23,32 @@ class Vaporware::Assembler::ELF::Section::Text
 
   def initialize(**opts)
     @bytes = []
-    @lines = []
+    @entries = []
     @label_positions = {}
   end
 
   def assemble!(line)
     line = line.strip
     return if line.empty?
-    @lines << line
+    @entries << parse_line(line)
   end
 
   def build
     @label_positions.clear
     offset = 0
-    @lines.each do |line|
-      label = label_name(line)
-      if label
-        @label_positions[label] = offset
+    @entries.each do |entry|
+      if entry[:label]
+        @label_positions[entry[:label]] = offset
         next
       end
-      offset += instruction_size(line)
+      offset += entry[:size]
     end
 
     @bytes = []
     offset = 0
-    @lines.each do |line|
-      next if label_name(line)
-      bytes = encode(line, offset)
+    @entries.each do |entry|
+      next if entry[:label]
+      bytes = encode(entry, offset)
       @bytes << bytes
       offset += bytes.size
     end
@@ -62,25 +61,20 @@ class Vaporware::Assembler::ELF::Section::Text
 
   private
 
-  def encode(line, offset)
-    op, *operands = parse_line(line)
-    opecode(op, offset, *operands)
+  def encode(entry, offset)
+    opecode(entry[:op], offset, *entry[:operands])
   end
 
   def parse_line(line)
-    line.split(/\s+/).reject { |o| o.empty? }.map { |op| op.gsub(/,/, "") }
+    return { label: line.delete_suffix(":"), size: 0 } if line.end_with?(":")
+    op, *operands = line.split(/\s+/).reject(&:empty?).map { it.gsub(/,/, "") }
+    size = instruction_size(op, *operands)
+    { op:, operands:, size: }
   end
 
-  def label_name(line)
-    return nil unless line.end_with?(":")
-
-    line.delete_suffix(":")
-  end
-
-  def instruction_size(line)
-    op, *operands = parse_line(line)
+  def instruction_size(op, *operands)
     case op
-    when "je"
+    when "je", "jne"
       6
     when "jmp"
       5
@@ -103,7 +97,7 @@ class Vaporware::Assembler::ELF::Section::Text
       [PREFIX[:REX_W], *cmp(op, *operands)]
     when "sete", "setl"
       sete(op, *operands)
-    when "je", "jmp"
+    when "je", "jmp", "jne"
       jump(op, offset, *operands)
     when "syscall"
       [0x0f, 0x05]
@@ -119,7 +113,7 @@ class Vaporware::Assembler::ELF::Section::Text
     target = @label_positions.fetch(label) do
       raise Vaporware::Compiler::Assembler::ELF::Error, "unknown label: #{label}"
     end
-    size = op == "je" ? 6 : 5
+    size = instruction_size(op, label)
     rel = target - (offset + size)
     displacement = [rel].pack("l<").unpack("C*")
     case op
@@ -127,6 +121,8 @@ class Vaporware::Assembler::ELF::Section::Text
       [0x0f, 0x84, *displacement]
     when "jmp"
       [0xe9, *displacement]
+    when "jne"
+      [0x0f, 0x85, *displacement]
     end
   end
 
