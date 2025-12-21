@@ -13,7 +13,6 @@ main:
   pop rax
   mov rsp, rbp
   pop rbp
-  ret
   jmp .Lend0
 .Lelse0:
   push 2

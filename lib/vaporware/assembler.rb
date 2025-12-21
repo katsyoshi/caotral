@@ -6,12 +6,12 @@ require_relative "assembler/elf/sections"
 require_relative "assembler/elf/section_header"
 
 class Vaporware::Assembler
-  GCC_ASSEMBLERS = ["gcc", "as"]
-  CLANG_ASSEMBLERS = ["clang", "llvm"]
-  ASSEMBLERS = GCC_ASSEMBLERS + CLANG_ASSEMBLERS
+  GCC_ASSEMBLERS = ["gcc", "as"].freeze
+  CLANG_ASSEMBLERS = ["clang", "llvm"].freeze
+  ASSEMBLERS = (GCC_ASSEMBLERS + CLANG_ASSEMBLERS).freeze
   class Error < StandardError; end
 
-  def self.assemble!(input:, output: File.basename(input, ".*") + ".o", assembler: "as", debug: false) = new(input:, output:, assembler:, debug:).assemble
+  def self.assemble!(input:, output: File.basename(input, ".*") + ".o", assembler: "as", debug: false, shared:false) = new(input:, output:, assembler:, debug:).assemble
 
   def initialize(input:, output: File.basename(input, ".*") + ".o", assembler: "as", type: :relocatable, debug: false)
     @input, @output = input, output
@@ -20,7 +20,7 @@ class Vaporware::Assembler
     @debug = debug
   end
 
-  def assemble(assembler: @assembler, assembler_options: [], input: @input, output: @output, debug: false)
+  def assemble(assembler: @assembler, assembler_options: [], input: @input, output: @output, debug: false, shared: false)
     if ASSEMBLERS.include?(assembler)
       IO.popen([command(assembler), *assembler_options, "-o", output, input].join(" ")).close
     else
