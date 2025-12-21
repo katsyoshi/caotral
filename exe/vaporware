@@ -73,6 +73,7 @@ output = basename + ".s"
 Vaporware.compile(input:, output:, debug:) if options[:compile]
 input, output = output, basename + ".o"
 if options[:assemble]
+  input = ARGV.first unless options[:compile]
   Vaporware.assemble(input:, output:, assembler:, debug:)
   File.delete(input) if File.exist?(input) && !debug && File.extname(input) != ".s"
 end
