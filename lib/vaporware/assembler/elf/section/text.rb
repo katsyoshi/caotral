@@ -4,8 +4,14 @@ class Vaporware::Assembler::ELF::Section::Text
   }.freeze
 
   REGISTER_CODE = {
-    RAX: 0,
-    RDI: 7,
+    RAX: 0b000,
+    RCX: 0b001,
+    RDX: 0b010,
+    RBX: 0b011,
+    RSP: 0b100,
+    RBP: 0b101,
+    RSI: 0b110,
+    RDI: 0b111,
   }.freeze
 
   OPECODE = {
@@ -18,38 +24,38 @@ class Vaporware::Assembler::ELF::Section::Text
     MOVR: [0x8B],
     MOVXZ: [0x0f, 0xb7],
     SUB: [0x83],
+    XOR: [0x31],
   }.freeze
   HEX_PATTERN = /\A0x[0-9a-fA-F]+\z/.freeze
 
   def initialize(**opts)
     @bytes = []
-    @lines = []
+    @entries = []
     @label_positions = {}
   end
 
   def assemble!(line)
     line = line.strip
     return if line.empty?
-    @lines << line
+    @entries << parse_line(line)
   end
 
   def build
     @label_positions.clear
     offset = 0
-    @lines.each do |line|
-      label = label_name(line)
-      if label
-        @label_positions[label] = offset
+    @entries.each do |entry|
+      if entry[:label]
+        @label_positions[entry[:label]] = offset
         next
       end
-      offset += instruction_size(line)
+      offset += entry[:size]
     end
 
     @bytes = []
     offset = 0
-    @lines.each do |line|
-      next if label_name(line)
-      bytes = encode(line, offset)
+    @entries.each do |entry|
+      next if entry[:label]
+      bytes = encode(entry, offset)
       @bytes << bytes
       offset += bytes.size
     end
@@ -62,25 +68,20 @@ class Vaporware::Assembler::ELF::Section::Text
 
   private
 
-  def encode(line, offset)
-    op, *operands = parse_line(line)
-    opecode(op, offset, *operands)
+  def encode(entry, offset)
+    opecode(entry[:op], offset, *entry[:operands])
   end
 
   def parse_line(line)
-    line.split(/\s+/).reject { |o| o.empty? }.map { |op| op.gsub(/,/, "") }
+    return { label: line.delete_suffix(":"), size: 0 } if line.end_with?(":")
+    op, *operands = line.split(/\s+/).reject(&:empty?).map { it.gsub(/,/, "") }
+    size = instruction_size(op, *operands)
+    { op:, operands:, size: }
   end
 
-  def label_name(line)
-    return nil unless line.end_with?(":")
-
-    line.delete_suffix(":")
-  end
-
-  def instruction_size(line)
-    op, *operands = parse_line(line)
+  def instruction_size(op, *operands)
     case op
-    when "je"
+    when "je", "jne"
       6
     when "jmp"
       5
@@ -97,13 +98,17 @@ class Vaporware::Assembler::ELF::Section::Text
       [PREFIX[:REX_W], *mov(op, *operands)]
     when "sub", "add", "imul", "cqo", "idiv"
       [PREFIX[:REX_W], *calc(op, *operands)]
+    when "xor"
+      [PREFIX[:REX_W], *calc_bit(op, *operands)]
+    when "lea"
+      [PREFIX[:REX_W], *calc_addr(op, *operands)]
     when "pop"
       pop(*operands)
     when "cmp"
       [PREFIX[:REX_W], *cmp(op, *operands)]
     when "sete", "setl"
       sete(op, *operands)
-    when "je", "jmp"
+    when "je", "jmp", "jne"
       jump(op, offset, *operands)
     when "syscall"
       [0x0f, 0x05]
@@ -119,7 +124,7 @@ class Vaporware::Assembler::ELF::Section::Text
     target = @label_positions.fetch(label) do
       raise Vaporware::Compiler::Assembler::ELF::Error, "unknown label: #{label}"
     end
-    size = op == "je" ? 6 : 5
+    size = instruction_size(op, label)
     rel = target - (offset + size)
     displacement = [rel].pack("l<").unpack("C*")
     case op
@@ -127,6 +132,8 @@ class Vaporware::Assembler::ELF::Section::Text
       [0x0f, 0x84, *displacement]
     when "jmp"
       [0xe9, *displacement]
+    when "jne"
+      [0x0f, 0x85, *displacement]
     end
   end
 
@@ -173,6 +180,23 @@ class Vaporware::Assembler::ELF::Section::Text
       [ope_code, 0xe8, *num.map { |n| n.to_i(16) }]
     in ["cqo"]
       [0x99]
+    end # steep:ignore
+  end
+
+  def calc_bit(op, *operands)
+    case [op, *operands]
+    in ["xor", "rax", "rax"]
+      [0x31, 0xc0]
+    in ["xor", "rdi", "rdi"]
+      [0x31, 0xff]
+    end # steep:ignore
+  end
+
+  def calc_addr(op, *operands)
+    case [op, *operands]
+    in ["lea", "rax", *addrs]
+      rm, disp = parse_addressing_mode(addrs.first)
+      [0x8D, *mod_rm(0b01, 0b000, rm), disp]
     end # steep:ignore
   end
 
@@ -233,4 +257,9 @@ class Vaporware::Assembler::ELF::Section::Text
     end
   end
   def immediate(operand) = [operand.to_i(16)].pack("L").unpack("C*")
+  def mod_rm(mod, reg, rm) = (mod << 6) | (reg << 3) | rm
+  def parse_addressing_mode(str)
+    m = str.match(/\[(?<reg>\w+)(?<disp>[\+\-]\d+)?\]/)
+    [REGISTER_CODE[m[:reg].upcase.to_sym], m[:disp].to_i & 0xff]
+  end
 end
