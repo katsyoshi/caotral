@@ -1,0 +1,5 @@
+class Caotral::Assembler::ELF::Section::Strtab
+  @name: String
+  def initialize: (String) -> void
+  def build: () -> String
+end

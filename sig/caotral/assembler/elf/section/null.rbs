@@ -1,0 +1,2 @@
+class Caotral::Assembler::ELF::Section::Null
+end
