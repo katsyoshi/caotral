@@ -4,6 +4,7 @@
 /coverage/
 /doc/
 /pkg/
+/AGENTS.md
 /spec/reports/
 /tmp/
 /Gemfile.lock
@@ -13,3 +14,5 @@
 /.gem_rbs_collection
 /node_modules
 /package*.json
+/*.md
+!/README.md
