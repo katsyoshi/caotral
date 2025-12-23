@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require_relative "vaporware/version"
+require_relative "caotral/version"
 
-require_relative "vaporware/assembler"
-require_relative "vaporware/compiler"
-require_relative "vaporware/linker"
+require_relative "caotral/assembler"
+require_relative "caotral/compiler"
+require_relative "caotral/linker"
 
-module Vaporware
+module Caotral
   module_function
   def compile!(input:, assembler: "as", linker: "ld", output: "tmp", debug: false, compiler_options: ["-O0"], shared: false)
     d = File.expand_path(output)
@@ -17,12 +17,12 @@ module Vaporware
     link(input: basename+".o", output: execf, linker:, debug:, shared:)
   end
   def compile(input:, output: "tmp.s", debug: false, shared: false)
-    Vaporware::Compiler.compile!(input:, output:, debug:)
+    Caotral::Compiler.compile!(input:, output:, debug:)
   end
   def assemble(input:, output: "tmp.o", debug: false, shared: false, assembler: "as")
-    Vaporware::Assembler.assemble!(input:, output:, debug:, assembler:, shared:)
+    Caotral::Assembler.assemble!(input:, output:, debug:, assembler:, shared:)
   end
   def link(input:, output: "tmp", linker: "ld", debug: false, shared: false)
-    Vaporware::Linker.link!(input:, output:, linker:, debug:, shared:)
+    Caotral::Linker.link!(input:, output:, linker:, debug:, shared:)
   end
 end

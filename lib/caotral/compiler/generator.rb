@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Vaporware
+module Caotral
   class Compiler
     class Generator
       REGISTER = %w(rdi rsi rdx rcx r8 r9)

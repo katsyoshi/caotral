@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require "vaporware"
+require "caotral"
 require "optparse"
 opt = OptionParser.new
 options = {
@@ -70,17 +70,17 @@ basename = File.expand_path(File.basename(input, ".*"))
 extname = File.extname(output) == ".so"
 
 output = basename + ".s"
-Vaporware.compile(input:, output:, debug:) if options[:compile]
+Caotral.compile(input:, output:, debug:) if options[:compile]
 input, output = output, basename + ".o"
 if options[:assemble]
   input = ARGV.first unless options[:compile]
-  Vaporware.assemble(input:, output:, assembler:, debug:)
+  Caotral.assemble(input:, output:, assembler:, debug:)
   File.delete(input) if File.exist?(input) && !debug && File.extname(input) != ".s"
 end
 if options[:link]
   input, output = output, basename
   output = options[:output] || output
   output += ".so" if options[:shared] && !extname
-  Vaporware.link(input:, output:, debug:, shared:, linker:) if options[:link]
+  Caotral.link(input:, output:, debug:, shared:, linker:) if options[:link]
   File.delete(input) if File.exist?(input) && !debug && File.extname(input) != ".o"
 end

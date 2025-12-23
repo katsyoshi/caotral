@@ -1,5 +1,5 @@
-class Vaporware::Assembler::ELF::SectionHeader
-  include Vaporware::Assembler::ELF::Utils
+class Caotral::Assembler::ELF::SectionHeader
+  include Caotral::Assembler::ELF::Utils
   def initialize
     @name = nil
     @type = nil

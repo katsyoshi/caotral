@@ -1,5 +1,5 @@
-class Vaporware::Assembler::ELF::Section::Data
-  include Vaporware::Assembler::ELF::Utils
+class Caotral::Assembler::ELF::Section::Data
+  include Caotral::Assembler::ELF::Utils
   def initialize(**opts) = nil
   def build = bytes.flatten.pack("C*")
   def set! = self

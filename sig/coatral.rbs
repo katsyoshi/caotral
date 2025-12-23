@@ -1,4 +1,4 @@
-module Vaporware
+module Caotral
   VERSION: String
   # See the writing guide of rbs: https://github.com/ruby/rbs#guides
   class Compiler

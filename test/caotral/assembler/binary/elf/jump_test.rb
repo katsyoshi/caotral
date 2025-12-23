@@ -1,4 +1,4 @@
-require "vaporware"
+require "caotral"
 require "test/unit"
 require "pathname"
 

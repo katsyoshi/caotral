@@ -1,4 +1,4 @@
-require "vaporware"
+require "caotral"
 require "test/unit"
 
 class Caotral::Assembler::ELF::Section::TestShstrtab < Test::Unit::TestCase

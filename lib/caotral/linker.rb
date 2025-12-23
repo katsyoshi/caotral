@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-class Vaporware::Linker
+class Caotral::Linker
   def self.link!(input:, output: "a.out", linker: "mold", debug: false, shared: false) = new(input:, output:, linker:, debug:, shared:).link
 
   def initialize(input:, output: "a.out", linker: "mold", linker_options: [], shared: false, debug: false)

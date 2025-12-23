@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "lib/vaporware/version"
+require_relative "lib/caotral/version"
 
 Gem::Specification.new do |spec|
   spec.name = "caotral"
@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.email = ["github@katsyoshi.org"]
 
   spec.summary = "Caotral is the ruby native compiler."
-  spec.description = "Caotral is the vaporware."
+  spec.description = "Caotral is the caotral."
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"
   spec.homepage = "https://github.com/katsyoshi/caotral"

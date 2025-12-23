@@ -5,7 +5,7 @@ require_relative "assembler/elf/header"
 require_relative "assembler/elf/sections"
 require_relative "assembler/elf/section_header"
 
-class Vaporware::Assembler
+class Caotral::Assembler
   GCC_ASSEMBLERS = ["gcc", "as"].freeze
   CLANG_ASSEMBLERS = ["clang", "llvm"].freeze
   ASSEMBLERS = (GCC_ASSEMBLERS + CLANG_ASSEMBLERS).freeze

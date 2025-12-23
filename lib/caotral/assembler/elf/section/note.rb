@@ -1,5 +1,5 @@
-class Vaporware::Assembler::ELF::Section::Note
-  include Vaporware::Assembler::ELF::Utils
+class Caotral::Assembler::ELF::Section::Note
+  include Caotral::Assembler::ELF::Utils
 
   def self.gnu_property = new.gnu_property!.build
   def self.null = new.null!.build
