@@ -15,7 +15,7 @@ gems:
     ignore: true
   - name: rbs
     ignore: true
-  - name: vaporware
+  - name: caotral
     ignore: true
   - name: set
     ignore: true
