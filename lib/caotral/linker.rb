@@ -12,6 +12,8 @@ class Caotral::Linker
 
   def link_command(input: @input, output: @output, debug: @debug, shared: @shared)
     ld_path = []
+    return to_elf(input:, output:, debug:) if @linker == "self"
+
     if @shared
       ld_path << "--shared"
       ld_path << "#{libpath}/crti.o"
@@ -36,4 +38,9 @@ class Caotral::Linker
 
   def libpath = @libpath ||= File.dirname(Dir.glob("/usr/lib*/**/crti.o").last)
   def gcc_libpath = @gcc_libpath ||= File.dirname(Dir.glob("/usr/lib/gcc/x86_64-*/*/crtbegin.o").last)
+
+  def to_elf(input: @input, output: @output, debug: @debug)
+    elf_obj = Caotral::Linker::Reader.new(input:, debug:).read
+    Caotral::Linker::Writer.new(elf_obj:, output:, debug:).write
+  end
 end
