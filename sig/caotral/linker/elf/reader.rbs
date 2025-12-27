@@ -1,0 +1,4 @@
+class Caotral::Linker::ELF::Reader
+  def read!: (input: String, output: String, ?debug: bool) -> void
+  def initialize: (input: String, output: String, ?debug: bool, ?linker_options: Array[String]) -> void
+end

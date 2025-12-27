@@ -1,0 +1,8 @@
+class Caotral::Linker::ELF
+  @sections: Array[untyped]
+
+  def self.link!: (input: String, output: String, ?debug: bool) -> String
+  def initialize: () -> void
+  def add_section: (section: untyped) -> void
+  def generate: () -> String
+end

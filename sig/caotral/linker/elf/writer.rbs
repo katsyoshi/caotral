@@ -1,0 +1,4 @@
+class Caotral::Linker::ELF::Writer
+  def self.write!: (elf_obj: untyped, output: String, ?debug: bool) -> String
+  def initialize: (elf_obj: untyped, output: String, ?debug: bool) -> void
+end
