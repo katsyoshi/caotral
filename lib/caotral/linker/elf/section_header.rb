@@ -50,8 +50,24 @@ module Caotral
         end
 
         def null! = set!(name: 0, type: 0, flags: 0, addr: 0, offset: 0, size: 0, link: 0, info: 0, addralign: 0, entsize: 0)
+        def name = get(:name)
+        def offset = get(:offset)
+        def size = get(:size)
+        LONG_TYPES = %w[flags addr offset size addralign entsize].freeze
+        INT_TYPES = %w[name type link info].freeze
+
+        private_constant :LONG_TYPES, :INT_TYPES
 
         private def bytes = [@name, @type, @flags, @addr, @offset, @size, @link, @info, @addralign, @entsize]
+        private def get(type)
+          val = instance_variable_get("@#{type.to_s}").pack("C*")
+          case type.to_s
+          when *INT_TYPES; val.unpack("L<")
+          when *LONG_TYPES; val.unpack("Q<")
+          else
+            raise "not specified: #{type}"
+          end.first
+        end
       end
     end
   end

@@ -2,6 +2,7 @@ require "stringio"
 require_relative "elf"
 require_relative "elf/section"
 require_relative "elf/section_header"
+require_relative "elf/section/strtab"
 
 module Caotral
   class Linker
@@ -29,7 +30,7 @@ module Caotral
         @context.header.set!(entry:, phoffset:, shoffset:, shnum:, shstrndx:)
 
         @bin.pos = shoffset
-        shnum.times do
+        shnum.times do |i|
           sh_entry = @bin.read(shentsize)
           name = sh_entry[0, 4].unpack("L<").first
           type = type(sh_entry[4, 4].unpack("L<").first)
@@ -43,9 +44,16 @@ module Caotral
           entsize = sh_entry[56, 8].unpack("Q<").first
           section_header = Caotral::Linker::ELF::SectionHeader.new
           section_header.set!(name:, type:, flags:, addr:, offset:, size:, link:, info:, addralign:, entsize:)
-          section = Caotral::Linker::ELF::Section.new(type:)
+          section_name = i == shstrndx ? "shstrtab" : nil
+          args = { type:, section_name: }.compact
+          section = Caotral::Linker::ELF::Section.new(**args)
           section.header = section_header
           @context.sections.add(section)
+        end
+        @context.sections[shstrndx].tap do |shstrtab|
+          @bin.pos = shstrtab.header.offset
+          names = @bin.read(shstrtab.header.size)
+          shstrtab.body = Caotral::Linker::ELF::Section::Strtab.new(names)
         end
         @context
       ensure

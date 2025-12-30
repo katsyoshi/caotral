@@ -35,8 +35,20 @@ module Caotral
           @shstrndx = num2bytes(shstrndx, 2) if check(shstrndx, 2)
         end
 
-        private
+        def ehsize = get(:ehsize)
+        def phsize = get(:phsize)
+        def phnum = get(:phnum)
+        def shentsize = get(:shentsize)
+        def shnum = get(:shnum)
+        def shstrndx = get(:shstrndx)
 
+        LONG_TYPES = %w[entry phoffset shoffset].freeze
+        INT_TYPES = %w[type version].freeze
+        SHORT_TYPES = %w[ehsize phsize phnum shentsize shnum shstrndx].freeze
+        CHAR_TYPES = %w[arch flags].freeze
+        private_constant :LONG_TYPES, :INT_TYPES, :SHORT_TYPES, :CHAR_TYPES
+
+        private
         def bytes = [
           @ident, @type, @arch, @version, @entry, @phoffset,
           @shoffset, @flags, @ehsize, @phsize, @phnum, @shentsize,
@@ -61,6 +73,18 @@ module Caotral
           else
             :NONE
           end
+        end
+
+        def get(type)
+          val = instance_variable_get(:"@#{type.to_s}").pack("C*")
+          case type.to_s.downcase
+          when *LONG_TYPES; val.unpack("Q<")
+          when *INT_TYPES; val.unpack("L<")
+          when *SHORT_TYPES; val.unpack("S<")
+          when *CHAR_TYPES; val.unpack("C<")
+          else
+            raise "not specified: #{type}"
+          end.first
         end
       end
     end
