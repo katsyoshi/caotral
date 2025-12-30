@@ -1,6 +1,6 @@
 class Caotral::Linker::ELF::Section
-  attr_accessor :name
-  attr_reader :section_name, :header, :body
+  attr_accessor :name, :header
+  attr_reader :section_name, :body
   def initialize(type:, options: {})
     type_string = type.to_s.capitalize
     type_string = type_string.upcase if type_string == "Bss"

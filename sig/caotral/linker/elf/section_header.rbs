@@ -1,0 +1,4 @@
+class Caotral::Linker::ELF::SectionHeader
+  SHT: Hash[Symbol, Integer]
+  SHT_BY_VALUE: Hash[Integer, Symbol]
+end

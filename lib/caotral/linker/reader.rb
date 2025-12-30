@@ -1,12 +1,13 @@
 require "stringio"
 require_relative "elf"
+require_relative "elf/section"
+require_relative "elf/section_header"
+
 module Caotral
   class Linker
     class Reader
       attr_reader :context
-      def self.read!(input:, debug: false, linker_options: [])
-        new(input:, debug:, linker_options:).read
-      end
+      def self.read!(input:, debug: false, linker_options: []) = new(input:, debug:, linker_options:).read
 
       def initialize(input:, debug: false, linker_options: [])
         @input = decision(input)
@@ -22,11 +23,30 @@ module Caotral
         entry = header[24, 8].unpack("Q<").first
         phoffset = header[32, 8].unpack("Q<").first
         shoffset = header[40, 8].unpack("Q<").first
+        shentsize = header[58, 2].unpack("S<").first
         shnum = header[60, 2].unpack("S<").first
         shstrndx = header[62, 2].unpack("S<").first
         @context.header.set!(entry:, phoffset:, shoffset:, shnum:, shstrndx:)
 
         @bin.pos = shoffset
+        shnum.times do
+          sh_entry = @bin.read(shentsize)
+          name = sh_entry[0, 4].unpack("L<").first
+          type = type(sh_entry[4, 4].unpack("L<").first)
+          flags = sh_entry[8, 8].unpack("Q<").first
+          addr = sh_entry[16, 8].unpack("Q<").first
+          offset = sh_entry[24, 8].unpack("Q<").first
+          size = sh_entry[32, 8].unpack("Q<").first
+          link = sh_entry[40, 4].unpack("L<").first
+          info = sh_entry[44, 4].unpack("L<").first
+          addralign = sh_entry[48, 8].unpack("Q<").first
+          entsize = sh_entry[56, 8].unpack("Q<").first
+          section_header = Caotral::Linker::ELF::SectionHeader.new
+          section_header.set!(name:, type:, flags:, addr:, offset:, size:, link:, info:, addralign:, entsize:)
+          section = Caotral::Linker::ELF::Section.new(type:)
+          section.header = section_header
+          @context.sections.add(section)
+        end
         @context
       ensure
         @input.close
@@ -41,6 +61,8 @@ module Caotral
           raise ArgumentError, "wrong input type"
         end
       end
+
+      def type(num) = Caotral::Linker::ELF::SectionHeader::SHT_BY_VALUE.fetch(num, :unknown)
     end
   end
 end

@@ -5,6 +5,14 @@ class Caotral::Linker::ELF::Sections
   def each(&block) = @sections.each(&block)
   def add(section) = @sections << section
   alias << add
+  def size = @sections.size
+  alias length size
+  def empty? = @sections.empty?
+  def count(&block)
+    return @sections.count(&block) if block_given?
+    @sections.size
+  end
+  
   def [](index)
     case index
     when Integer

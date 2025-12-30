@@ -6,5 +6,7 @@ class Caotral::Linker::ReaderTest < Test::Unit::TestCase
   def test_read
     elf_obj = Caotral::Linker::Reader.read!(input: "plus.o", debug: false)
     assert_equal elf_obj.header.shoffset.pack("C*").unpack("Q<").first, 256
+    assert_equal elf_obj.sections.size, 8
+    assert_equal elf_obj.sections[0].section_name, "null"
   end
 end
