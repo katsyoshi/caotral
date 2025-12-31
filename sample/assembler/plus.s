@@ -28,4 +28,6 @@ main:
   push rax
   mov rsp, rbp
   pop rbp
-  ret
+  mov rdi, rax
+  mov rax, 0x3c
+  syscall

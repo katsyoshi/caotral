@@ -1,0 +1,13 @@
+class Caotral::Linker::ELF::Header
+  def set!: (
+    ?type: Integer?,
+    ?entry: Integer?,
+    ?phoffset: Integer?,
+    ?shoffset: Integer?,
+    ?shnum: Integer?,
+    ?shstrndx: Integer?,
+    ?phsize: Integer?,
+    ?phnum: Integer?,
+    ?ehsize: Integer?
+  ) -> self
+end

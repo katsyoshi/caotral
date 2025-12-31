@@ -12,7 +12,7 @@ module Caotral
       def write
         f = File.open(@output, "wb")
         phoffset, phnum, phsize, ehsize = 64, 1, 56, 64
-        @elf_obj.header.set!(phoffset:, phnum:, phsize:, ehsize:)
+        header = @elf_obj.header.set!(type: 2, phoffset:, phnum:, phsize:, ehsize:)
         ph = Caotral::Linker::ELF::ProgramHeader.new
         text_section = @elf_obj.sections[".text"]
         filesz = text_section.header.size
@@ -23,6 +23,7 @@ module Caotral
         vaddr = base_addr + text_offset
         paddr = base_addr + text_offset
         type, flags = 1, 5
+        header.set!(entry: @entry || base_addr + text_offset)
         ph.set!(type:, offset:, vaddr:, paddr:, filesz:, memsz:, flags:, align:)
         f.write(@elf_obj.header.build)
         f.write(ph.build)
