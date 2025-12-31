@@ -18,7 +18,9 @@ class Caotral::Linker::ELF::Sections
     when Integer
       @sections[index]
     when String, Symbol
-      @sections.find { _1.section_name.to_s == index.to_s }
+      index_string = index.to_s
+      index_string.unshift(".") unless index_string.start_with?(".")
+      @sections.find { it.section_name == index_string }
     else
       raise ArgumentError, "Invalid index type: #{index.class}"
     end

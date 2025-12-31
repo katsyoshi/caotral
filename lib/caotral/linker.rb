@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 require_relative "linker/reader"
+require_relative "linker/writer"
+
 module Caotral
   class Linker
     def self.link!(input:, output: "a.out", linker: "mold", debug: false, shared: false) = new(input:, output:, linker:, debug:, shared:).link

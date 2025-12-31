@@ -27,9 +27,12 @@ module Caotral
 
         def build = bytes.flatten.pack("C*")
 
-        def set!(entry: nil, phoffset: nil, shoffset: nil, shnum: nil, shstrndx: nil)
+        def set!(entry: nil, phoffset: nil, shoffset: nil, shnum: nil, shstrndx: nil, phsize: nil, phnum: nil, ehsize: nil)
           @entry = num2bytes(entry, 8) if check(entry, 8)
           @phoffset = num2bytes(phoffset, 8) if check(phoffset, 8)
+          @phsize = num2bytes(phsize, 2) if check(phsize, 2)
+          @phnum = num2bytes(phnum, 2) if check(phnum, 2)
+          @ehsize = num2bytes(ehsize, 2) if check(ehsize, 2)
           @shoffset = num2bytes(shoffset, 8) if check(shoffset, 8)
           @shnum = num2bytes(shnum, 2) if check(shnum, 2)
           @shstrndx = num2bytes(shstrndx, 2) if check(shstrndx, 2)
