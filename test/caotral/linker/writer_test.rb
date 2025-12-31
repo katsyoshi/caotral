@@ -8,11 +8,28 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
   def teardown
     File.delete("plus.o") if File.exist?("plus.o")
     File.delete("written.o") if File.exist?("written.o")
+    File.delete("written_exec") if File.exist?("written_exec")
   end
   def test_write
     written_output = Caotral::Linker::Writer.write!(elf_obj: @elf_obj, output: "written.o", debug: false)
     read_written_elf = Caotral::Linker::Reader.read!(input: written_output, debug: false)
     assert_equal @elf_obj.header.shoffset.pack("C*").unpack("Q<").first, read_written_elf.header.shoffset.pack("C*").unpack("Q<").first
     assert_equal @elf_obj.sections.size, read_written_elf.sections.size
+    assert_equal 0x401000, read_written_elf.header.entry.pack("C*").unpack("Q<").first
+  end
+
+  def test_execute_written
+    written_output = Caotral::Linker::Writer.write!(elf_obj: @elf_obj, output: "written_exec", debug: false)
+    File.chmod(0755, "./written_exec")
+    IO.popen("./written_exec").close
+    exit_code, handle_code = check_process($?.to_i)
+    assert_equal(9, exit_code)
+    assert_equal(0, handle_code)
+  end
+
+  def check_process(status)
+    exit_code = status >> 8
+    handle_code = status & 0x7f
+    [exit_code, handle_code]
   end
 end
