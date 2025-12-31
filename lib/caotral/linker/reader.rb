@@ -50,11 +50,21 @@ module Caotral
           section.header = section_header
           @context.sections.add(section)
         end
-        @context.sections[shstrndx].tap do |shstrtab|
+        shstrtab = @context.sections[shstrndx].tap do |shstrtab|
           @bin.pos = shstrtab.header.offset
           names = @bin.read(shstrtab.header.size)
           shstrtab.body = Caotral::Linker::ELF::Section::Strtab.new(names)
+          shstrtab
         end
+
+        names = shstrtab.body.names
+
+        @context.sections.each_with_index do |section, i|
+          next if i == shstrndx || section.section_name.empty?
+          offset = section.header.name
+          section.section_name = names.byteslice(offset..).split("\0", 2).first
+        end
+
         @context
       ensure
         @input.close
