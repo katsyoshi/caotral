@@ -53,6 +53,7 @@ module Caotral
         def name = get(:name)
         def offset = get(:offset)
         def size = get(:size)
+        def type = SHT_BY_VALUE[@type.pack("C*").unpack("L<").first]
         LONG_TYPES = %w[flags addr offset size addralign entsize].freeze
         INT_TYPES = %w[name type link info].freeze
 

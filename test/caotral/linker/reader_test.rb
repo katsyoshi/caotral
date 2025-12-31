@@ -11,5 +11,7 @@ class Caotral::Linker::ReaderTest < Test::Unit::TestCase
     shstrtab = elf_obj.sections[elf_obj.header.shstrndx]
     assert_equal shstrtab.section_name, "shstrtab"
     assert_equal shstrtab.body.names, "\0.text\0.data\0.bss\0.note\0.symtab\0.strtab\0.shstrtab\0"
+    assert_equal elf_obj.sections[1].section_name, ".text"
+    assert_equal elf_obj.sections[1].header.size, 50
   end
 end
