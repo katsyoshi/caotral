@@ -45,7 +45,7 @@ module Caotral
           type_sym = type(type_val)
           section_header = Caotral::Linker::ELF::SectionHeader.new
           section_header.set!(name:, type: type_val, flags:, addr:, offset:, size:, link:, info:, addralign:, entsize:)
-          section_name = i == shstrndx ? "shstrtab" : nil
+          section_name = i == shstrndx ? ".shstrtab" : nil
           args = { type: type_sym, section_name: }.compact
           section = Caotral::Linker::ELF::Section.new(**args)
           section.header = section_header

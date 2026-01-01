@@ -18,11 +18,20 @@ class Caotral::Linker::ELF::Sections
     when Integer
       @sections[index]
     when String, Symbol
-      index_string = index.to_s
-      index_string.unshift(".") unless index_string.start_with?(".")
-      @sections.find { it.section_name == index_string }
+      @sections.find { it.section_name == prepend_dot(index) }
     else
       raise ArgumentError, "Invalid index type: #{index.class}"
     end
+  end
+
+  def index(name)
+    name = prepend_dot(name)
+    @sections.each_with_index do |section, idx|
+      return idx if section.section_name == name
+    end
+  end
+  private def prepend_dot(name)
+    str = name.to_s
+    str.start_with?(".") ? str : ".#{str}"
   end
 end

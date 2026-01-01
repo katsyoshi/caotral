@@ -2,6 +2,7 @@ require_relative "elf/program_header"
 module Caotral
   class Linker
     class Writer
+      ALLOW_SECTIONS = %w(.text .strtab .shstrtab).freeze
       attr_reader :elf_obj, :output, :entry, :debug
       def self.write!(elf_obj:, output:, entry: nil, debug: false)
         new(elf_obj:, output:, entry:, debug:).write
@@ -30,6 +31,36 @@ module Caotral
         gap = [text_offset - f.pos, 0].max
         f.write("\0" * gap)
         f.write(text_section.body)
+        shstrtab = @elf_obj.sections[".shstrtab"]
+        shstrtab_offset = f.pos
+        f.write(shstrtab.body.names)
+        shstrtab.header.set!(offset: shstrtab_offset, size: shstrtab.body.names.bytesize)
+        write_sections = @elf_obj.sections.select { ALLOW_SECTIONS.include?(it.section_name) || it.name == "" }
+        shoffset = f.pos
+        shstrndx = write_sections.index { it.section_name == ".shstrtab" }
+        shnum = write_sections.size
+        @elf_obj.header.set!(shoffset:, shnum:, shstrndx:)
+        names = @elf_obj.sections[".shstrtab"].body.names
+        name_offsets = {}
+        idx = 0
+        while idx < names.bytesize
+          if names.getbyte(idx) == 0
+            idx += 1
+            next
+          end
+          start_idx = idx
+          idx += 1 while idx < names.bytesize && names.getbyte(idx) != 0
+          name = names[start_idx...idx]
+          name_offsets[name] = start_idx
+        end
+
+        write_sections.each do |section|
+          name_offset = name_offsets.fetch(section.section_name, 0)
+          section.header.set!(name: name_offset)
+          f.write(section.header.build)
+        end
+        f.seek(0)
+        f.write(@elf_obj.header.build)
         output
       ensure
         f.close if f
