@@ -4,6 +4,7 @@ require_relative "elf/section"
 require_relative "elf/section_header"
 require_relative "elf/section/strtab"
 require_relative "elf/section/symtab"
+require_relative "elf/section/rel"
 
 module Caotral
   class Linker
@@ -83,6 +84,18 @@ module Caotral
                              value = sym_bin[8, 8].unpack1("Q<")
                              size = sym_bin[16, 8].unpack1("Q<")
                              Caotral::Linker::ELF::Section::Symtab.new.set!(name:, info:, other:, shndx:, value:, size:)
+                           end
+                         when :rel, :rela
+                           rela = type == :rela
+                           rel_entsize = section.header.entsize
+                           rel_entsize = rela ? 24 : 16 if rel_entsize == 0
+                           count = body_bin.bytesize / rel_entsize
+                           count.times.map do |i|
+                              rel_bin = body_bin.byteslice(i * rel_entsize, rel_entsize)
+                              offset = rel_bin[0, 8].unpack1("Q<")
+                              info = rel_bin[8, 8].unpack1("Q<")
+                              addend = rela ? rel_bin[16, 8].unpack1("q<") : nil
+                              Caotral::Linker::ELF::Section::Rel.new(addend: rela).set!(offset:, info:, addend:)
                            end
                          when :progbits
                            body_bin
