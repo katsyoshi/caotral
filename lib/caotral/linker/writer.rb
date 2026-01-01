@@ -43,10 +43,9 @@ module Caotral
         names = @elf_obj.sections[".shstrtab"].body
 
         write_sections.each do |section|
-          section_name = section.section_name == "null" ? "" : section.section_name
-          name_offset = names.offset_of(section_name)
-          raise "Section name #{section_name} not found in .shstrtab" unless name_offset
-          section.header.set!(name: name_offset)
+          lookup_name = section.name.sub(/\A\0/, "")
+          name_offset = names.offset_of(lookup_name)
+          section.header.set!(name: name_offset) if name_offset
           f.write(section.header.build)
         end
         f.seek(0)

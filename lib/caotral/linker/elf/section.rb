@@ -9,7 +9,7 @@ class Caotral::Linker
         @header, @body = nil, nil
       end
 
-      def name = @section_name == "null" ? "" : "\0.#{@section_name}"
+      def name = @section_name == "null" ? "" : "\0#{@section_name}"
     end
   end
 end
