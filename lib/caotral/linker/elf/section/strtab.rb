@@ -15,6 +15,11 @@ module Caotral
             end
             nil
           end
+
+          def lookup(offset)
+            return "" if offset == 0
+            @names.byteslice(offset..).split("\0", 2).first
+          end
         end
       end
     end

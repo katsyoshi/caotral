@@ -3,6 +3,7 @@ require_relative "elf"
 require_relative "elf/section"
 require_relative "elf/section_header"
 require_relative "elf/section/strtab"
+require_relative "elf/section/symtab"
 
 module Caotral
   class Linker
@@ -70,9 +71,30 @@ module Caotral
           section.body = case type
                          when :strtab
                            Caotral::Linker::ELF::Section::Strtab.new(body_bin)
+                         when :symtab
+                           symtab_entsize = section.header.entsize
+                           count = body_bin.bytesize / symtab_entsize
+                           count.times.map do |i|
+                             sym_bin = body_bin[i * symtab_entsize, symtab_entsize]
+                             name = sym_bin[0, 4].unpack1("L<")
+                             info = sym_bin[4, 1].unpack1("C")
+                             other = sym_bin[5, 1].unpack1("C")
+                             shndx = sym_bin[6, 2].unpack1("S<")
+                             value = sym_bin[8, 8].unpack1("Q<")
+                             size = sym_bin[16, 8].unpack1("Q<")
+                             Caotral::Linker::ELF::Section::Symtab.new.set!(name:, info:, other:, shndx:, value:, size:)
+                           end
                          when :progbits
                            body_bin
                          end
+        end
+
+        strtab = @context.sections[".strtab"]
+        @context.sections.select { it.header.type == :symtab }.each do |symtab|
+          symtab.body.each do |sym|
+            name_offset = sym.name_offset
+            sym.name_string = strtab.body.lookup(name_offset)
+          end
         end
 
         @context
