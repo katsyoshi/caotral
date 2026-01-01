@@ -40,22 +40,12 @@ module Caotral
         shstrndx = write_sections.index { it.section_name == ".shstrtab" }
         shnum = write_sections.size
         @elf_obj.header.set!(shoffset:, shnum:, shstrndx:)
-        names = @elf_obj.sections[".shstrtab"].body.names
-        name_offsets = {}
-        idx = 0
-        while idx < names.bytesize
-          if names.getbyte(idx) == 0
-            idx += 1
-            next
-          end
-          start_idx = idx
-          idx += 1 while idx < names.bytesize && names.getbyte(idx) != 0
-          name = names[start_idx...idx]
-          name_offsets[name] = start_idx
-        end
+        names = @elf_obj.sections[".shstrtab"].body
 
         write_sections.each do |section|
-          name_offset = name_offsets.fetch(section.section_name, 0)
+          section_name = section.section_name == "null" ? "" : section.section_name
+          name_offset = names.offset_of(section_name)
+          raise "Section name #{section_name} not found in .shstrtab" unless name_offset
           section.header.set!(name: name_offset)
           f.write(section.header.build)
         end
