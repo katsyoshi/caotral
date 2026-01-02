@@ -23,4 +23,5 @@ class Caotral::Linker::ELF::SectionHeader
   def offset: () -> Integer
   def entsize: () -> Integer
   def size: () -> Integer
+  def info: () -> Integer
 end

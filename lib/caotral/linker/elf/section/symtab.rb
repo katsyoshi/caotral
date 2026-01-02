@@ -27,6 +27,7 @@ module Caotral
           end
 
           def name_offset = @name.pack("C*").unpack1("L<")
+          def value = @value.pack("C*").unpack1("Q<")
         end
       end
     end

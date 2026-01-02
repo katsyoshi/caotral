@@ -55,6 +55,8 @@ module Caotral
         def entsize = get(:entsize)
         def size = get(:size)
         def type = SHT_BY_VALUE[@type.pack("C*").unpack("L<").first]
+        def info = get(:info)
+        def addr = get(:addr)
         LONG_TYPES = %w[flags addr offset size addralign entsize].freeze
         INT_TYPES = %w[name type link info].freeze
 
