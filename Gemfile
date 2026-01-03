@@ -7,5 +7,6 @@ gemspec
 
 gem "rake", "~> 13.0"
 gem "fiddle"
+gem "irb"
 gem "steep"
 gem "test-unit"
