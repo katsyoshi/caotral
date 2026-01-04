@@ -1,9 +1,11 @@
+require "caotral/binary/elf/utils"
+
 module Caotral
   class Linker
     class ELF
       class Section
         class Symtab
-          include Caotral::Assembler::ELF::Utils
+          include Caotral::Binary::ELF::Utils
           attr_accessor :name_string
           def initialize(**opts)
             @entsize = []

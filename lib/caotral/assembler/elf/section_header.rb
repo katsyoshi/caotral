@@ -1,5 +1,7 @@
+require "caotral/binary/elf"
+
 class Caotral::Assembler::ELF::SectionHeader
-  include Caotral::Assembler::ELF::Utils
+  include Caotral::Binary::ELF::Utils
   def initialize
     @name = nil
     @type = nil

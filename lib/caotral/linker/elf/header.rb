@@ -1,8 +1,9 @@
+require "caotral/binary/elf/utils"
 module Caotral
   class Linker
     class ELF
       class Header
-        include Caotral::Assembler::ELF::Utils
+        include Caotral::Binary::ELF::Utils
         attr_reader :entry, :phoffset, :shoffset, :shnum, :shstrndx
         IDENT = [0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00].freeze
         IDENT_STR = IDENT.pack("C*").freeze

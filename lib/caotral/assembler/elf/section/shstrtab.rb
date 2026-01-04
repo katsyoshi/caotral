@@ -1,5 +1,6 @@
+require "caotral/binary/elf/utils"
 class Caotral::Assembler::ELF::Section::Shstrtab
-  include Caotral::Assembler::ELF::Utils
+  include Caotral::Binary::ELF::Utils
   def initialize(**opts) = @name = []
   def build = bytes.flatten.pack("C*")
   def set!(name:) = (@name << name!(name); self)

@@ -1,3 +1,4 @@
+require "caotral/binary/elf"
 class Caotral::Assembler::ELF::Section::Text
   PREFIX = {
     REX_W: 0x48,
@@ -115,14 +116,14 @@ class Caotral::Assembler::ELF::Section::Text
     when "ret"
       [0xc3]
     else
-      raise Caotral::Assembler::ELF::Error, "yet implemented operations: #{op}"
+      raise Caotral::Binary::ELF::Error, "yet implemented operations: #{op}"
     end
   end
 
   def jump(op, offset, *operands)
     label = operands.first
     target = @label_positions.fetch(label) do
-      raise Caotral::Compiler::Assembler::ELF::Error, "unknown label: #{label}"
+      raise Caotral::Binary::ELF::Error, "unknown label: #{label}"
     end
     size = instruction_size(op, label)
     rel = target - (offset + size)
@@ -253,7 +254,7 @@ class Caotral::Assembler::ELF::Section::Text
     when /\d+/
       r.to_i(16)
     else
-      raise Caotral::Assembler::ELF::Error, "yet implemented operand address: #{r}"
+      raise Caotral::Binary::ELF::Error, "yet implemented operand address: #{r}"
     end
   end
   def immediate(operand) = [operand.to_i(16)].pack("L").unpack("C*")

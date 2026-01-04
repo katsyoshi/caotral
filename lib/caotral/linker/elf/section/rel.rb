@@ -1,9 +1,10 @@
+require "caotral/binary/elf/utils"
 module Caotral
   class Linker
     class ELF
       class Section
         class Rel
-          include Caotral::Assembler::ELF::Utils
+          include Caotral::Binary::ELF::Utils
           def initialize(addend: true)
             @offset = num2bytes(0, 8)
             @info = num2bytes(0, 8)

@@ -1,8 +1,10 @@
+require "caotral/binary/elf/utils"
+
 module Caotral
   class Linker
     class ELF
       class ProgramHeader
-        include Caotral::Assembler::ELF::Utils
+        include Caotral::Binary::ELF::Utils
         def initialize
           @type = num2bytes(0, 4)
           @flags = num2bytes(0, 4)

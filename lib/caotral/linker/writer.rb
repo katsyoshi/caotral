@@ -1,9 +1,10 @@
+require "caotral/binary/elf/utils"
 require_relative "elf/program_header"
 
 module Caotral
   class Linker
     class Writer
-      include Caotral::Assembler::ELF::Utils
+      include Caotral::Binary::ELF::Utils
       ALLOW_SECTIONS = %w(.text .strtab .shstrtab).freeze
       R_X86_64_PC32 = 2
       R_X86_64_PLT32 = 4

@@ -1,7 +1,10 @@
+require "caotral/binary/elf/utils"
+
 module Caotral
   class Linker
     class ELF
       class SectionHeader
+        include Caotral::Binary::ELF::Utils
         SHT = {
           null: 0,
           progbits: 1,
@@ -17,7 +20,6 @@ module Caotral
           dynsym: 11,
         }.freeze
         SHT_BY_VALUE = SHT.invert.freeze
-        include Caotral::Assembler::ELF::Utils
         def initialize
           @name = nil
           @type = nil

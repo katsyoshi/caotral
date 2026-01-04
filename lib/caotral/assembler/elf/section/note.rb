@@ -1,5 +1,6 @@
+require "caotral/binary/elf/utils"
 class Caotral::Assembler::ELF::Section::Note
-  include Caotral::Assembler::ELF::Utils
+  include Caotral::Binary::ELF::Utils
 
   def self.gnu_property = new.gnu_property!.build
   def self.null = new.null!.build

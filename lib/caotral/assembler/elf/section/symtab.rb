@@ -1,5 +1,6 @@
+require "caotral/binary/elf/utils"
 class Caotral::Assembler::ELF::Section::Symtab
-  include Caotral::Assembler::ELF::Utils
+  include Caotral::Binary::ELF::Utils
   def initialize(**opts)
     @entsize = []
     @name = num2bytes(0, 4)

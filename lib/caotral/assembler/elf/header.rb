@@ -1,7 +1,9 @@
 require_relative "../elf"
 
+require_relative "../../binary/elf"
+
 class Caotral::Assembler::ELF::Header
-  include Caotral::Assembler::ELF::Utils
+  include Caotral::Binary::ELF::Utils
   IDENT = [0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00].freeze
   ELF_FILE_TYPE = { NONE: 0, REL: 1, EXEC: 2, DYN: 3, CORE: 4 }.freeze
 
