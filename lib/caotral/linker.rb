@@ -12,11 +12,14 @@ module Caotral
       @debug, @shared = debug, shared
     end
 
-    def link(input: @input, output: @output, debug: @debug, shared: @shared) = IO.popen(link_command).close
+    def link(input: @input, output: @output, debug: @debug, shared: @shared)
+      return to_elf(input:, output:, debug:) if @linker == "self"
+
+      IO.popen(link_command).close
+    end
 
     def link_command(input: @input, output: @output, debug: @debug, shared: @shared)
       ld_path = []
-      return to_elf(input:, output:, debug:) if @linker == "self"
 
       if @shared
         ld_path << "--shared"

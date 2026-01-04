@@ -1,0 +1,28 @@
+class Caotral::Binary::ELF::Header
+  IDENT: Array[Integer]
+  IDENT_STR: String
+  ELF_FILE_TYPE: Hash[Symbol, Integer]
+
+  def initialize: (?endian: Symbol, ?type: Symbol, ?arc: Symbol) -> void
+  def build: () -> String
+  def set!: (
+    ?type: Integer?,
+    ?entry: Integer?,
+    ?phoffset: Integer?,
+    ?shoffset: Integer?,
+    ?shnum: Integer?,
+    ?shstrndx: Integer?,
+    ?phsize: Integer?,
+    ?phnum: Integer?,
+    ?ehsize: Integer?
+  ) -> self
+
+  def entry: () -> Integer
+  def ehsize: () -> Integer
+  def phsize: () -> Integer
+  def phnum: () -> Integer
+  def shentsize: () -> Integer
+  def shnum: () -> Integer
+  def shstrndx: () -> Integer
+  def shoffset: () -> Integer
+end

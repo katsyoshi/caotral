@@ -126,8 +126,8 @@ class Caotral::Assembler::ELF::Section::Text
       raise Caotral::Binary::ELF::Error, "unknown label: #{label}"
     end
     size = instruction_size(op, label)
-    rel = target - (offset + size)
-    displacement = [rel].pack("l<").unpack("C*")
+    rel = Integer(target) - Integer(offset) - Integer(size)
+    displacement = [rel].pack("l<").bytes
     case op
     when "je"
       [0x0f, 0x84, *displacement]
@@ -135,6 +135,8 @@ class Caotral::Assembler::ELF::Section::Text
       [0xe9, *displacement]
     when "jne"
       [0x0f, 0x85, *displacement]
+    else
+      raise Caotral::Binary::ELF::Error, "unknown jump: #{op}"
     end
   end
 

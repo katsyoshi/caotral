@@ -1,0 +1,27 @@
+class Caotral::Binary::ELF::SectionHeader
+  SHT: Hash[Symbol, Integer]
+  SHT_BY_VALUE: Hash[Integer, Symbol]
+
+  def initialize: () -> void
+  def build: () -> String
+  def set!: (
+    ?name: Integer?,
+    ?type: Integer?,
+    ?flags: Integer?,
+    ?addr: Integer?,
+    ?offset: Integer?,
+    ?size: Integer?,
+    ?link: Integer?,
+    ?info: Integer?,
+    ?addralign: Integer?,
+    ?entsize: Integer?
+  ) -> self
+
+  def name: () -> Integer
+  def offset: () -> Integer
+  def entsize: () -> Integer
+  def size: () -> Integer
+  def type: () -> Symbol?
+  def info: () -> Integer
+  def addr: () -> Integer
+end

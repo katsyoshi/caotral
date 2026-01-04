@@ -15,9 +15,9 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
   def test_write
     written_output = Caotral::Linker::Writer.write!(elf_obj: @elf_obj, output: "write.o", debug: false)
     read_written_elf = Caotral::Linker::Reader.read!(input: written_output, debug: false)
-    assert_equal @elf_obj.header.shoffset.pack("C*").unpack("Q<").first, read_written_elf.header.shoffset.pack("C*").unpack("Q<").first
+    assert_equal @elf_obj.header.shoffset, read_written_elf.header.shoffset
     assert_equal 4, read_written_elf.sections.size
-    assert_equal 0x401000, read_written_elf.header.entry.pack("C*").unpack("Q<").first
+    assert_equal 0x401000, read_written_elf.header.entry
   end
 
   def test_execute_written

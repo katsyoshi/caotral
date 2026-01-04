@@ -5,7 +5,7 @@ class Caotral::Linker::ReaderTest < Test::Unit::TestCase
   def teardown = File.delete("plus.o") if File.exist?("plus.o")
   def test_read
     elf_obj = Caotral::Linker::Reader.read!(input: "plus.o", debug: false)
-    assert_equal elf_obj.header.shoffset.pack("C*").unpack("Q<").first, 264
+    assert_equal elf_obj.header.shoffset, 264
     assert_equal elf_obj.sections.size, 8
     assert_equal elf_obj.sections[0].section_name, "null"
     shstrtab = elf_obj.sections[elf_obj.header.shstrndx]
