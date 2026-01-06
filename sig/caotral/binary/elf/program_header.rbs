@@ -1,4 +1,4 @@
-class Caotral::Linker::ELF::ProgramHeader
+class Caotral::Binary::ELF::ProgramHeader
   def initialize: () -> void
   def build: () -> String
   def set!: (

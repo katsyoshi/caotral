@@ -1,7 +1,7 @@
-class Caotral::Linker::ELF::Section::Symtab
+class Caotral::Binary::ELF::Section::Symtab
   attr_accessor name_string: String
 
-  def initialize: (?opts: untyped) -> void
+  def initialize: (**untyped) -> void
   def set!: (
     ?name: Integer?,
     ?info: Integer?,
@@ -10,5 +10,7 @@ class Caotral::Linker::ELF::Section::Symtab
     ?value: Integer?,
     ?size: Integer?
   ) -> self
+
   def name_offset: () -> Integer
+  def value: () -> Integer
 end

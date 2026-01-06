@@ -1,0 +1,11 @@
+class Caotral::Binary::ELF::Section
+  attr_reader header: Caotral::Binary::ELF::SectionHeader
+  attr_accessor body: untyped
+  attr_accessor section_name: String?
+
+  def initialize: (
+    header: Caotral::Binary::ELF::SectionHeader,
+    body: untyped,
+    section_name: String?
+  ) -> void
+end

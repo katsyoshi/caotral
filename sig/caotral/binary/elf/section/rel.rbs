@@ -1,0 +1,11 @@
+class Caotral::Binary::ELF::Section::Rel
+  def initialize: (?addend: bool) -> void
+  def set!: (?offset: Integer?, ?info: Integer?, ?addend: Integer?) -> self
+  def build: () -> String
+  def offset: () -> Integer
+  def info: () -> Integer
+  def addend: () -> Integer
+  def sym: () -> Integer
+  def type: () -> Integer
+  def addend?: () -> bool
+end

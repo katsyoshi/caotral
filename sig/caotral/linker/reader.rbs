@@ -1,5 +1,5 @@
 class Caotral::Linker::Reader
-  def self.read!: (input: String, ?debug: bool, ?linker_options: Array[String]) -> Caotral::Linker::ELF
+  def self.read!: (input: String, ?debug: bool, ?linker_options: Array[String]) -> Caotral::Binary::ELF
   def initialize: (input: String, ?debug: bool, ?linker_options: Array[String]) -> void
-  def read: () -> Caotral::Linker::ELF
+  def read: () -> Caotral::Binary::ELF
 end
