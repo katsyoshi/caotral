@@ -2,7 +2,8 @@ module Caotral
   class Binary
     class ELF
       class Section
-        attr_reader :header, :body, :section_name
+        attr_accessor :body, :section_name
+        attr_reader :header
         def initialize(header:, body:, section_name:)
           @header = header
           @body = body

@@ -1,5 +1,4 @@
-require "caotral/binary/elf/utils"
-require_relative "elf/program_header"
+require "caotral/binary/elf"
 
 module Caotral
   class Linker
@@ -21,11 +20,11 @@ module Caotral
         f = File.open(@output, "wb")
         phoffset, phnum, phsize, ehsize = 64, 1, 56, 64
         header = @elf_obj.header.set!(type: 2, phoffset:, phnum:, phsize:, ehsize:)
-        ph = Caotral::Linker::ELF::ProgramHeader.new
-        text_section = @elf_obj.sections[".text"]
+        ph = Caotral::Binary::ELF::ProgramHeader.new
+        text_section = @elf_obj.find_by_name(".text")
         rel_sections = @elf_obj.sections.select { RELOCATION_SECTION_NAMES.include?(it.section_name) }
         start_bytes = [0xe8, *[0] * 4, 0x48, 0x89, 0xc7, 0x48, 0xc7, 0xc0, 0x3c, 0x00, 0x00, 0x00, 0x0f, 0x05]
-        symtab = @elf_obj.sections[".symtab"]
+        symtab = @elf_obj.find_by_name(".symtab")
         symtab_body = symtab.body
         old_text = text_section.body
         main_sym = symtab_body.find { |sym| sym.name_string == "main" }
@@ -68,19 +67,19 @@ module Caotral
         gap = [text_offset - f.pos, 0].max
         f.write("\0" * gap)
         f.write(text_section.body)
-        shstrtab = @elf_obj.sections[".shstrtab"]
+        shstrtab = @elf_obj.find_by_name(".shstrtab")
         shstrtab_offset = f.pos
         f.write(shstrtab.body.names)
         shstrtab.header.set!(offset: shstrtab_offset, size: shstrtab.body.names.bytesize)
-        write_sections = @elf_obj.sections.select { ALLOW_SECTIONS.include?(it.section_name) || it.name == "" }
+        write_sections = @elf_obj.sections.select { ALLOW_SECTIONS.include?(it.section_name) || it.section_name.nil? }
         shoffset = f.pos
         shstrndx = write_sections.index { it.section_name == ".shstrtab" }
         shnum = write_sections.size
         @elf_obj.header.set!(shoffset:, shnum:, shstrndx:)
-        names = @elf_obj.sections[".shstrtab"].body
+        names = @elf_obj.find_by_name(".shstrtab").body
 
         write_sections.each do |section|
-          lookup_name = section.name.sub(/\A\0/, "")
+          lookup_name = section.section_name
           name_offset = names.offset_of(lookup_name)
           section.header.set!(name: name_offset) if name_offset
           f.write(section.header.build)

@@ -1,10 +1,5 @@
 require "stringio"
-require_relative "elf"
-require_relative "elf/section"
-require_relative "elf/section_header"
-require_relative "elf/section/strtab"
-require_relative "elf/section/symtab"
-require_relative "elf/section/rel"
+require_relative "../binary/elf"
 
 module Caotral
   class Linker
@@ -15,13 +10,14 @@ module Caotral
       def initialize(input:, debug: false, linker_options: [])
         @input = decision(input)
         @bin = StringIO.new(@input.read)
-        @context = Caotral::Linker::ELF.new
+        @context = Caotral::Binary::ELF.new
+        @context.header = Caotral::Binary::ELF::Header.new
       end
 
       def read
         header = @bin.read(0x40)
         ident = header[0, 16]
-        raise "Not ELF file" unless ident == Caotral::Linker::ELF::Header::IDENT_STR
+        raise "Not ELF file" unless ident == Caotral::Binary::ELF::Header::IDENT_STR
     
         entry = header[24, 8].unpack("Q<").first
         phoffset = header[32, 8].unpack("Q<").first
@@ -45,18 +41,17 @@ module Caotral
           addralign = sh_entry[48, 8].unpack("Q<").first
           entsize = sh_entry[56, 8].unpack("Q<").first
           type_sym = type(type_val)
-          section_header = Caotral::Linker::ELF::SectionHeader.new
+          section_header = Caotral::Binary::ELF::SectionHeader.new
           section_header.set!(name:, type: type_val, flags:, addr:, offset:, size:, link:, info:, addralign:, entsize:)
           section_name = i == shstrndx ? ".shstrtab" : nil
-          args = { type: type_sym, section_name: }.compact
-          section = Caotral::Linker::ELF::Section.new(**args)
-          section.header = section_header
-          @context.sections.add(section)
+          section = Caotral::Binary::ELF::Section.new(header: section_header, section_name:, body: nil)
+          @context.sections.push(section)
         end
+
         shstrtab = @context.sections[shstrndx].tap do |shstrtab|
           @bin.pos = shstrtab.header.offset
           names = @bin.read(shstrtab.header.size)
-          shstrtab.body = Caotral::Linker::ELF::Section::Strtab.new(names)
+          shstrtab.body = Caotral::Binary::ELF::Section::Strtab.new(names)
           shstrtab
         end
 
@@ -71,7 +66,7 @@ module Caotral
           body_bin = @bin.read(section.header.size)
           section.body = case type
                          when :strtab
-                           Caotral::Linker::ELF::Section::Strtab.new(body_bin)
+                           Caotral::Binary::ELF::Section::Strtab.new(body_bin)
                          when :symtab
                            symtab_entsize = section.header.entsize
                            count = body_bin.bytesize / symtab_entsize
@@ -83,7 +78,7 @@ module Caotral
                              shndx = sym_bin[6, 2].unpack1("S<")
                              value = sym_bin[8, 8].unpack1("Q<")
                              size = sym_bin[16, 8].unpack1("Q<")
-                             Caotral::Linker::ELF::Section::Symtab.new.set!(name:, info:, other:, shndx:, value:, size:)
+                             Caotral::Binary::ELF::Section::Symtab.new.set!(name:, info:, other:, shndx:, value:, size:)
                            end
                          when :rel, :rela
                            rela = type == :rela
@@ -95,14 +90,14 @@ module Caotral
                               offset = rel_bin[0, 8].unpack1("Q<")
                               info = rel_bin[8, 8].unpack1("Q<")
                               addend = rela ? rel_bin[16, 8].unpack1("q<") : nil
-                              Caotral::Linker::ELF::Section::Rel.new(addend: rela).set!(offset:, info:, addend:)
+                              Caotral::Binary::ELF::Section::Rel.new(addend: rela).set!(offset:, info:, addend:)
                            end
                          when :progbits
                            body_bin
                          end
         end
 
-        strtab = @context.sections[".strtab"]
+        strtab = @context.find_by_name(".strtab")
         @context.sections.select { it.header.type == :symtab }.each do |symtab|
           symtab.body.each do |sym|
             name_offset = sym.name_offset
@@ -125,7 +120,7 @@ module Caotral
         end
       end
 
-      def type(num) = Caotral::Linker::ELF::SectionHeader::SHT_BY_VALUE.fetch(num, :unknown)
+      def type(num) = Caotral::Binary::ELF::SectionHeader::SHT_BY_VALUE.fetch(num, :unknown)
     end
   end
 end
