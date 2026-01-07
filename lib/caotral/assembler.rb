@@ -1,8 +1,7 @@
 # frozen_string_literal: true
-require_relative "assembler/elf"
-require_relative "assembler/elf/header"
-require_relative "assembler/elf/sections"
-require_relative "assembler/elf/section_header"
+require "caotral/binary/elf"
+
+require_relative "assembler/builder"
 require_relative "assembler/reader"
 
 class Caotral::Assembler
@@ -15,8 +14,7 @@ class Caotral::Assembler
 
   def initialize(input:, output: File.basename(input, ".*") + ".o", assembler: "as", type: :relocatable, debug: false)
     @input, @output = input, output
-    @elf = ELF.new(type:, input:, output:, debug:)
-    @asm_reader = Reader.new(input:, debug:)
+    @asm_reader = Caotral::Assembler::Reader.new(input:, debug:)
     @assembler = assembler
     @debug = debug
   end
@@ -32,8 +30,8 @@ class Caotral::Assembler
   end
   def obj_file = @output
   def to_elf(input: @input, output: @output, debug: false)
-    instructions
-    @elf.build(input:, output:, debug:)
+    elf_obj = Caotral::Assembler::Builder.new(instructions:).build
+    output
   end
 
   def command(asm)
