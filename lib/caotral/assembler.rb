@@ -32,7 +32,7 @@ class Caotral::Assembler
   end
   def obj_file = @output
   def to_elf(input: @input, output: @output, debug: false)
-    labels
+    instructions
     @elf.build(input:, output:, debug:)
   end
 
@@ -48,7 +48,7 @@ class Caotral::Assembler
   end
 
   private
-  def labels = @labels ||= @asm_reader.read
+  def instructions = @instructions ||= @asm_reader.read
   def gcc_assembler(assembler)
     case assembler
     when "as", "gcc"
