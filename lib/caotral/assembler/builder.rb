@@ -1,5 +1,7 @@
 require "caotral/binary/elf"
 
+require_relative "builder/text"
+
 module Caotral
   class Assembler
     class Builder
