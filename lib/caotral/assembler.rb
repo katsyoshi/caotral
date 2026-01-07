@@ -3,6 +3,7 @@ require_relative "assembler/elf"
 require_relative "assembler/elf/header"
 require_relative "assembler/elf/sections"
 require_relative "assembler/elf/section_header"
+require_relative "assembler/reader"
 
 class Caotral::Assembler
   GCC_ASSEMBLERS = ["gcc", "as"].freeze
@@ -15,6 +16,7 @@ class Caotral::Assembler
   def initialize(input:, output: File.basename(input, ".*") + ".o", assembler: "as", type: :relocatable, debug: false)
     @input, @output = input, output
     @elf = ELF.new(type:, input:, output:, debug:)
+    @asm_reader = Reader.new(input:, debug:)
     @assembler = assembler
     @debug = debug
   end
@@ -29,7 +31,10 @@ class Caotral::Assembler
     output
   end
   def obj_file = @output
-  def to_elf(input: @input, output: @output, debug: false) = @elf.build(input:, output:, debug:)
+  def to_elf(input: @input, output: @output, debug: false)
+    labels
+    @elf.build(input:, output:, debug:)
+  end
 
   def command(asm)
     case asm
@@ -43,6 +48,7 @@ class Caotral::Assembler
   end
 
   private
+  def labels = @labels ||= @asm_reader.read
   def gcc_assembler(assembler)
     case assembler
     when "as", "gcc"
