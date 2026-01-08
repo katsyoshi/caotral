@@ -5,7 +5,7 @@ module Caotral
       class Section
         class Strtab
           include Caotral::Binary::ELF::Utils
-          attr_reader :names
+          attr_accessor :names
           def initialize(names = "\0main\0", **opts) = @names = names
           def build = @names.bytes.pack("C*")
           def offset_of(name)
