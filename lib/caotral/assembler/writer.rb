@@ -3,6 +3,14 @@ require "caotral/binary/elf"
 module Caotral
   class Assembler
     class Writer
+      SECTION_TYPE_BY_NAME = {
+        nil => :null,
+        ".symtab" => :symtab,
+        ".shstrtab" => :strtab,
+        ".strtab" => :strtab,
+        ".text" => :progbits,
+     }.freeze
+
       def self.write!(elf_obj:, output:, debug: false) = new(elf_obj:, output:, debug:).write
       def initialize(elf_obj:, output:, debug: false)
         @elf_obj = elf_obj
@@ -68,13 +76,13 @@ module Caotral
         end
         output
       end
+      private_constant :SECTION_TYPE_BY_NAME
 
       private
       def decide(section)
-        type_num = _type(section.section_name)
-        type = Caotral::Binary::ELF::SectionHeader::SHT_BY_VALUE[type_num]
+        type = SECTION_TYPE_BY_NAME[section.section_name]
         [
-          type_num,
+          _type(type),
           _flag(type),
           _addralign(type, section.section_name),
           _info(type),
@@ -82,7 +90,7 @@ module Caotral
         ]
       end 
         
-      def _type(section_name) = Caotral::Binary::ELF::SectionHeader::SHT[type_name(section_name)]
+      def _type(type_name) = Caotral::Binary::ELF::SectionHeader::SHT[type_name]
 
       def _flag(section_type)
         case section_type
@@ -121,13 +129,6 @@ module Caotral
           0
         end
       end
-
-      def type_name(section_name)
-        name = section_name.nil? ? :null : section_name[1..].to_sym
-        name = :progbits if name == :text
-        name = :strtab if name == :shstrtab
-        name
-      end 
     end
   end
 end
