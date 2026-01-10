@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-require_relative "linker/reader"
+require_relative "binary/elf/reader"
 require_relative "linker/writer"
 
 module Caotral
@@ -12,11 +12,14 @@ module Caotral
       @debug, @shared = debug, shared
     end
 
-    def link(input: @input, output: @output, debug: @debug, shared: @shared) = IO.popen(link_command).close
+    def link(input: @input, output: @output, debug: @debug, shared: @shared)
+      return to_elf(input:, output:, debug:) if @linker == "self"
+
+      IO.popen(link_command).close
+    end
 
     def link_command(input: @input, output: @output, debug: @debug, shared: @shared)
       ld_path = []
-      return to_elf(input:, output:, debug:) if @linker == "self"
 
       if @shared
         ld_path << "--shared"
@@ -44,7 +47,7 @@ module Caotral
     def gcc_libpath = @gcc_libpath ||= File.dirname(Dir.glob("/usr/lib/gcc/x86_64-*/*/crtbegin.o").last)
 
     def to_elf(input: @input, output: @output, debug: @debug)
-      elf_obj = Caotral::Linker::Reader.new(input:, debug:).read
+      elf_obj = Caotral::Binary::ELF::Reader.new(input:, debug:).read
       Caotral::Linker::Writer.new(elf_obj:, output:, debug:).write
     end
   end

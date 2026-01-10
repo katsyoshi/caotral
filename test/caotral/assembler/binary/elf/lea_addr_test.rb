@@ -8,7 +8,9 @@ class ELFLeaTest < Test::Unit::TestCase
     output = "lea_addr.o"
 
     assembler = Caotral::Assembler.new(input:, output:)
-    _header, _null, text, = assembler.to_elf
+    assembler.to_elf
+    elf_obj = Caotral::Binary::ELF::Reader.new(input: output).read
+    text = elf_obj.find_by_name(".text").body
 
     expected = [
       0x55,

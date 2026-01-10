@@ -1,0 +1,10 @@
+class Caotral::Assembler::Reader
+  @input: String
+  @debug: bool
+  @instructions: Hash[String, Array[String]]
+
+  attr_reader instructions: Hash[String, Array[String]]
+
+  def initialize: (input: String, ?debug: bool) -> void
+  def read: () -> Hash[String, Array[String]]
+end

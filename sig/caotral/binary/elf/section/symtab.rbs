@@ -1,0 +1,16 @@
+class Caotral::Binary::ELF::Section::Symtab
+  attr_accessor name_string: String
+
+  def initialize: (**untyped) -> void
+  def set!: (
+    ?name: Integer?,
+    ?info: Integer?,
+    ?other: Integer?,
+    ?shndx: Integer?,
+    ?value: Integer?,
+    ?size: Integer?
+  ) -> self
+
+  def name_offset: () -> Integer
+  def value: () -> Integer
+end

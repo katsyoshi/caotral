@@ -1,8 +1,0 @@
-class Caotral::Linker::ELF::Section
-  attr_accessor header: untyped
-  attr_accessor body: untyped
-  attr_accessor section_name: String
-
-  def initialize: (type: Symbol, ?section_name: String?, ?options: Hash[Symbol, untyped]) -> void
-  def name: () -> String
-end

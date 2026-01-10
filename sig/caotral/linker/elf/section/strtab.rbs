@@ -1,8 +1,0 @@
-class Caotral::Linker::ELF::Section::Strtab
-  attr_reader names: String
-
-  def initialize: (?String, **untyped) -> void
-  def build: () -> String
-  def offset_of: (String) -> Integer?
-  def lookup: (Integer) -> String
-end

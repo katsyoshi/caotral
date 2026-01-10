@@ -13,5 +13,5 @@ class Caotral::Linker
   def link_command: (input: String, ?output: String, ?shared: bool, ?debug: bool) -> String
   def libpath: () -> String
   def gcc_libpath: () -> String
-  def to_elf: (input: String, ?output: String, ?debug: bool) -> void
+  def to_elf: (input: String, ?output: String, ?debug: bool) -> String
 end

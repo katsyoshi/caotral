@@ -8,7 +8,9 @@ class ELFXorTest < Test::Unit::TestCase
     output = "xor_zero.o"
 
     assembler = Caotral::Assembler.new(input:, output:)
-    _header, _null, text, = assembler.to_elf
+    assembler.to_elf
+    elf_obj = Caotral::Binary::ELF::Reader.new(input: output).read
+    text = elf_obj.find_by_name(".text").body
 
     expected = [
       0x55, # push rbp

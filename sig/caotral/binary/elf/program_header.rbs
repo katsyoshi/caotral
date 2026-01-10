@@ -1,0 +1,14 @@
+class Caotral::Binary::ELF::ProgramHeader
+  def initialize: () -> void
+  def build: () -> String
+  def set!: (
+    ?type: Integer?,
+    ?flags: Integer?,
+    ?offset: Integer?,
+    ?vaddr: Integer?,
+    ?paddr: Integer?,
+    ?filesz: Integer?,
+    ?memsz: Integer?,
+    ?align: Integer?
+  ) -> self
+end

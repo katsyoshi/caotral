@@ -1,3 +1,0 @@
-class Caotral::Linker::ELF
-  def initialize: () -> void
-end
