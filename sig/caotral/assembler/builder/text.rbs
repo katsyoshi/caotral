@@ -1,0 +1,13 @@
+class Caotral::Assembler::Builder::Text
+  @instructions: Hash[String, Array[String]]
+  @entries: Array[Hash[Symbol, untyped]]
+  @label_positions: Hash[String, Integer]
+
+  attr_reader entries: Array[Hash[Symbol, untyped]]
+
+  def initialize: (instructions: Hash[String, Array[String]]) -> void
+  def assemble!: (String) -> void
+  def build: () -> String
+  def size: () -> Integer
+  def align: (Integer, Integer) -> void
+end

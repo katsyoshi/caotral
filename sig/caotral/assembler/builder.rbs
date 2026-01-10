@@ -1,0 +1,6 @@
+class Caotral::Assembler::Builder
+  @instructions: Hash[String, Array[String]]
+
+  def initialize: (instructions: Hash[String, Array[String]]) -> void
+  def build: () -> Caotral::Binary::ELF
+end

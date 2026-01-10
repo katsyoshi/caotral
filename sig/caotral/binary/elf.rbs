@@ -9,4 +9,5 @@ class Caotral::Binary::ELF
   def []: (Integer) -> Caotral::Binary::ELF::Section?
   def find_by_name: (String | Symbol) -> Caotral::Binary::ELF::Section?
   def select_by_name: (String | Symbol) -> Array[Caotral::Binary::ELF::Section]
+  def index: (String | Symbol) -> Integer?
 end

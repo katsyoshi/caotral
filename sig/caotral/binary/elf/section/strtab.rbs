@@ -1,5 +1,5 @@
 class Caotral::Binary::ELF::Section::Strtab
-  attr_reader names: String
+  attr_accessor names: String
 
   def initialize: (?String, **untyped) -> void
   def build: () -> String

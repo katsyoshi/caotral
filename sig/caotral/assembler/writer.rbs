@@ -1,0 +1,9 @@
+class Caotral::Assembler::Writer
+  @elf_obj: Caotral::Binary::ELF
+  @output: String
+  @debug: bool
+
+  def self.write!: (elf_obj: Caotral::Binary::ELF, output: String, ?debug: bool) -> String
+  def initialize: (elf_obj: Caotral::Binary::ELF, output: String, ?debug: bool) -> void
+  def write: (?output: String) -> String
+end
