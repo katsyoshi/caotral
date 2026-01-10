@@ -9,7 +9,7 @@ class Caotral::Assembler::WriterTest < Test::Unit::TestCase
     instructions = Caotral::Assembler::Reader.new(input:).read
     elf_obj = Caotral::Assembler::Builder.new(instructions:).build
     writer = Caotral::Assembler::Writer.new(elf_obj:, output:).write
-    results = Caotral::Linker::Reader.new(input: output).read
+    results = Caotral::Binary::ELF::Reader.new(input: output).read
     shstrtab = results.find_by_name(".shstrtab")
     text = results.find_by_name(".text")
     names = shstrtab.body.names

@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-require_relative "linker/reader"
+require_relative "binary/elf/reader"
 require_relative "linker/writer"
 
 module Caotral
@@ -47,7 +47,7 @@ module Caotral
     def gcc_libpath = @gcc_libpath ||= File.dirname(Dir.glob("/usr/lib/gcc/x86_64-*/*/crtbegin.o").last)
 
     def to_elf(input: @input, output: @output, debug: @debug)
-      elf_obj = Caotral::Linker::Reader.new(input:, debug:).read
+      elf_obj = Caotral::Binary::ELF::Reader.new(input:, debug:).read
       Caotral::Linker::Writer.new(elf_obj:, output:, debug:).write
     end
   end

@@ -8,7 +8,7 @@ class Caotral::Assembler::ELFTest < Test::Unit::TestCase
     input = Pathname.pwd.join('sample', 'assembler', 'plus.s').to_s
     output = "amd64.o"
     Caotral::Assembler.new(input:, output:).to_elf
-    results = Caotral::Linker::Reader.new(input: output).read
+    results = Caotral::Binary::ELF::Reader.new(input: output).read
     text = results.find_by_name(".text")
     symtab = results.find_by_name(".symtab")
     assert_equal(ref_text, text.body.unpack("C*"))

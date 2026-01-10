@@ -7,6 +7,7 @@ require_relative "elf/section/rel"
 require_relative "elf/section/strtab"
 require_relative "elf/section/symtab"
 require_relative "elf/section_header"
+require_relative "elf/reader"
 
 module Caotral
   class Binary

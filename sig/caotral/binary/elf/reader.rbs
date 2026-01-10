@@ -1,0 +1,11 @@
+class Caotral::Binary::ELF::Reader
+  @input: File
+  @bin: StringIO
+  @context: Caotral::Binary::ELF
+
+  attr_reader context: Caotral::Binary::ELF
+
+  def self.read!: (input: String | Pathname, ?debug: bool, ?linker_options: Array[String]) -> Caotral::Binary::ELF
+  def initialize: (input: String | Pathname, ?debug: bool, ?linker_options: Array[String]) -> void
+  def read: () -> Caotral::Binary::ELF
+end

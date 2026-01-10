@@ -9,7 +9,7 @@ class ELFJumpTest < Test::Unit::TestCase
 
     assembler = Caotral::Assembler.new(input:, output:)
     assembler.to_elf
-    elf_obj = Caotral::Linker::Reader.new(input: output).read
+    elf_obj = Caotral::Binary::ELF::Reader.new(input: output).read
     text = elf_obj.find_by_name(".text")
 
     expected = [
@@ -35,7 +35,7 @@ class ELFJumpTest < Test::Unit::TestCase
 
     assembler = Caotral::Assembler.new(input:, output:)
     assembler.to_elf
-    elf_obj = Caotral::Linker::Reader.new(input: output).read
+    elf_obj = Caotral::Binary::ELF::Reader.new(input: output).read
     text = elf_obj.find_by_name(".text")
 
     expected = [
