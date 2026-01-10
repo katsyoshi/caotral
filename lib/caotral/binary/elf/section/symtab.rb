@@ -17,6 +17,7 @@ module Caotral
             @size = num2bytes(0, 8)
             @name_string = ""
           end
+          def build = bytes.flatten.pack("C*")
 
           def set!(name: nil, info: nil, other: nil, shndx: nil, value: nil, size: nil)
             @name = num2bytes(name, 4) if check(name, 4)
@@ -30,6 +31,8 @@ module Caotral
 
           def name_offset = @name.pack("C*").unpack1("L<")
           def value = @value.pack("C*").unpack1("Q<")
+
+          private def bytes = [@name, @info, @other, @shndx, @value, @size]
         end
       end
     end

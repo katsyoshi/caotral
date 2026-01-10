@@ -4,7 +4,11 @@ module Caotral
   class Assembler
     class Writer
       def self.write!(elf_obj:, output:, debug: false) = new(elf_obj:, output:, debug:).write
-      def initialize(elf_obj:, output:, debug: false) = @elf_obj, @output, @debug = elf_obj, output, debug
+      def initialize(elf_obj:, output:, debug: false)
+        @elf_obj = elf_obj
+        @output = output
+        @debug = debug
+      end
 
       def write(output: @output)
         File.open(output, "wb") do |f|
@@ -22,6 +26,7 @@ module Caotral
             in Array
               section.body.each { |s| f.write(s.build) }
             else
+              next if section.body.nil?
               f.write(section.body.build)
             end
           end
@@ -36,13 +41,15 @@ module Caotral
           @elf_obj.sections.each do |section|
             header = section.header
             section_name = section.section_name.to_s
-            name = section_name.empty? ? 0 : shstrtab.offset_of(section_name)
+            name = section_name.empty? ? 0 : shstrtab.body.offset_of(section_name)
             body = section.body
             size = case body
                    in String
                      body.size
                    in Array
                      body.map(&:build).map(&:size).sum
+                   in NilClass
+                     0
                    else
                      body.build.size
                    end

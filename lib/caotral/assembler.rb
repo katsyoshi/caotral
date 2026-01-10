@@ -3,6 +3,7 @@ require "caotral/binary/elf"
 
 require_relative "assembler/builder"
 require_relative "assembler/reader"
+require_relative "assembler/writer"
 
 class Caotral::Assembler
   GCC_ASSEMBLERS = ["gcc", "as"].freeze
@@ -31,7 +32,7 @@ class Caotral::Assembler
   def obj_file = @output
   def to_elf(input: @input, output: @output, debug: false)
     elf_obj = Caotral::Assembler::Builder.new(instructions:).build
-    output
+    Caotral::Assembler::Writer.new(elf_obj:, output:, debug:).write
   end
 
   def command(asm)

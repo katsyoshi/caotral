@@ -33,7 +33,11 @@ module Caotral
         HEX_PATTERN = /\A0x[0-9a-fA-F]+\z/.freeze
         attr_reader :entries
 
-        def initialize(instructions:) = @instructions, @entries, @label_positions = instructions, [], {}
+        def initialize(instructions:)
+          @instructions = instructions
+          @entries = []
+          @label_positions = {}
+        end 
 
         def assemble!(line)
           line = line.strip
