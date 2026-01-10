@@ -37,7 +37,7 @@ module Caotral
           @instructions = instructions
           @entries = []
           @label_positions = {}
-        end 
+        end
 
         def assemble!(line)
           line = line.strip

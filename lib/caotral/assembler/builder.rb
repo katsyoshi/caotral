@@ -13,7 +13,7 @@ module Caotral
 
         [
           [nil, nil],
-          [".text", assemble(@instructions)],
+          [".text", assemble_text(@instructions)],
           [".strtab", Caotral::Binary::ELF::Section::Strtab.new],
           [".symtab", Caotral::Binary::ELF::Section::Symtab.new],
           [".shstrtab", Caotral::Binary::ELF::Section::Strtab.new],
@@ -29,7 +29,15 @@ module Caotral
       end
 
       private
-      def assemble(instructions) = Caotral::Assembler::Builder::Text.new(instructions:).build
+      def assemble_text(instructions)
+        text = Caotral::Assembler::Builder::Text.new(instructions:)
+        instructions.each do |label, lines|
+          text.entries << { label:, size: 0 }
+          lines.each { |line| text.assemble!(line) }
+        end
+        text.build
+      end
+
       def build_symtab(strtab)
         entries = []
         entries << Caotral::Binary::ELF::Section::Symtab.new.set!(name: 0, info: 0, shndx: 0, value: 0, size: 0)

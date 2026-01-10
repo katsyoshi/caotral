@@ -13,7 +13,7 @@ module Caotral
       def write(output: @output)
         File.open(output, "wb") do |f|
           f.write(@elf_obj.header.build)
-          shstrtab_names = ""
+          shstrtab_names = String.new
           offsets = {}
           @elf_obj.sections.each do |section|
             section_name = section.section_name.to_s
@@ -38,6 +38,8 @@ module Caotral
           shnum = @elf_obj.sections.size
           shstrndx = shnum - 1
           offset = 0
+          symtab = @elf_obj.find_by_name(".symtab")
+          symtab.header.set!(entsize: 24)
           @elf_obj.sections.each do |section|
             header = section.header
             section_name = section.section_name.to_s
@@ -53,8 +55,9 @@ module Caotral
                    else
                      body.build.size
                    end
-            offset = offsets[section_name]
-            header.set!(name:, offset:, size:)
+            offset = section.section_name.nil? ? 0 : offsets[section_name]
+            type = decide_type(section)
+            header.set!(name:, offset:, size:, type:)
             f.write(header.build)
           end
           @elf_obj.header.set!(shoffset:, shnum:, shstrndx:)
@@ -62,6 +65,19 @@ module Caotral
           f.write(@elf_obj.header.build)
         end
         output
+      end
+
+      private def decide_type(section)
+        case section.section_name
+        when ".text"
+          1
+        when ".symtab"
+          2
+        when ".shstrtab", ".strtab"
+          3
+        else
+          0
+        end
       end
     end
   end
