@@ -40,7 +40,6 @@ module Caotral
             info = sh_entry[44, 4].unpack("L<").first
             addralign = sh_entry[48, 8].unpack("Q<").first
             entsize = sh_entry[56, 8].unpack("Q<").first
-            type_sym = type(type_val)
             section_header = Caotral::Binary::ELF::SectionHeader.new
             section_header.set!(name:, type: type_val, flags:, addr:, offset:, size:, link:, info:, addralign:, entsize:)
             section_name = i == shstrndx ? ".shstrtab" : nil

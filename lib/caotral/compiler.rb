@@ -3,7 +3,7 @@
 require_relative "compiler/generator"
 
 class Caotral::Compiler
-  attr_reader *%i(generator assembler linker)
+  attr_reader :generator, :assembler, :linker
 
   def self.compile!(input:, output: "tmp.s", debug: false, compiler_options: ["-O0"], shared: false)
     compiler = new(input:, output:, debug:, shared:,)

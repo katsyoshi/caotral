@@ -21,7 +21,7 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
   end
 
   def test_execute_written
-    written_output = Caotral::Linker::Writer.write!(elf_obj: @elf_obj, output: "write", debug: false)
+    Caotral::Linker::Writer.write!(elf_obj: @elf_obj, output: "write", debug: false)
     File.chmod(0755, "./write")
     IO.popen("./write").close
     exit_code, handle_code = check_process($?.to_i)

@@ -34,7 +34,6 @@ module Caotral
         vaddr = base_addr + text_offset
         paddr = base_addr + text_offset
         start_len = start_bytes.length
-        start_addr = base_addr + text_offset
         main_offset = main_sym.value + start_len
         start_bytes[1, 4] = num2bytes((main_offset - 5), 4)
         start_bytestring = start_bytes.pack("C*")
