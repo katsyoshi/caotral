@@ -31,7 +31,7 @@ module Caotral
             end
           end
           shstrtab = @elf_obj.find_by_name(".shstrtab")
-          shstrtab.body.names = shstrtab_names
+          shstrtab.body.names = shstrtab_names << "\0".b
           offsets[".shstrtab"] = f.pos
           f.write(shstrtab.body.build)
           shoffset = f.pos
@@ -57,7 +57,13 @@ module Caotral
                    end
             offset = section.section_name.nil? ? 0 : offsets[section_name]
             type = decide_type(section)
-            header.set!(name:, offset:, size:, type:)
+            if ".symtab" == section.section_name
+              link = @elf_obj.index(".strtab")
+              info = 1
+              header.set!(name:, offset:, size:, type:, info:, link:)
+            else
+              header.set!(name:, offset:, size:, type:)
+            end
             f.write(header.build)
           end
           @elf_obj.header.set!(shoffset:, shnum:, shstrndx:)

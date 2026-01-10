@@ -22,6 +22,7 @@ module Caotral
       def [](idx) = @sections[idx]
       def find_by_name(section_name) = @sections.find { section_name == it.section_name }
       def select_by_name(section_name) = @sections.select { section_name == it.section_name }
+      def index(section_name) = @sections.index { section_name == it.section_name }
     end
   end
 end
