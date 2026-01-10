@@ -1,5 +1,5 @@
 module Caotral
-  class Binary
+  module Binary
     class ELF
       class Error < StandardError
       end

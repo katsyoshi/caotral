@@ -1,7 +1,7 @@
 require "stringio"
 
 module Caotral
-  class Binary
+  module Binary
     class ELF
       class Reader
         attr_reader :context

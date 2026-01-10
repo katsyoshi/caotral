@@ -1,7 +1,7 @@
 require "caotral/binary/elf/utils"
 
 module Caotral
-  class Binary
+  module Binary
     class ELF
       class ProgramHeader
         include Caotral::Binary::ELF::Utils

@@ -1,6 +1,6 @@
 require_relative "utils"
 module Caotral
-  class Binary
+  module Binary
     class ELF
       class Header
         include Caotral::Binary::ELF::Utils

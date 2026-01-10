@@ -1,7 +1,7 @@
 require_relative "error"
 
 module Caotral
-  class Binary
+  module Binary
     class ELF
       module Utils
         def build = (build_errors; bytes.flatten.pack("C*"))

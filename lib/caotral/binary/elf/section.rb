@@ -1,5 +1,5 @@
 module Caotral
-  class Binary
+  module Binary
     class ELF
       class Section
         attr_accessor :body, :section_name

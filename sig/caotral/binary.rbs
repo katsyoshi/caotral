@@ -1,2 +1,2 @@
-class Caotral::Binary
+module Caotral::Binary
 end

@@ -1,7 +1,7 @@
 require "caotral/binary/elf/utils"
 
 module Caotral
-  class Binary
+  module Binary
     class ELF
       class Section
         class Symtab

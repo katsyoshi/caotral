@@ -10,7 +10,7 @@ require_relative "elf/section_header"
 require_relative "elf/reader"
 
 module Caotral
-  class Binary
+  module Binary
     class ELF
       include Enumerable
       attr_reader :sections
