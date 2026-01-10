@@ -9,7 +9,8 @@ class Caotral::CompilerTest < Test::Unit::TestCase
   end
   def test_sample_plus
     @file = "sample/plus.rb"
-    @caotral = Caotral.compile!(input: @file, assembler: "self")
+    @caotral = Caotral.compile!(input: @file, assembler: "self", linker: "self")
+    File.chmod(755, "tmp")
     IO.popen("./tmp").close
     exit_code, handle_code = check_process($?.to_i)
     assert_equal(9, exit_code)
@@ -19,6 +20,7 @@ class Caotral::CompilerTest < Test::Unit::TestCase
   def test_sample_variable
     @file = "sample/variable.rb"
     @caotral = Caotral.compile!(input: @file, assembler: "self")
+    File.chmod(755, "tmp")
     IO.popen("./tmp").close
     exit_code, handle_code = check_process($?.to_i)
     assert_equal(1, exit_code)
