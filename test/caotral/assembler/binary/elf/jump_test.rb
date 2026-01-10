@@ -8,7 +8,9 @@ class ELFJumpTest < Test::Unit::TestCase
     output = "jmp_forward.o"
 
     assembler = Caotral::Assembler.new(input:, output:)
-    _header, _null, text, = assembler.to_elf
+    assembler.to_elf
+    elf_obj = Caotral::Linker::Reader.new(input: output).read
+    text = elf_obj.find_by_name(".text")
 
     expected = [
       0x55, # push rbp
@@ -22,7 +24,7 @@ class ELFJumpTest < Test::Unit::TestCase
       0xc3, # ret
     ]
 
-    assert_equal(expected, text.unpack("C*")[...expected.size])
+    assert_equal(expected, text.body.unpack("C*")[...expected.size])
   ensure
     File.delete(output) if File.exist?(output)
   end
@@ -32,7 +34,9 @@ class ELFJumpTest < Test::Unit::TestCase
     output = "jmp_backward.o"
 
     assembler = Caotral::Assembler.new(input:, output:)
-    _header, _null, text, = assembler.to_elf
+    assembler.to_elf
+    elf_obj = Caotral::Linker::Reader.new(input: output).read
+    text = elf_obj.find_by_name(".text")
 
     expected = [
       0x55, # push rbp
@@ -46,7 +50,7 @@ class ELFJumpTest < Test::Unit::TestCase
       0xc3, # ret
     ]
 
-    assert_equal(expected, text.unpack("C*")[...expected.size])
+    assert_equal(expected, text.body.unpack("C*")[...expected.size])
   ensure
     File.delete(output) if File.exist?(output)
   end
