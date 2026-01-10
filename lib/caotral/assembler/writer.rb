@@ -96,7 +96,7 @@ module Caotral
         case section_type
         when :progbits
           6
-        when :symtab, :strtab
+        when :symtab, :strtab, :null
           0
         else
           0
@@ -104,16 +104,23 @@ module Caotral
       end
 
       def _addralign(type, section_name)
-        return 1 if type == :progbits && section_name == ".text"
-        return 8 if type == :symtab
-        1
+        case
+        when (type == :progbits && section_name == ".text") || type == :strtab
+          1
+        when type == :symtab
+          8
+        when type == :null
+          0
+        else
+          0
+        end
       end
 
       def _info(section_type)
         case section_type
         when :symtab
           1
-        when :progbits, :strtab
+        when :progbits, :strtab, :null
           0
         else
           0
@@ -123,7 +130,7 @@ module Caotral
         case section_type
         when :symtab
           24
-        when :progbits, :strtab
+        when :progbits, :strtab, :null
           0
         else
           0
