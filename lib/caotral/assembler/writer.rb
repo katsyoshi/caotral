@@ -125,6 +125,7 @@ module Caotral
       def type_name(section_name)
         name = section_name.nil? ? :null : section_name[1..].to_sym
         name = :progbits if name == :text
+        name = :strtab if name == :shstrtab
         name
       end 
     end
