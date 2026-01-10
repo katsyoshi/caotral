@@ -56,14 +56,10 @@ module Caotral
                      body.build.size
                    end
             offset = section.section_name.nil? ? 0 : offsets[section_name]
-            type = decide_type(section)
-            if ".symtab" == section.section_name
-              link = @elf_obj.index(".strtab")
-              info = 1
-              header.set!(name:, offset:, size:, type:, info:, link:)
-            else
-              header.set!(name:, offset:, size:, type:)
-            end
+            link = 0
+            type, flags, addralign, info, entsize = [*decide(section)]
+            link = @elf_obj.index(".strtab") if ".symtab" == section.section_name
+            header.set!(name:, flags:, offset:, size:, type:, info:, link:, entsize:, addralign:)
             f.write(header.build)
           end
           @elf_obj.header.set!(shoffset:, shnum:, shstrndx:)
@@ -73,18 +69,64 @@ module Caotral
         output
       end
 
-      private def decide_type(section)
-        case section.section_name
-        when ".text"
-          1
-        when ".symtab"
-          2
-        when ".shstrtab", ".strtab"
-          3
+      private
+      def decide(section)
+        type_num = _type(section.section_name)
+        type = Caotral::Binary::ELF::SectionHeader::SHT_BY_VALUE[type_num]
+        [
+          type_num,
+          _flag(type),
+          _addralign(type, section.section_name),
+          _info(type),
+          _entsize(type),
+        ]
+      end 
+        
+      def _type(section_name) = Caotral::Binary::ELF::SectionHeader::SHT[type_name(section_name)]
+
+      def _flag(section_type)
+        case section_type
+        when :progbits
+          6
+        when :symtab, :strtab
+          0
         else
           0
         end
       end
+
+      def _addralign(type, section_name)
+        return 1 if type == :progbits && section_name == ".text"
+        return 8 if type == :symtab
+        1
+      end
+
+      def _info(section_type)
+        case section_type
+        when :symtab
+          1
+        when :progbits, :strtab
+          0
+        else
+          0
+        end
+      end
+      def _entsize(section_type)
+        case section_type
+        when :symtab
+          24
+        when :progbits, :strtab
+          0
+        else
+          0
+        end
+      end
+
+      def type_name(section_name)
+        name = section_name.nil? ? :null : section_name[1..].to_sym
+        name = :progbits if name == :text
+        name
+      end 
     end
   end
 end
