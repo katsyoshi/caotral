@@ -5,12 +5,12 @@ class Caotral::Linker::ReaderTest < Test::Unit::TestCase
   def teardown = File.delete("plus.o") if File.exist?("plus.o")
   def test_read
     elf_obj = Caotral::Linker::Reader.read!(input: "plus.o", debug: false)
-    assert_equal elf_obj.header.shoffset, 264
-    assert_equal elf_obj.sections.size, 8
+    assert_equal elf_obj.header.shoffset, 213
+    assert_equal elf_obj.sections.size, 5
     assert_equal elf_obj.sections[0].section_name, nil
     shstrtab = elf_obj.sections[elf_obj.header.shstrndx]
     assert_equal shstrtab.section_name, ".shstrtab"
-    assert_equal shstrtab.body.names, "\0.text\0.data\0.bss\0.note\0.symtab\0.strtab\0.shstrtab\0"
+    assert_equal shstrtab.body.names, "\0\0.text\0.strtab\0.symtab\0.shstrtab\0".b
     assert_equal elf_obj.sections[1].section_name, ".text"
     assert_equal elf_obj.sections[1].header.size, 61
   end
