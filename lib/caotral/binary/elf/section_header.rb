@@ -46,6 +46,7 @@ module Caotral
         def type = SHT_BY_VALUE[@type.pack("C*").unpack1("L<")]
         def info = @info.pack("C*").unpack1("L<")
         def addr = @addr.pack("C*").unpack1("Q<")
+        def link = @link.pack("C*").unpack1("L<")
 
         private def bytes = [@name, @type, @flags, @addr, @offset, @size, @link, @info, @addralign, @entsize]
       end

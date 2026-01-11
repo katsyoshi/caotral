@@ -4,7 +4,7 @@ module Caotral
   class Linker
     class Writer
       include Caotral::Binary::ELF::Utils
-      ALLOW_SECTIONS = %w(.text .strtab .shstrtab).freeze
+      ALLOW_SECTIONS = %w(.text .strtab .shstrtab .symtab).freeze
       R_X86_64_PC32 = 2
       R_X86_64_PLT32 = 4
       ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
@@ -73,14 +73,23 @@ module Caotral
         write_sections = @elf_obj.sections.select { ALLOW_SECTIONS.include?(it.section_name) || it.section_name.nil? }
         shoffset = f.pos
         shstrndx = write_sections.index { it.section_name == ".shstrtab" }
+        strtabndx = write_sections.index { it.section_name == ".strtab" }
+
         shnum = write_sections.size
         @elf_obj.header.set!(shoffset:, shnum:, shstrndx:)
         names = @elf_obj.find_by_name(".shstrtab").body
 
         write_sections.each do |section|
+          header = section.header
           lookup_name = section.section_name
           name_offset = names.offset_of(lookup_name)
-          section.header.set!(name: name_offset) if name_offset
+          name, info, link, entsize = (name_offset.nil? ? 0 : name_offset), header.info, header.link, 0
+          if header.type == :symtab
+            info = section.body.size
+            link = strtabndx
+            entsize = header.entsize.nonzero? || 24
+          end
+          header.set!(name:, info:, link:, entsize:)
           f.write(section.header.build)
         end
 
