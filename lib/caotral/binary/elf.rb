@@ -24,6 +24,15 @@ module Caotral
       def find_by_name(section_name) = @sections.find { section_name == it.section_name }
       def select_by_name(section_name) = @sections.select { section_name == it.section_name }
       def index(section_name) = @sections.index { section_name == it.section_name }
+      def select_by_names(section_names)
+        @sections.select do |section|
+          next true if section.section_name.nil?
+          section_names.any? do |name|
+            re = Regexp === name
+            re ? section.section_name.match(name) : section.section_name == name
+          end
+        end
+      end
     end
   end
 end
