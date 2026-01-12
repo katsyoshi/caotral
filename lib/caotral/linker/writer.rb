@@ -4,7 +4,6 @@ module Caotral
   class Linker
     class Writer
       include Caotral::Binary::ELF::Utils
-      ALLOW_SECTIONS = [".text", ".strtab", ".shstrtab", ".symtab", /\.rela\./, /\.rel\./].freeze
       R_X86_64_PC32 = 2
       R_X86_64_PLT32 = 4
       ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
@@ -15,7 +14,7 @@ module Caotral
       end
       def initialize(elf_obj:, output:, entry: nil, debug: false)
         @elf_obj, @output, @entry, @debug = elf_obj, output, entry, debug
-        @write_sections = @elf_obj.select_by_names(ALLOW_SECTIONS)
+        @write_sections = write_order_sections
       end
       def write
         f = File.open(@output, "wb")
@@ -59,6 +58,7 @@ module Caotral
           end
           target.body = bytes
         end
+
         header.set!(entry: @entry || base_addr + text_offset)
         ph.set!(type:, offset: text_offset, vaddr:, paddr:, filesz:, memsz:, flags:, align:)
         text_section.header.set!(size: text_section.body.bytesize, addr: vaddr, offset: text_offset)
@@ -104,6 +104,16 @@ module Caotral
       end
 
       private
+      def write_order_sections
+        write_order = []
+        write_order << @elf_obj.sections.find { |s| s.section_name.nil? }
+        write_order << @elf_obj.find_by_name(".text")
+        write_order << @elf_obj.find_by_name(".symtab")
+        write_order << @elf_obj.find_by_name(".strtab")
+        write_order.concat(@elf_obj.select_by_names([/\.rel\./, /\.rela\./]))
+        write_order << @elf_obj.find_by_name(".shstrtab")
+        write_order.compact
+      end
       def write_section_index(section_name) = @write_sections.index { it.section_name == section_name }
       def ref_index(section)
         section_name = section.section_name
