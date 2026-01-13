@@ -1,13 +1,13 @@
 class Caotral::Compiler::Linker
-  @input: String
+  @inputs: Array[String]
   @output: String
   @linker: String
   @options: Array[String]
   @shared: bool
   @debug: bool
 
-  def initialize: (input: String, ?output: String, ?linker: String, ?linker_options: Array[String], ?shared: bool, ?debug: bool) -> void
-  def link: (input: String, ?output: String, ?shared: bool, ?debug: bool) -> void
+  def initialize: (inputs: Array[String], ?output: String, ?linker: String, ?linker_options: Array[String], ?shared: bool, ?debug: bool) -> void
+  def link: (inputs: Array[String], ?output: String, ?shared: bool, ?debug: bool) -> void
 
   def link_command: () -> String
   def libpath: () -> String

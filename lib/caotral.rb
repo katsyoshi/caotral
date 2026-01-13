@@ -14,7 +14,7 @@ module Caotral
     execf = "#{basename}#{File.extname(d)}"
     compile(input:, output: basename+".s", debug:, shared:)
     assemble(input: basename+".s", output: basename+".o", assembler:, debug:, shared:)
-    link(input: basename+".o", output: execf, linker:, debug:, shared:)
+    link(input: [basename+".o"], output: execf, linker:, debug:, shared:)
   end
   def compile(input:, output: "tmp.s", debug: false, shared: false)
     Caotral::Compiler.compile!(input:, output:, debug:)
@@ -23,6 +23,7 @@ module Caotral
     Caotral::Assembler.assemble!(input:, output:, debug:, assembler:, shared:)
   end
   def link(input:, output: "tmp", linker: "ld", debug: false, shared: false)
-    Caotral::Linker.link!(input:, output:, linker:, debug:, shared:)
+    inputs = Array === input ? input : [input]
+    Caotral::Linker.link!(inputs:, output:, linker:, debug:, shared:)
   end
 end
