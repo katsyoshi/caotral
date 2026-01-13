@@ -11,4 +11,5 @@ class Caotral::Binary::ELF
   def select_by_name: (String | Symbol) -> Array[Caotral::Binary::ELF::Section]
   def index: (String | Symbol) -> Integer?
   def select_by_names: (Array[String | Regexp]) -> Array[Caotral::Binary::ELF::Section]
+  def without_section: (String | Symbol) -> Array[Caotral::Binary::ELF::Section]
 end

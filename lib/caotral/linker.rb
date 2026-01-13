@@ -49,9 +49,9 @@ module Caotral
 
     def to_elf(inputs: @inputs, output: @output, debug: @debug)
       elf_objs = inputs.map { |input| Caotral::Binary::ELF::Reader.new(input:, debug:).read }
-      elf_obj = elf_objs.first
-      builder = Caotral::Linker::Builder.new(elf_obj:)
+      builder = Caotral::Linker::Builder.new(elf_objs:)
       builder.resolve_symbols
+      elf_obj = builder.build
       Caotral::Linker::Writer.new(elf_obj:, output:, debug:).write
     end
   end
