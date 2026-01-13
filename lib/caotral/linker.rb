@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require_relative "binary/elf/reader"
+require_relative "linker/builder"
 require_relative "linker/writer"
 
 module Caotral
@@ -48,6 +49,8 @@ module Caotral
 
     def to_elf(input: @input, output: @output, debug: @debug)
       elf_obj = Caotral::Binary::ELF::Reader.new(input:, debug:).read
+      builder = Caotral::Linker::Builder.new(elf_obj:)
+      builder.resolve_symbols
       Caotral::Linker::Writer.new(elf_obj:, output:, debug:).write
     end
   end

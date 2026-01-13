@@ -12,5 +12,6 @@ class Caotral::Binary::ELF::Section::Symtab
   ) -> self
 
   def name_offset: () -> Integer
+  def info: () -> Integer
   def value: () -> Integer
 end

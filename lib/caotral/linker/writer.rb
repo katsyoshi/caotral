@@ -4,7 +4,6 @@ module Caotral
   class Linker
     class Writer
       include Caotral::Binary::ELF::Utils
-      ALLOW_SECTIONS = %w(.text .strtab .shstrtab).freeze
       R_X86_64_PC32 = 2
       R_X86_64_PLT32 = 4
       ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
@@ -15,6 +14,7 @@ module Caotral
       end
       def initialize(elf_obj:, output:, entry: nil, debug: false)
         @elf_obj, @output, @entry, @debug = elf_obj, output, entry, debug
+        @write_sections = write_order_sections
       end
       def write
         f = File.open(@output, "wb")
@@ -58,6 +58,7 @@ module Caotral
           end
           target.body = bytes
         end
+
         header.set!(entry: @entry || base_addr + text_offset)
         ph.set!(type:, offset: text_offset, vaddr:, paddr:, filesz:, memsz:, flags:, align:)
         text_section.header.set!(size: text_section.body.bytesize, addr: vaddr, offset: text_offset)
@@ -70,17 +71,28 @@ module Caotral
         shstrtab_offset = f.pos
         f.write(shstrtab.body.names)
         shstrtab.header.set!(offset: shstrtab_offset, size: shstrtab.body.names.bytesize)
-        write_sections = @elf_obj.sections.select { ALLOW_SECTIONS.include?(it.section_name) || it.section_name.nil? }
         shoffset = f.pos
-        shstrndx = write_sections.index { it.section_name == ".shstrtab" }
-        shnum = write_sections.size
+        shstrndx  = write_section_index(".shstrtab")
+        strtabndx = write_section_index(".strtab")
+        symtabndx = write_section_index(".symtab")
+        shnum = @write_sections.size
         @elf_obj.header.set!(shoffset:, shnum:, shstrndx:)
         names = @elf_obj.find_by_name(".shstrtab").body
 
-        write_sections.each do |section|
+        @write_sections.each do |section|
+          header = section.header
           lookup_name = section.section_name
           name_offset = names.offset_of(lookup_name)
-          section.header.set!(name: name_offset) if name_offset
+          name, info, link, entsize = (name_offset.nil? ? 0 : name_offset), header.info, header.link, 0
+          if header.type == :symtab
+            info = section.body.size
+            link = strtabndx
+            entsize = header.entsize.nonzero? || 24
+          elsif [:rel, :rela].include?(header.type)
+            link = symtabndx
+            info = ref_index(section)
+          end
+          header.set!(name:, info:, link:, entsize:)
           f.write(section.header.build)
         end
 
@@ -89,6 +101,24 @@ module Caotral
         output
       ensure
         f.close if f
+      end
+
+      private
+      def write_order_sections
+        write_order = []
+        write_order << @elf_obj.sections.find { |s| s.section_name.nil? }
+        write_order << @elf_obj.find_by_name(".text")
+        write_order << @elf_obj.find_by_name(".symtab")
+        write_order << @elf_obj.find_by_name(".strtab")
+        write_order.concat(@elf_obj.select_by_names([/\.rel\./, /\.rela\./]))
+        write_order << @elf_obj.find_by_name(".shstrtab")
+        write_order.compact
+      end
+      def write_section_index(section_name) = @write_sections.index { it.section_name == section_name }
+      def ref_index(section)
+        section_name = section.section_name
+        ref = @elf_obj.select_by_names(section_name.split(".").filter { |sn| !sn.empty? && sn != "rel" && sn != "rela" }.map { "." + it }).first
+        write_section_index(ref.section_name)
       end
     end
   end

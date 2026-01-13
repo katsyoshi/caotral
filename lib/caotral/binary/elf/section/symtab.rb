@@ -31,6 +31,7 @@ module Caotral
 
           def name_offset = @name.pack("C*").unpack1("L<")
           def value = @value.pack("C*").unpack1("Q<")
+          def info = @info.pack("C*").unpack1("C")
 
           private def bytes = [@name, @info, @other, @shndx, @value, @size]
         end

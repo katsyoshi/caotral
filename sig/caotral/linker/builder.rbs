@@ -1,0 +1,9 @@
+class Caotral::Linker::Builder
+  @elf_obj: Caotral::Binary::ELF
+  @symbols: Hash[Symbol, Set[String]]
+
+  attr_reader symbols: Hash[Symbol, Set[String]]
+
+  def initialize: (elf_obj: Caotral::Binary::ELF) -> void
+  def resolve_symbols: () -> Hash[Symbol, Set[String]]
+end
