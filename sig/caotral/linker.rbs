@@ -1,17 +1,17 @@
 class Caotral::Linker
-  @input: String
+  @inputs: Array[String]
   @output: String
   @linker: String
   @options: Array[String]
   @shared: bool
   @debug: bool
 
-  def self.link!: (input: String, ?output: String, ?linker: String, ?debug: bool, ?shared: bool) -> void
-  def initialize: (input: String, ?output: String, ?linker: String, ?linker_options: Array[String], ?shared: bool, ?debug: bool) -> void
-  def link: (input: String, ?output: String, ?shared: bool, ?debug: bool) -> void
+  def self.link!: (inputs: Array[String], ?output: String, ?linker: String, ?debug: bool, ?shared: bool) -> void
+  def initialize: (inputs: Array[String], ?output: String, ?linker: String, ?linker_options: Array[String], ?shared: bool, ?debug: bool) -> void
+  def link: (inputs: Array[String], ?output: String, ?shared: bool, ?debug: bool) -> void
 
-  def link_command: (input: String, ?output: String, ?shared: bool, ?debug: bool) -> String
+  def link_command: (inputs: Array[String], ?output: String, ?shared: bool, ?debug: bool) -> String
   def libpath: () -> String
   def gcc_libpath: () -> String
-  def to_elf: (input: String, ?output: String, ?debug: bool) -> String
+  def to_elf: (inputs: Array[String], ?output: String, ?debug: bool) -> String
 end
