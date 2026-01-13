@@ -117,7 +117,7 @@ module Caotral
       def write_section_index(section_name) = @write_sections.index { it.section_name == section_name }
       def ref_index(section)
         section_name = section.section_name
-        ref = @elf_obj.select_by_names(section_name.split(".").filter { |sn| !sn.empty? && sn != "rel" && sn != "rela" }).first
+        ref = @elf_obj.select_by_names(section_name.split(".").filter { |sn| !sn.empty? && sn != "rel" && sn != "rela" }.map { "." + it }).first
         write_section_index(ref.section_name)
       end
     end
