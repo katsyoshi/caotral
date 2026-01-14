@@ -18,13 +18,29 @@ module Caotral
         elf = Caotral::Binary::ELF.new
         elf_obj = @elf_objs.first
         first_text = elf_obj.find_by_name(".text")
-        text_section = Caotral::Binary::ELF::Section.new(body: String.new, section_name: ".text", header: Caotral::Binary::ELF::SectionHeader.new)
+        text_section = Caotral::Binary::ELF::Section.new(
+          body: String.new,
+          section_name: ".text",
+          header: Caotral::Binary::ELF::SectionHeader.new
+        )
+        strtab_section = Caotral::Binary::ELF::Section.new(
+          body: Caotral::Binary::ELF::Section::Strtab.new("\0".b),
+          section_name: ".strtab",
+          header: Caotral::Binary::ELF::SectionHeader.new
+        )
         elf.header = elf_obj.header.dup
+        strtab_names = Set.new
         @elf_objs.each do |elf_obj|
           text = elf_obj.find_by_name(".text")
           text_section.body << text.body unless text.nil?
+          strtab = elf_obj.find_by_name(".strtab")
+          unless strtab.nil?
+            strtab.body.names.split("\0").each { |name| strtab_names << name }
+          end
         end
+        strtab_section.body.names = strtab_names.to_a.sort.join("\0") + "\0"
         elf.sections << text_section
+        elf.sections << strtab_section
         @elf_objs.first.without_section(".text").each do |section|
           elf.sections << section
         end
