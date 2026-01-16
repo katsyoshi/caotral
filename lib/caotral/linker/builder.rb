@@ -48,6 +48,7 @@ module Caotral
               sym = Caotral::Binary::ELF::Section::Symtab.new
               name, info, other, shndx, value, size = st.build.unpack("L<CCS<Q<Q<")
               sym.set!(name:, info:, other:, shndx:, value:, size:)
+              sym.name_string = strtab.body.lookup(name) unless strtab.nil?
               symtab_section.body << sym
             end
           end
@@ -55,9 +56,15 @@ module Caotral
         strtab_section.body.names = strtab_names.to_a.sort.join("\0") + "\0"
         elf.sections << text_section
         elf.sections << strtab_section
+        symtab_section.body.each do |sym|
+          next if sym.shndx == 0
+          name = strtab_section.body.offset_of(sym.name_string)
+          sym.set!(name:)
+        end
         elf.sections << symtab_section
-        @elf_objs.first.without_section(".text").each do |section|
-          elf.sections << section
+        elf.sections << @elf_objs.first.find_by_name(".shstrtab").dup
+        @elf_objs.first.without_sections([".text", ".strtab", ".symtab", ".shstrtab"]).each do |section|
+          elf.sections << section.dup
         end
         elf
       end

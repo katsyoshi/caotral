@@ -25,7 +25,7 @@ module Caotral
       def select_by_name(section_name) = @sections.select { |s| section_name == s.section_name }
       def index(section_name) = @sections.index { |s| section_name == s.section_name }
       def select_by_names(section_names) = @sections.select { |section| section_names.any? { |name| name === section.section_name.to_s } }
-      def without_section(name) = @sections.reject { |s| s.section_name == name }
+      def without_sections(names) = @sections.reject { |s| names.any? { |name| s.section_name == name } }
     end
   end
 end

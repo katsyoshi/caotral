@@ -33,7 +33,6 @@ module Caotral
           def value = @value.pack("C*").unpack1("Q<")
           def info = @info.pack("C*").unpack1("C")
           def shndx = @shndx.pack("C*").unpack1("S<")
-          def value = @value.pack("C*").unpack1("Q<")
 
           private def bytes = [@name, @info, @other, @shndx, @value, @size]
         end
