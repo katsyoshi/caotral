@@ -21,10 +21,8 @@ module Caotral
         phoffset, phnum, phsize, ehsize = 64, 1, 56, 64
         header = @elf_obj.header.set!(type: 2, phoffset:, phnum:, phsize:, ehsize:)
         ph = Caotral::Binary::ELF::ProgramHeader.new
-        text_section = @elf_obj.find_by_name(".text")
-        rel_sections = @elf_obj.sections.select { RELOCATION_SECTION_NAMES.include?(it.section_name) }
         start_bytes = [0xe8, *[0] * 4, 0x48, 0x89, 0xc7, 0x48, 0xc7, 0xc0, 0x3c, 0x00, 0x00, 0x00, 0x0f, 0x05]
-        symtab = @elf_obj.find_by_name(".symtab")
+        symtab = symtab_section
         symtab_body = symtab.body
         old_text = text_section.body
         main_sym = symtab_body.find { |sym| sym.name_string == "main" }
@@ -67,26 +65,48 @@ module Caotral
         gap = [text_offset - f.pos, 0].max
         f.write("\0" * gap)
         f.write(text_section.body)
-        shstrtab = @elf_obj.find_by_name(".shstrtab")
-        shstrtab_offset = f.pos
-        f.write(shstrtab.body.names)
-        shstrtab.header.set!(offset: shstrtab_offset, size: shstrtab.body.names.bytesize)
+        symtab_offset = f.pos
+        symtab_section.body.each { |sym| f.write(sym.build) }
+        symtab_entsize = symtab_section.body.first&.build&.bytesize.to_i
+        symtab_size = f.pos - symtab_offset
+        symtab_section.header.set!(offset: symtab_offset, size: symtab_size, entsize: symtab_entsize)
+        strtab_offset = f.pos
+        f.write(strtab_section.body.build)
+        strtab_section.header.set!(offset: strtab_offset, size: strtab_section.body.names.bytesize)
+
+        rel_sections.each do |rel|
+          rel_offset = f.pos
+          rel.body.each { |entry| f.write(entry.build) }
+          rel_size = f.pos - rel_offset
+          entsize = rel.body.first&.build&.bytesize.to_i
+          rel.header.set!(offset: rel_offset, size: rel_size, entsize:)
+        end
+        offset = f.pos
+        names = @write_sections.map { |s| s.section_name.to_s }
+        if names.last != ".shstrtab"
+          raise Caotral::Binary::ELF::Error, "section header string table must be the last section"
+        end
+        shstrtab_section.body.names = names.uniq.join("\0") + "\0"
+        shstrtab_section.header.set!(offset:, size: shstrtab_section.body.names.bytesize)
+        f.write(shstrtab_section.body.names)
         shoffset = f.pos
         shstrndx  = write_section_index(".shstrtab")
         strtabndx = write_section_index(".strtab")
         symtabndx = write_section_index(".symtab")
         shnum = @write_sections.size
         @elf_obj.header.set!(shoffset:, shnum:, shstrndx:)
-        names = @elf_obj.find_by_name(".shstrtab").body
+        names = shstrtab_section.body
 
         @write_sections.each do |section|
           header = section.header
           lookup_name = section.section_name
           name_offset = names.offset_of(lookup_name)
-          name, info, link, entsize = (name_offset.nil? ? 0 : name_offset), header.info, header.link, header.entsize
+          name, info, entsize = (name_offset.nil? ? 0 : name_offset), header.info, header.entsize
+          link = header.link
+          link = strtabndx if section.section_name == ".symtab"
           if [:rel, :rela].include?(header.type)
             link = symtabndx
-            info = ref_index(section)
+            info = ref_index(section.section_name)
           end
           header.set!(name:, info:, link:, entsize:)
           f.write(section.header.build)
@@ -111,11 +131,19 @@ module Caotral
         write_order.compact
       end
       def write_section_index(section_name) = @write_sections.index { it.section_name == section_name }
-      def ref_index(section)
-        section_name = section.section_name
-        ref = @elf_obj.select_by_names(section_name.split(".").filter { |sn| !sn.empty? && sn != "rel" && sn != "rela" }.map { "." + it }).first
+      def ref_index(section_name)
+        ref_name = section_name.split(".").filter { |sn| !sn.empty? && sn != "rel" && sn != "rela" }
+        ref_name = "." + ref_name.join(".")
+        ref = @write_sections.find { |s| s.section_name == ref_name }
+        raise Caotral::Binary::ELF::Error, "cannot find reference section for #{section_name}" if ref.nil?
         write_section_index(ref.section_name)
       end
+
+      def text_section = @text_section ||= @write_sections.find { |s| ".text" === s.section_name.to_s }
+      def rel_sections = @rel_sections ||= @write_sections.select { RELOCATION_SECTION_NAMES.include?(it.section_name) }
+      def symtab_section = @symtab_section ||= @write_sections.find { |s| ".symtab" === s.section_name.to_s }
+      def strtab_section = @strtab_section ||= @write_sections.find { |s| ".strtab" === s.section_name.to_s }
+      def shstrtab_section = @shstrtab_section ||= @write_sections.find { |s| ".shstrtab" === s.section_name.to_s }
     end
   end
 end

@@ -6,6 +6,7 @@ module Caotral
     class Builder
       SYMTAB_BIND = { locals: 0, globals: 1, weaks: 2, }.freeze
       BIND_BY_VALUE = SYMTAB_BIND.invert.freeze
+      RELOCATION_SECTION_NAMES = [".rela.text", ".rel.text"].freeze
       attr_reader :symbols
 
       def initialize(elf_objs:)
@@ -18,6 +19,11 @@ module Caotral
         elf = Caotral::Binary::ELF.new
         elf_obj = @elf_objs.first
         first_text = elf_obj.find_by_name(".text")
+        null_section = Caotral::Binary::ELF::Section.new(
+          body: nil,
+          section_name: "",
+          header: Caotral::Binary::ELF::SectionHeader.new
+        )
         text_section = Caotral::Binary::ELF::Section.new(
           body: String.new,
           section_name: ".text",
@@ -38,6 +44,7 @@ module Caotral
           section_name: ".shstrtab",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
+        rel_sections = []
         elf.header = elf_obj.header.dup
         strtab_names = []
         @elf_objs.each do |elf_obj|
@@ -57,8 +64,10 @@ module Caotral
               symtab_section.body << sym
             end
           end
+          rel_sections += elf_obj.select_by_names(RELOCATION_SECTION_NAMES)
         end
         strtab_section.body.names = strtab_names.to_a.sort.join("\0") + "\0"
+        elf.sections << null_section
 
         text_section.header.set!(
           type: 1,
@@ -85,6 +94,9 @@ module Caotral
         )
 
         elf.sections << symtab_section
+
+        rel_sections.each { |s| elf.sections << s.dup }
+
         shstrtab_section.header.set!(
           type: 3,
           flags: 0,
@@ -95,9 +107,20 @@ module Caotral
         shstrtab_section.body.names = shstrtab_section_names
         elf.sections << shstrtab_section
 
-        @elf_objs.first.without_sections([".text", ".strtab", ".symtab", ".shstrtab"]).each do |section|
+        @elf_objs.first.without_sections([".text", ".strtab", ".symtab", ".shstrtab", /\.rela?\./]).each do |section|
           elf.sections << section.dup
         end
+        elf.select_by_names(RELOCATION_SECTION_NAMES).each do |rel_section|
+          rel_section.header.set!(
+            type: rel_type(rel_section),
+            flags: 0,
+            link: elf.sections.index(symtab_section),
+            info: ref_index(elf, rel_section.section_name),
+            addralign: 8,
+            entsize: rel_entsize(rel_section)
+          )
+        end
+
         elf
       end
       def resolve_symbols
@@ -115,6 +138,15 @@ module Caotral
         end
         @symbols
       end
+
+      def ref_index(elf_obj, section_name)
+        raise Caotral::Binary::ELF::Error, "invalid section name: #{section_name}" if section_name.nil?
+        ref = elf_obj.select_by_names(section_name.split(".").filter { |sn| !sn.empty? && sn != "rel" && sn != "rela" }.map { "." + it }).first
+        elf_obj.index(ref.section_name)
+      end
+
+      def rel_type(section) = section.section_name&.start_with?(".rela.") ? 4 : 9
+      def rel_entsize(section) = section.section_name&.start_with?(".rela.") ? 24 : 16
     end
   end
 end
