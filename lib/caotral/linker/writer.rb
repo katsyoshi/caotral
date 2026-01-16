@@ -61,8 +61,8 @@ module Caotral
 
         header.set!(entry: @entry || base_addr + text_offset)
         ph.set!(type:, offset: text_offset, vaddr:, paddr:, filesz:, memsz:, flags:, align:)
-        text_section.header.set!(size: text_section.body.bytesize, addr: vaddr, offset: text_offset)
         f.write(@elf_obj.header.build)
+        text_section.header.set!(size: text_section.body.bytesize, addr: vaddr, offset: text_offset)
         f.write(ph.build)
         gap = [text_offset - f.pos, 0].max
         f.write("\0" * gap)
@@ -83,12 +83,8 @@ module Caotral
           header = section.header
           lookup_name = section.section_name
           name_offset = names.offset_of(lookup_name)
-          name, info, link, entsize = (name_offset.nil? ? 0 : name_offset), header.info, header.link, 0
-          if header.type == :symtab
-            info = section.body.size
-            link = strtabndx
-            entsize = header.entsize.nonzero? || 24
-          elsif [:rel, :rela].include?(header.type)
+          name, info, link, entsize = (name_offset.nil? ? 0 : name_offset), header.info, header.link, header.entsize
+          if [:rel, :rela].include?(header.type)
             link = symtabndx
             info = ref_index(section)
           end

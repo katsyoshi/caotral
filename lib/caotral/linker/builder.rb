@@ -33,6 +33,11 @@ module Caotral
           section_name: ".symtab",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
+        shstrtab_section = Caotral::Binary::ELF::Section.new(
+          body: Caotral::Binary::ELF::Section::Strtab.new("\0".b),
+          section_name: ".shstrtab",
+          header: Caotral::Binary::ELF::SectionHeader.new
+        )
         elf.header = elf_obj.header.dup
         strtab_names = []
         @elf_objs.each do |elf_obj|
@@ -54,15 +59,42 @@ module Caotral
           end
         end
         strtab_section.body.names = strtab_names.to_a.sort.join("\0") + "\0"
+
+        text_section.header.set!(
+          type: 1,
+          flags: 6,
+          addralign: 16
+        )
+
         elf.sections << text_section
+        strtab_section.header.set!(type: 3, flags: 0, addralign: 1, entsize: 0)
         elf.sections << strtab_section
         symtab_section.body.each do |sym|
           next if sym.shndx == 0
           name = strtab_section.body.offset_of(sym.name_string)
           sym.set!(name:)
         end
+
+        symtab_section.header.set!(
+          type: 2,
+          flags: 0,
+          link: elf.sections.index(strtab_section),
+          info: symbols.fetch(:locals, Set.new).size,
+          addralign: 8,
+          entsize: 24
+        )
+
         elf.sections << symtab_section
-        elf.sections << @elf_objs.first.find_by_name(".shstrtab").dup
+        shstrtab_section.header.set!(
+          type: 3,
+          flags: 0,
+          addralign: 1,
+          entsize: 0
+        )
+        shstrtab_section_names = elf.sections.map(&:section_name).join("\0") + "\0"
+        shstrtab_section.body.names = shstrtab_section_names
+        elf.sections << shstrtab_section
+
         @elf_objs.first.without_sections([".text", ".strtab", ".symtab", ".shstrtab"]).each do |section|
           elf.sections << section.dup
         end
