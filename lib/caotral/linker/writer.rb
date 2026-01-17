@@ -39,19 +39,20 @@ module Caotral
         type, flags = 1, 5
         filesz = text_section.body.bytesize
         memsz = filesz
-
+        text_section.header.set!(size: text_section.body.bytesize, addr: vaddr, offset: text_offset)
         rel_sections.each do |rel|
-          target = @elf_obj.sections[rel.header.info]
+          target = @write_sections[rel.header.info]
           bytes = target.body.dup
           rel.body.each do |entry|
             next unless ALLOW_RELOCATION_TYPES.include?(entry.type)
-            a = entry.type == R_X86_64_PC32 ? 4 : 0
             sym = symtab_body[entry.sym]
+            next if sym.nil? || sym.shndx == 0
             target_addr = target == text_section ? vaddr : target.header.addr
-            sym_addr = sym.value + target_addr + (target == text_section ? start_len : 0)
-            sym_offset = entry.offset + (target == text_section ? start_len : 0)
+            sym_addr = sym.shndx >= 0xff00 ? sym.value : @write_sections[sym.shndx].then { |st| st.header.addr + sym.value }
+            sym_addr += start_len
+            sym_offset = entry.offset + start_len
             sym_addend = entry.addend? ? entry.addend : bytes[sym_offset, 4].unpack1("l<")
-            value = sym_addr + sym_addend - (target_addr + sym_offset + a)
+            value = sym_addr + sym_addend - (target_addr + sym_offset)
             bytes[sym_offset, 4] = [value].pack("l<")
           end
           target.body = bytes
@@ -60,12 +61,16 @@ module Caotral
         header.set!(entry: @entry || base_addr + text_offset)
         ph.set!(type:, offset: text_offset, vaddr:, paddr:, filesz:, memsz:, flags:, align:)
         f.write(@elf_obj.header.build)
-        text_section.header.set!(size: text_section.body.bytesize, addr: vaddr, offset: text_offset)
         f.write(ph.build)
         gap = [text_offset - f.pos, 0].max
         f.write("\0" * gap)
         f.write(text_section.body)
         symtab_offset = f.pos
+        text_index = write_section_index(".text")
+        symtab_section.body.each do |sym|
+          next unless sym.shndx == text_index
+          sym.set!(value: sym.value + vaddr + start_len)
+        end
         symtab_section.body.each { |sym| f.write(sym.build) }
         symtab_entsize = symtab_section.body.first&.build&.bytesize.to_i
         symtab_size = f.pos - symtab_offset
@@ -126,7 +131,7 @@ module Caotral
         write_order << @elf_obj.find_by_name(".text")
         write_order << @elf_obj.find_by_name(".symtab")
         write_order << @elf_obj.find_by_name(".strtab")
-        write_order.concat(@elf_obj.select_by_names([/\.rel\./, /\.rela\./]))
+        write_order.concat(@elf_obj.select_by_names(RELOCATION_SECTION_NAMES))
         write_order << @elf_obj.find_by_name(".shstrtab")
         write_order.compact
       end

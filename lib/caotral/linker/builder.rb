@@ -49,22 +49,26 @@ module Caotral
         strtab_names = []
         text_offsets = {}
         text_offset = 0
+        sym_by_elf = Hash.new { |h, k| h[k] = [] }
         @elf_objs.each do |elf_obj|
           text = elf_obj.find_by_name(".text")
           unless text.nil?
             text_section.body << text.body
-            text_offsets[elf_obj] = text_offset
+            text_offsets[elf_obj.object_id] = text_offset
             size = text.body.bytesize
             text_offset += size
           end
           strtab = elf_obj.find_by_name(".strtab")
           strtab.body.names.split("\0").each { |name| strtab_names << name } unless strtab.nil?
           symtab = elf_obj.find_by_name(".symtab")
+          base_index = nil
           unless symtab.nil?
-            symtab.body.each do |st|
+            base_index = symtab_section.body.size
+            symtab.body.each_with_index do |st, index|
               sym = Caotral::Binary::ELF::Section::Symtab.new
               name, info, other, shndx, value, size = st.build.unpack("L<CCS<Q<Q<")
-              value += text_offsets.fetch(elf_obj, 0) if shndx != 0
+              sym_by_elf[elf_obj] << sym
+              value += text_offsets.fetch(elf_obj.object_id, 0) if shndx != 0
               sym.set!(name:, info:, other:, shndx:, value:, size:)
               sym.name_string = strtab.body.lookup(name) unless strtab.nil?
               symtab_section.body << sym
@@ -77,10 +81,11 @@ module Caotral
               header: Caotral::Binary::ELF::SectionHeader.new
             )
             section.body.each do |rel|
-              offset = rel.offset + text_offsets.fetch(elf_obj, 0)
-              info = rel.info
+              offset = rel.offset + text_offsets.fetch(elf_obj.object_id, 0)
               addend = rel.addend? ? rel.addend : nil
               new_rel = Caotral::Binary::ELF::Section::Rel.new(addend: rel.addend?)
+              sym = base_index.nil? ? rel.sym : base_index + rel.sym
+              info = (sym << 32) | rel.type
               new_rel.set!(offset:, info:, addend:)
               rel_section.body << new_rel
             end
@@ -105,6 +110,8 @@ module Caotral
           name = strtab_section.body.offset_of(sym.name_string)
           sym.set!(name:)
         end
+
+        old_syms = symtab_section.body.dup
         symtab_section.body.sort_by! { |sym| sym.info >> 4 }
         local_count = symtab_section.body.count { |sym| (sym.info >> 4) == SYMTAB_BIND[:locals] }
 
@@ -134,7 +141,41 @@ module Caotral
         @elf_objs.first.without_sections([".text", ".strtab", ".symtab", ".shstrtab", /\.rela?\./]).each do |section|
           elf.sections << section.dup
         end
+        section_map = Hash.new { |h, k| h[k] = {} }
+        @elf_objs.each do |elf_obj|
+          elf_obj.sections.each_with_index do |section, index|
+            newndx = elf.sections.index { |s| s.section_name == section.section_name }
+            section_map[elf_obj][index] = newndx unless newndx.nil?
+          end
+        end
+
+        old_ids = old_syms.map(&:object_id)
+
+        resolved_index = {}
+        symtab_section.body.each_with_index do |sym, index|
+          old_index = old_ids.index(sym.object_id)
+          name = sym.name_string
+          next if name.empty? || sym.shndx == 0 || sym.bind != 1
+          resolved_index[name] ||= index
+        end
+
+        sym_by_elf.each do |elf_obj, syms|
+          syms.each do |sym|
+            next if sym.shndx == 0
+            shndx = section_map[elf_obj][sym.shndx]
+            sym.set!(shndx:)
+          end
+        end
         elf.select_by_names(RELOCATION_SECTION_NAMES).each do |rel_section|
+          rel_section.body.each do |rel|
+            orig_sym = old_syms[rel.sym]
+            next if orig_sym.nil?
+            name = orig_sym.name_string
+            new_index = resolved_index[name]
+            next if new_index.nil?
+            rel.set!(info: (new_index << 32) | rel.type)
+          end
+
           rel_section.header.set!(
             type: rel_type(rel_section),
             flags: 0,
@@ -163,6 +204,7 @@ module Caotral
         @symbols
       end
 
+      private
       def ref_index(elf_obj, section_name)
         raise Caotral::Binary::ELF::Error, "invalid section name: #{section_name}" if section_name.nil?
         ref = elf_obj.select_by_names(section_name.split(".").filter { |sn| !sn.empty? && sn != "rel" && sn != "rela" }.map { "." + it }).first
