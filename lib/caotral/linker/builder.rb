@@ -47,24 +47,46 @@ module Caotral
         rel_sections = []
         elf.header = elf_obj.header.dup
         strtab_names = []
+        text_offsets = {}
+        text_offset = 0
         @elf_objs.each do |elf_obj|
           text = elf_obj.find_by_name(".text")
-          text_section.body << text.body unless text.nil?
-          strtab = elf_obj.find_by_name(".strtab")
-          unless strtab.nil?
-            strtab.body.names.split("\0").each { |name| strtab_names << name }
+          unless text.nil?
+            text_section.body << text.body
+            text_offsets[elf_obj] = text_offset
+            size = text.body.bytesize
+            text_offset += size
           end
+          strtab = elf_obj.find_by_name(".strtab")
+          strtab.body.names.split("\0").each { |name| strtab_names << name } unless strtab.nil?
           symtab = elf_obj.find_by_name(".symtab")
           unless symtab.nil?
             symtab.body.each do |st|
               sym = Caotral::Binary::ELF::Section::Symtab.new
               name, info, other, shndx, value, size = st.build.unpack("L<CCS<Q<Q<")
+              value += text_offsets.fetch(elf_obj, 0) if shndx != 0
               sym.set!(name:, info:, other:, shndx:, value:, size:)
               sym.name_string = strtab.body.lookup(name) unless strtab.nil?
               symtab_section.body << sym
             end
           end
-          rel_sections += elf_obj.select_by_names(RELOCATION_SECTION_NAMES)
+          rels = elf_obj.select_by_names(RELOCATION_SECTION_NAMES).map do |section|
+            rel_section = Caotral::Binary::ELF::Section.new(
+              body: [],
+              section_name: section.section_name,
+              header: Caotral::Binary::ELF::SectionHeader.new
+            )
+            section.body.each do |rel|
+              offset = rel.offset + text_offsets.fetch(elf_obj, 0)
+              info = rel.info
+              addend = rel.addend? ? rel.addend : nil
+              new_rel = Caotral::Binary::ELF::Section::Rel.new(addend: rel.addend?)
+              new_rel.set!(offset:, info:, addend:)
+              rel_section.body << new_rel
+            end
+            rel_section
+          end
+          rel_sections += rels
         end
         strtab_section.body.names = strtab_names.to_a.sort.join("\0") + "\0"
         elf.sections << null_section
@@ -83,12 +105,14 @@ module Caotral
           name = strtab_section.body.offset_of(sym.name_string)
           sym.set!(name:)
         end
+        symtab_section.body.sort_by! { |sym| sym.info >> 4 }
+        local_count = symtab_section.body.count { |sym| (sym.info >> 4) == SYMTAB_BIND[:locals] }
 
         symtab_section.header.set!(
           type: 2,
           flags: 0,
           link: elf.sections.index(strtab_section),
-          info: symbols.fetch(:locals, Set.new).size,
+          info: local_count,
           addralign: 8,
           entsize: 24
         )
