@@ -9,11 +9,11 @@ module Caotral
       ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
       RELOCATION_SECTION_NAMES = [".rela.text", ".rel.text"].freeze
       attr_reader :elf_obj, :output, :entry, :debug
-      def self.write!(elf_obj:, output:, entry: nil, debug: false)
-        new(elf_obj:, output:, entry:, debug:).write
+      def self.write!(elf_obj:, output:, entry: nil, debug: false, executable: true, shared: false)
+        new(elf_obj:, output:, entry:, debug:, shared:, executable:).write
       end
-      def initialize(elf_obj:, output:, entry: nil, debug: false)
-        @elf_obj, @output, @entry, @debug = elf_obj, output, entry, debug
+      def initialize(elf_obj:, output:, entry: nil, debug: false, executable: true, shared: false)
+        @elf_obj, @output, @entry, @debug, @executable, @shared = elf_obj, output, entry, debug, executable, shared
         @write_sections = write_order_sections
       end
       def write
