@@ -14,10 +14,10 @@ module Caotral
 
       attr_reader :symbols, :executable, :debug
 
-      def initialize(elf_objs:, executable: true, debug: false)
+      def initialize(elf_objs:, executable: true, debug: false, shared: false)
         @elf_objs = elf_objs
+        @executable, @debug, @shared = executable, debug, shared
         @symbols = { locals: Set.new, globals: Set.new, weaks: Set.new }
-        @executable, @debug = executable, debug
       end
 
       def build
