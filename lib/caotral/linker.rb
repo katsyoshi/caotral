@@ -5,21 +5,21 @@ require_relative "linker/writer"
 
 module Caotral
   class Linker
-    def self.link!(input:, output: "a.out", linker: "mold", debug: false, shared: false) = new(input:, output:, linker:, debug:, shared:).link
+    def self.link!(inputs:, output: "a.out", linker: "mold", debug: false, shared: false) = new(inputs:, output:, linker:, debug:, shared:).link
 
-    def initialize(input:, output: "a.out", linker: "mold", linker_options: [], shared: false, debug: false)
-      @input, @output, @linker = input, output, linker
+    def initialize(inputs:, output: "a.out", linker: "mold", linker_options: [], shared: false, debug: false)
+      @inputs, @output, @linker = inputs, output, linker
       @options = linker_options
       @debug, @shared = debug, shared
     end
 
-    def link(input: @input, output: @output, debug: @debug, shared: @shared)
-      return to_elf(input:, output:, debug:) if @linker == "self"
+    def link(inputs: @inputs, output: @output, debug: @debug, shared: @shared)
+      return to_elf(inputs:, output:, debug:) if @linker == "self"
 
       IO.popen(link_command).close
     end
 
-    def link_command(input: @input, output: @output, debug: @debug, shared: @shared)
+    def link_command(inputs: @inputs, output: @output)
       ld_path = []
 
       if @shared
@@ -39,7 +39,7 @@ module Caotral
 
       ld_path << "#{libpath}/libc.so"
       ld_path << "#{libpath}/crtn.o"
-      cmd = [@linker, "-o", @output, "-m", "elf_x86_64", *@options, *ld_path, @input].join(' ')
+      cmd = [@linker, "-o", @output, "-m", "elf_x86_64", *@options, *ld_path, *inputs].join(' ')
       puts cmd if @debug
       cmd
     end
@@ -47,10 +47,11 @@ module Caotral
     def libpath = @libpath ||= File.dirname(Dir.glob("/usr/lib*/**/crti.o").last)
     def gcc_libpath = @gcc_libpath ||= File.dirname(Dir.glob("/usr/lib/gcc/x86_64-*/*/crtbegin.o").last)
 
-    def to_elf(input: @input, output: @output, debug: @debug)
-      elf_obj = Caotral::Binary::ELF::Reader.new(input:, debug:).read
-      builder = Caotral::Linker::Builder.new(elf_obj:)
+    def to_elf(inputs: @inputs, output: @output, debug: @debug)
+      elf_objs = inputs.map { |input| Caotral::Binary::ELF::Reader.new(input:, debug:).read }
+      builder = Caotral::Linker::Builder.new(elf_objs:)
       builder.resolve_symbols
+      elf_obj = builder.build
       Caotral::Linker::Writer.new(elf_obj:, output:, debug:).write
     end
   end

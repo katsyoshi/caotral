@@ -14,7 +14,7 @@ module Caotral
           def set!(offset: nil, info: nil, addend: nil)
             @offset = num2bytes(offset, 8) if check(offset, 8)
             @info = num2bytes(info, 8) if check(info, 8)
-            @addend = num2bytes(addend, 8) if check(addend, 8)
+            @addend = [addend].pack("q<").unpack("C*") if check(addend, 8)
             self
           end
 
@@ -23,7 +23,7 @@ module Caotral
           def info = @info.pack("C*").unpack1("Q<")
           def addend
             raise "No addend field in this REL entry" unless addend?
-            @addend.pack("C*").unpack1("Q<")
+            @addend.pack("C*").unpack1("q<")
           end
           def sym = @info.pack("C*").unpack1("Q<") >> 32
           def type = @info.pack("C*").unpack1("Q<") & 0xffffffff
