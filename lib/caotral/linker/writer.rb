@@ -21,44 +21,15 @@ module Caotral
         phoffset, phnum, phsize, ehsize = 64, 1, 56, 64
         header = @elf_obj.header.set!(type: 2, phoffset:, phnum:, phsize:, ehsize:)
         ph = Caotral::Binary::ELF::ProgramHeader.new
-        start_bytes = [0xe8, *[0] * 4, 0x48, 0x89, 0xc7, 0x48, 0xc7, 0xc0, 0x3c, 0x00, 0x00, 0x00, 0x0f, 0x05]
-        symtab = symtab_section
-        symtab_body = symtab.body
-        old_text = text_section.body
-        main_sym = symtab_body.find { |sym| sym.name_string == "main" }
-        text_offset = 0x1000
-        base_addr = 0x400000
+        text_offset = text_section.header.offset
         align = 0x1000
-        vaddr = base_addr + text_offset
-        paddr = base_addr + text_offset
-        start_len = start_bytes.length
-        main_offset = main_sym.value + start_len
-        start_bytes[1, 4] = num2bytes((main_offset - 5), 4)
-        start_bytestring = start_bytes.pack("C*")
-        text_section.body = start_bytestring + old_text
+        vaddr = text_section.header.addr
+        paddr = vaddr
         type, flags = 1, 5
         filesz = text_section.body.bytesize
         memsz = filesz
-        text_section.header.set!(size: text_section.body.bytesize, addr: vaddr, offset: text_offset)
-        rel_sections.each do |rel|
-          target = @write_sections[rel.header.info]
-          bytes = target.body.dup
-          rel.body.each do |entry|
-            next unless ALLOW_RELOCATION_TYPES.include?(entry.type)
-            sym = symtab_body[entry.sym]
-            next if sym.nil? || sym.shndx == 0
-            target_addr = target == text_section ? vaddr : target.header.addr
-            sym_addr = sym.shndx >= 0xff00 ? sym.value : @write_sections[sym.shndx].then { |st| st.header.addr + sym.value }
-            sym_addr += start_len
-            sym_offset = entry.offset + start_len
-            sym_addend = entry.addend? ? entry.addend : bytes[sym_offset, 4].unpack1("l<")
-            value = sym_addr + sym_addend - (target_addr + sym_offset)
-            bytes[sym_offset, 4] = [value].pack("l<")
-          end
-          target.body = bytes
-        end
 
-        header.set!(entry: @entry || base_addr + text_offset)
+        header.set!(entry: @entry || vaddr)
         ph.set!(type:, offset: text_offset, vaddr:, paddr:, filesz:, memsz:, flags:, align:)
         f.write(@elf_obj.header.build)
         f.write(ph.build)
@@ -66,11 +37,6 @@ module Caotral
         f.write("\0" * gap)
         f.write(text_section.body)
         symtab_offset = f.pos
-        text_index = write_section_index(".text")
-        symtab_section.body.each do |sym|
-          next unless sym.shndx == text_index
-          sym.set!(value: sym.value + vaddr + start_len)
-        end
         symtab_section.body.each { |sym| f.write(sym.build) }
         symtab_entsize = symtab_section.body.first&.build&.bytesize.to_i
         symtab_size = f.pos - symtab_offset

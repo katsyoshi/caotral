@@ -3,7 +3,8 @@ require "test/unit"
 class Caotral::Linker::WriterTest < Test::Unit::TestCase
   def setup
     Caotral.assemble(input: "sample/assembler/plus.s", assembler: "self", output: "plus.o")
-    @elf_obj = Caotral::Binary::ELF::Reader.read!(input: "plus.o", debug: false)
+    elf_obj = Caotral::Binary::ELF::Reader.read!(input: "plus.o", debug: false)
+    @elf_obj = Caotral::Linker::Builder.new(elf_objs: [elf_obj], debug: false).build
   end
   def teardown
     File.delete("plus.o") if File.exist?("plus.o")
