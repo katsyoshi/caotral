@@ -68,7 +68,6 @@ module Caotral
         f.write(shstrtab_section.body.names)
         shoffset = f.pos
         shstrndx  = write_section_index(".shstrtab")
-        strtabndx = write_section_index(".strtab")
         symtabndx = write_section_index(".symtab")
         shnum = @write_sections.size
         @elf_obj.header.set!(shoffset:, shnum:, shstrndx:)
@@ -79,8 +78,8 @@ module Caotral
           lookup_name = section.section_name
           name_offset = names.offset_of(lookup_name)
           name, info, entsize = (name_offset.nil? ? 0 : name_offset), header.info, header.entsize
-          link = header.link
-          link = strtabndx if section.section_name == ".symtab"
+          link = link_index(section.section_name)
+          link = header.link if link.nil?
           if [:rel, :rela].include?(header.type)
             link = symtabndx
             info = ref_index(section.section_name)
@@ -102,6 +101,7 @@ module Caotral
         write_order << @elf_obj.sections.find { |s| s.section_name.nil? }
         write_order << @elf_obj.find_by_name(".text")
         write_order << @elf_obj.find_by_name(".dynstr")
+        write_order << @elf_obj.find_by_name(".dynsym")
         write_order << @elf_obj.find_by_name(".symtab")
         write_order << @elf_obj.find_by_name(".strtab")
         write_order.concat(@elf_obj.select_by_names(RELOCATION_SECTION_NAMES))
@@ -115,6 +115,11 @@ module Caotral
         file.write(dynstr_section.body.build)
         size = file.pos - dynstr_offset
         dynstr_section.header.set!(offset: dynstr_offset, size:)
+
+        dynsym_offset = file.pos
+        dynsym_section.body.each { |dynsym| file.write(dynsym.build) }
+        size = file.pos - dynsym_offset
+        dynsym_section.header.set!(offset: dynsym_offset, size:)
       end
       
       def ref_index(section_name)
@@ -125,12 +130,24 @@ module Caotral
         write_section_index(ref.section_name)
       end
 
+      def link_index(section_name)
+        case section_name
+        when ".symtab"
+          write_section_index(".strtab")
+        when ".dynsym"
+          write_section_index(".dynstr")
+        else
+          nil
+        end
+      end
+
       def text_section = @text_section ||= @write_sections.find { |s| ".text" === s.section_name.to_s }
       def rel_sections = @rel_sections ||= @write_sections.select { RELOCATION_SECTION_NAMES.include?(it.section_name) }
       def symtab_section = @symtab_section ||= @write_sections.find { |s| ".symtab" === s.section_name.to_s }
       def strtab_section = @strtab_section ||= @write_sections.find { |s| ".strtab" === s.section_name.to_s }
       def shstrtab_section = @shstrtab_section ||= @write_sections.find { |s| ".shstrtab" === s.section_name.to_s }
       def dynstr_section = @dynstr_section ||= @write_sections.find { |s| ".dynstr" === s.section_name.to_s }
+      def dynsym_section = @dynsym_section ||= @write_sections.find { |s| ".dynsym" === s.section_name.to_s }
     end
   end
 end

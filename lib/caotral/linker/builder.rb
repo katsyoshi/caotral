@@ -163,7 +163,7 @@ module Caotral
           entsize: 0
         )
 
-        @elf_objs.first.without_sections([".text", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr"]).each do |section|
+        @elf_objs.first.without_sections([".text", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr", ".dynsym"]).each do |section|
           sections << section.dup
         end
 
@@ -270,7 +270,21 @@ module Caotral
           entsize: 0
         )
 
-        [dynstr_section,]
+        dynsym_section = Caotral::Binary::ELF::Section.new(
+          body: [Caotral::Binary::ELF::Section::Symtab.new],
+          section_name: ".dynsym",
+          header: Caotral::Binary::ELF::SectionHeader.new
+        )
+
+        dynsym_section.header.set!(
+          type: Caotral::Binary::ELF::SectionHeader::SHT[:dynsym],
+          flags: 0,
+          addralign: 8,
+          entsize: 24
+        )
+
+
+        [dynstr_section, dynsym_section]
       end
       
       def ref_index(sections, section_name)
