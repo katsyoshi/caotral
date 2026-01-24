@@ -50,6 +50,7 @@ module Caotral
           section_name: ".shstrtab",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
+
         start_bytes = [0xe8, *[0] * 4, 0x48, 0x89, 0xc7, 0x48, 0xc7, 0xc0, 0x3c, 0x00, 0x00, 0x00, 0x0f, 0x05]
         exec_text_offset = 0x1000
         base_addr = 0x400000
@@ -150,6 +151,7 @@ module Caotral
           entsize: 24
         )
 
+        sections += build_shared_dynamic_sections(sections:, symtab_section:, strtab_section:, text_section:) if @shared
         sections << symtab_section
 
         rel_sections.each { |s| sections << s.dup }
@@ -161,7 +163,7 @@ module Caotral
           entsize: 0
         )
 
-        @elf_objs.first.without_sections([".text", ".strtab", ".symtab", ".shstrtab", /\.rela?\./]).each do |section|
+        @elf_objs.first.without_sections([".text", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr"]).each do |section|
           sections << section.dup
         end
 
@@ -254,6 +256,23 @@ module Caotral
       end
 
       private
+      def build_shared_dynamic_sections(sections:, symtab_section:, strtab_section:, text_section:)
+        dynstr_section = Caotral::Binary::ELF::Section.new(
+          body: Caotral::Binary::ELF::Section::Strtab.new("\0".b),
+          section_name: ".dynstr",
+          header: Caotral::Binary::ELF::SectionHeader.new
+        )
+
+        dynstr_section.header.set!(
+          type: Caotral::Binary::ELF::SectionHeader::SHT[:strtab],
+          flags: 0,
+          addralign: 1,
+          entsize: 0
+        )
+
+        [dynstr_section,]
+      end
+      
       def ref_index(sections, section_name)
         raise Caotral::Binary::ELF::Error, "invalid section name: #{section_name}" if section_name.nil?
         ref_names = "." + section_name.split(".").filter { |sn| !sn.empty? && sn != "rel" && sn != "rela" }.join(".")

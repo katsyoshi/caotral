@@ -41,6 +41,7 @@ module Caotral
         gap = [text_offset - f.pos, 0].max
         f.write("\0" * gap)
         f.write(text_section.body)
+        write_shared_dynamic_sections(file: f) if @shared
         symtab_offset = f.pos
         symtab_section.body.each { |sym| f.write(sym.build) }
         symtab_entsize = symtab_section.body.first&.build&.bytesize.to_i
@@ -100,6 +101,7 @@ module Caotral
         write_order = []
         write_order << @elf_obj.sections.find { |s| s.section_name.nil? }
         write_order << @elf_obj.find_by_name(".text")
+        write_order << @elf_obj.find_by_name(".dynstr")
         write_order << @elf_obj.find_by_name(".symtab")
         write_order << @elf_obj.find_by_name(".strtab")
         write_order.concat(@elf_obj.select_by_names(RELOCATION_SECTION_NAMES))
@@ -107,6 +109,14 @@ module Caotral
         write_order.compact
       end
       def write_section_index(section_name) = @write_sections.index { it.section_name == section_name }
+
+      def write_shared_dynamic_sections(file:)
+        dynstr_offset = file.pos
+        file.write(dynstr_section.body.build)
+        size = file.pos - dynstr_offset
+        dynstr_section.header.set!(offset: dynstr_offset, size:)
+      end
+      
       def ref_index(section_name)
         ref_name = section_name.split(".").filter { |sn| !sn.empty? && sn != "rel" && sn != "rela" }
         ref_name = "." + ref_name.join(".")
@@ -120,6 +130,7 @@ module Caotral
       def symtab_section = @symtab_section ||= @write_sections.find { |s| ".symtab" === s.section_name.to_s }
       def strtab_section = @strtab_section ||= @write_sections.find { |s| ".strtab" === s.section_name.to_s }
       def shstrtab_section = @shstrtab_section ||= @write_sections.find { |s| ".shstrtab" === s.section_name.to_s }
+      def dynstr_section = @dynstr_section ||= @write_sections.find { |s| ".dynstr" === s.section_name.to_s }
     end
   end
 end
