@@ -12,12 +12,13 @@ module Caotral
       RELOCATION_SECTION_NAMES = [".rela.text", ".rel.text"].freeze
       ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
 
-      attr_reader :symbols, :executable, :debug
+      attr_reader :symbols
 
       def initialize(elf_objs:, executable: true, debug: false, shared: false)
         @elf_objs = elf_objs
         @executable, @debug, @shared = executable, debug, shared
         @symbols = { locals: Set.new, globals: Set.new, weaks: Set.new }
+        sharing_object!
       end
 
       def build
@@ -52,6 +53,10 @@ module Caotral
         start_bytes = [0xe8, *[0] * 4, 0x48, 0x89, 0xc7, 0x48, 0xc7, 0xc0, 0x3c, 0x00, 0x00, 0x00, 0x0f, 0x05]
         exec_text_offset = 0x1000
         base_addr = 0x400000
+        unless @executable
+          start_bytes = []
+          base_addr = 0
+        end
         vaddr = base_addr + exec_text_offset
         start_len = start_bytes.length
         sections = []
@@ -108,9 +113,9 @@ module Caotral
         sections << null_section
 
         main_sym = symtab_section.body.find { |sym| sym.name_string == "main" }
-        raise Caotral::Binary::ELF::Error, "main function not found" if executable && main_sym.nil?
+        raise Caotral::Binary::ELF::Error, "main function not found" if @executable && main_sym.nil?
         main_offset = main_sym.nil? ? 0 : main_sym.value + start_len
-        start_bytes[1, 4] = num2bytes((main_offset - 5), 4)
+        start_bytes[1, 4] = num2bytes((main_offset - 5), 4) if @executable
         text_section.body.prepend(start_bytes.pack("C*"))
 
         text_section.header.set!(
@@ -226,7 +231,7 @@ module Caotral
           target.body = bytes
         end
 
-        sections = sections.reject { |section| RELOCATION_SECTION_NAMES.any? { |name| name === section.section_name.to_s } } if executable
+        sections = sections.reject { |section| RELOCATION_SECTION_NAMES.any? { |name| name === section.section_name.to_s } } if @executable
         sections.each { |section| elf.sections << section }
 
         elf
@@ -258,6 +263,7 @@ module Caotral
 
       def rel_type(section) = section.section_name&.start_with?(".rela.") ? 4 : 9
       def rel_entsize(section) = section.section_name&.start_with?(".rela.") ? 24 : 16
+      def sharing_object! = (@executable = false if @shared)
     end
   end
 end

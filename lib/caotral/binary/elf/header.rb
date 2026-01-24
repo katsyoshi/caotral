@@ -7,11 +7,16 @@ module Caotral
         IDENT = [0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00].freeze
         IDENT_STR = IDENT.pack("C*").freeze
         ELF_FILE_TYPE = { NONE: 0, REL: 1, EXEC: 2, DYN: 3, CORE: 4 }.freeze
+        ELF_TARGET_MACHINE = { AMD64: 62 }.freeze
+        TYPE = ELF_FILE_TYPE
+        ITYPE = TYPE.invert.freeze
+        MACHINE = ELF_TARGET_MACHINE
+        IMACHINE = MACHINE.invert.freeze
 
-        def initialize(endian: :little, type: :rel, arc: :amd64)
+        def initialize(endian: :little, type: :REL)
           @ident = IDENT
-          @type = num2bytes(ELF_FILE_TYPE[elf(type)], 2)
-          @arch = arch(arc)
+          @type = num2bytes(ELF_FILE_TYPE[type], 2)
+          @arch = num2bytes(62, 2) # target: e_machine EM_x86_64
           @version = num2bytes(1, 4)
           @entry = num2bytes(0x00, 8)
           @phoffset = num2bytes(0x00, 8)
@@ -27,8 +32,9 @@ module Caotral
 
         def build = bytes.flatten.pack("C*")
 
-        def set!(type: nil, entry: nil, phoffset: nil, shoffset: nil, shnum: nil, shstrndx: nil, phsize: nil, phnum: nil, ehsize: nil)
+        def set!(type: nil, arch: nil, entry: nil, phoffset: nil, shoffset: nil, shnum: nil, shstrndx: nil, phsize: nil, phnum: nil, ehsize: nil)
           @type = num2bytes(type, 2) if check(type, 2)
+          @arch = num2bytes(arch, 2) if check(arch, 2)
           @entry = num2bytes(entry, 8) if check(entry, 8)
           @phoffset = num2bytes(phoffset, 8) if check(phoffset, 8)
           @phsize = num2bytes(phsize, 2) if check(phsize, 2)
@@ -48,33 +54,14 @@ module Caotral
         def shnum = @shnum.pack("C*").unpack1("S<")
         def shstrndx = @shstrndx.pack("C*").unpack1("S<")
         def shoffset = @shoffset.pack("C*").unpack1("Q<")
+        def type = ITYPE[@type.pack("C*").unpack1("S<")]
+        def arch = IMACHINE[@arch.pack("C*").unpack1("S<")]
 
-        private
-        def bytes = [
+        private def bytes = [
           @ident, @type, @arch, @version, @entry, @phoffset,
           @shoffset, @flags, @ehsize, @phsize, @phnum, @shentsize,
           @shnum, @shstrndx
         ]
-
-        def arch(machine)
-          case machine.to_s
-          in "amd64" | "x86_64" | "x64"
-            [0x3e, 0x00]
-          end
-        end
-
-        def elf(type)
-          case type.to_s
-          in "relocatable" | "rel"
-            :REL
-          in "exe" | "ex" | "exec"
-            :EXEC
-          in "shared" | "share" | "dynamic" | "dyn"
-            :DYN
-          else
-            :NONE
-          end
-        end
       end
     end
   end

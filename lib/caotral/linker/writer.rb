@@ -16,10 +16,14 @@ module Caotral
         @elf_obj, @output, @entry, @debug, @executable, @shared = elf_obj, output, entry, debug, executable, shared
         @write_sections = write_order_sections
       end
+
       def write
         f = File.open(@output, "wb")
         phoffset, phnum, phsize, ehsize = 64, 1, 56, 64
-        header = @elf_obj.header.set!(type: 2, phoffset:, phnum:, phsize:, ehsize:)
+        file_type = @shared ? :DYN : :EXEC
+        e_type = Caotral::Binary::ELF::Header::TYPE[file_type]
+
+        header = @elf_obj.header.set!(type: e_type, phoffset:, phnum:, phsize:, ehsize:)
         ph = Caotral::Binary::ELF::ProgramHeader.new
         text_offset = text_section.header.offset
         align = 0x1000
@@ -28,8 +32,9 @@ module Caotral
         type, flags = 1, 5
         filesz = text_section.body.bytesize
         memsz = filesz
+        entry = @shared ? 0 : (@entry || vaddr)
 
-        header.set!(entry: @entry || vaddr)
+        header.set!(entry:)
         ph.set!(type:, offset: text_offset, vaddr:, paddr:, filesz:, memsz:, flags:, align:)
         f.write(@elf_obj.header.build)
         f.write(ph.build)
