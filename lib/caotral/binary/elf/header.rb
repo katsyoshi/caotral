@@ -7,11 +7,12 @@ module Caotral
         IDENT = [0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00].freeze
         IDENT_STR = IDENT.pack("C*").freeze
         ELF_FILE_TYPE = { NONE: 0, REL: 1, EXEC: 2, DYN: 3, CORE: 4 }.freeze
+        TYPE = ELF_FILE_TYPE
 
-        def initialize(endian: :little, type: :rel, arc: :amd64)
+        def initialize(endian: :little, type: :REL)
           @ident = IDENT
-          @type = num2bytes(ELF_FILE_TYPE[elf(type)], 2)
-          @arch = arch(arc)
+          @type = num2bytes(ELF_FILE_TYPE[type], 2)
+          @arch = num2bytes(62, 2) # target: e_machine EM_x86_64
           @version = num2bytes(1, 4)
           @entry = num2bytes(0x00, 8)
           @phoffset = num2bytes(0x00, 8)
@@ -49,32 +50,11 @@ module Caotral
         def shstrndx = @shstrndx.pack("C*").unpack1("S<")
         def shoffset = @shoffset.pack("C*").unpack1("Q<")
 
-        private
-        def bytes = [
+        private def bytes = [
           @ident, @type, @arch, @version, @entry, @phoffset,
           @shoffset, @flags, @ehsize, @phsize, @phnum, @shentsize,
           @shnum, @shstrndx
         ]
-
-        def arch(machine)
-          case machine.to_s
-          in "amd64" | "x86_64" | "x64"
-            [0x3e, 0x00]
-          end
-        end
-
-        def elf(type)
-          case type.to_s
-          in "relocatable" | "rel"
-            :REL
-          in "exe" | "ex" | "exec"
-            :EXEC
-          in "shared" | "share" | "dynamic" | "dyn"
-            :DYN
-          else
-            :NONE
-          end
-        end
       end
     end
   end
