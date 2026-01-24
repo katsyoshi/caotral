@@ -18,14 +18,16 @@ module Caotral
           header = @bin.read(0x40)
           ident = header[0, 16]
           raise "Not ELF file" unless ident == Caotral::Binary::ELF::Header::IDENT_STR
-    
-          entry = header[24, 8].unpack("Q<").first
-          phoffset = header[32, 8].unpack("Q<").first
-          shoffset = header[40, 8].unpack("Q<").first
-          shentsize = header[58, 2].unpack("S<").first
-          shnum = header[60, 2].unpack("S<").first
-          shstrndx = header[62, 2].unpack("S<").first
-          @context.header.set!(entry:, phoffset:, shoffset:, shnum:, shstrndx:)
+
+          type = header[16, 2].unpack1("S<")
+          arch = header[18, 2].unpack1("S<")
+          entry = header[24, 8].unpack1("Q<")
+          phoffset = header[32, 8].unpack1("Q<")
+          shoffset = header[40, 8].unpack1("Q<")
+          shentsize = header[58, 2].unpack1("S<")
+          shnum = header[60, 2].unpack1("S<")
+          shstrndx = header[62, 2].unpack1("S<")
+          @context.header.set!(type:, arch:, entry:, phoffset:, shoffset:, shnum:, shstrndx:)
 
           @bin.pos = shoffset
           shnum.times do |i|
