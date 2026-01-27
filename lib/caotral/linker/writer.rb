@@ -102,6 +102,7 @@ module Caotral
         write_order << @elf_obj.find_by_name(".text")
         write_order << @elf_obj.find_by_name(".dynstr")
         write_order << @elf_obj.find_by_name(".dynsym")
+        write_order << @elf_obj.find_by_name(".dynamic")
         write_order << @elf_obj.find_by_name(".symtab")
         write_order << @elf_obj.find_by_name(".strtab")
         write_order.concat(@elf_obj.select_by_names(RELOCATION_SECTION_NAMES))
@@ -120,6 +121,11 @@ module Caotral
         dynsym_section.body.each { |dynsym| file.write(dynsym.build) }
         size = file.pos - dynsym_offset
         dynsym_section.header.set!(offset: dynsym_offset, size:)
+
+        dynamic_offset = file.pos
+        dynamic_section.body.each { |dynamic| file.write(dynamic.build) }
+        size = file.pos - dynamic_offset
+        dynamic_section.header.set!(offset: dynamic_offset, size:)
       end
       
       def ref_index(section_name)
@@ -134,7 +140,7 @@ module Caotral
         case section_name
         when ".symtab"
           write_section_index(".strtab")
-        when ".dynsym"
+        when ".dynsym", ".dynamic"
           write_section_index(".dynstr")
         else
           nil
@@ -148,6 +154,7 @@ module Caotral
       def shstrtab_section = @shstrtab_section ||= @write_sections.find { |s| ".shstrtab" === s.section_name.to_s }
       def dynstr_section = @dynstr_section ||= @write_sections.find { |s| ".dynstr" === s.section_name.to_s }
       def dynsym_section = @dynsym_section ||= @write_sections.find { |s| ".dynsym" === s.section_name.to_s }
+      def dynamic_section = @dynamic_section ||= @write_sections.find { |s| ".dynamic" === s.section_name.to_s }
     end
   end
 end

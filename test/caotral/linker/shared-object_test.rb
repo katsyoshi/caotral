@@ -20,6 +20,7 @@ class Caotral::Linker::SharedObjectLinkingTest < Test::Unit::TestCase
     section_names = elf.sections.map(&:section_name)
     assert_include(section_names, ".dynstr")
     assert_include(section_names, ".dynsym")
+    assert_include(section_names, ".dynamic")
     assert_equal(:DYN, elf.header.type)
     assert_equal(:AMD64, elf.header.arch)
   end

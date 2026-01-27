@@ -11,6 +11,7 @@ module Caotral
       BIND_BY_VALUE = SYMTAB_BIND.invert.freeze
       RELOCATION_SECTION_NAMES = [".rela.text", ".rel.text"].freeze
       ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
+      GENERATED_SECTION_NAMES = [".text", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr", ".dynsym", ".dynamic"].freeze
 
       attr_reader :symbols
 
@@ -163,7 +164,7 @@ module Caotral
           entsize: 0
         )
 
-        @elf_objs.first.without_sections([".text", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr", ".dynsym"]).each do |section|
+        @elf_objs.first.without_sections(GENERATED_SECTION_NAMES).each do |section|
           sections << section.dup
         end
 
@@ -257,18 +258,14 @@ module Caotral
 
       private
       def build_shared_dynamic_sections(sections:, symtab_section:, strtab_section:, text_section:)
+        sht = Caotral::Binary::ELF::SectionHeader::SHT
         dynstr_section = Caotral::Binary::ELF::Section.new(
           body: Caotral::Binary::ELF::Section::Strtab.new("\0".b),
           section_name: ".dynstr",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
 
-        dynstr_section.header.set!(
-          type: Caotral::Binary::ELF::SectionHeader::SHT[:strtab],
-          flags: 0,
-          addralign: 1,
-          entsize: 0
-        )
+        dynstr_section.header.set!(type: sht[:strtab], flags: 0, addralign: 1, entsize: 0)
 
         dynsym_section = Caotral::Binary::ELF::Section.new(
           body: [Caotral::Binary::ELF::Section::Symtab.new],
@@ -276,15 +273,17 @@ module Caotral
           header: Caotral::Binary::ELF::SectionHeader.new
         )
 
-        dynsym_section.header.set!(
-          type: Caotral::Binary::ELF::SectionHeader::SHT[:dynsym],
-          flags: 0,
-          addralign: 8,
-          entsize: 24
+        dynsym_section.header.set!(type: sht[:dynsym], flags: 0, addralign: 8, entsize: 24)
+
+        dynamic_section = Caotral::Binary::ELF::Section.new(
+          body: [Caotral::Binary::ELF::Section::Dynamic.new],
+          section_name: ".dynamic",
+          header: Caotral::Binary::ELF::SectionHeader.new
         )
 
+        dynamic_section.header.set!(type: sht[:dynamic], flags: 0, addralign: 8, entsize: 16)
 
-        [dynstr_section, dynsym_section]
+        [dynstr_section, dynsym_section, dynamic_section]
       end
       
       def ref_index(sections, section_name)
