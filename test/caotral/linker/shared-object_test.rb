@@ -17,6 +17,10 @@ class Caotral::Linker::SharedObjectLinkingTest < Test::Unit::TestCase
   def test_link_shared_object
     Caotral::Linker.link!(inputs: @inputs, output: @output, linker: "self", shared: true, executable: false)
     elf = Caotral::Binary::ELF::Reader.read!(input: @output, debug: false)
+    section_names = elf.sections.map(&:section_name)
+    assert_include(section_names, ".dynstr")
+    assert_include(section_names, ".dynsym")
+    assert_include(section_names, ".dynamic")
     assert_equal(:DYN, elf.header.type)
     assert_equal(:AMD64, elf.header.arch)
   end
