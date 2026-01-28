@@ -12,8 +12,8 @@ module Caotral
       def self.write!(elf_obj:, output:, entry: nil, debug: false, executable: true, shared: false)
         new(elf_obj:, output:, entry:, debug:, shared:, executable:).write
       end
-      def initialize(elf_obj:, output:, entry: nil, debug: false, executable: true, shared: false)
-        @elf_obj, @output, @entry, @debug, @executable, @shared = elf_obj, output, entry, debug, executable, shared
+      def initialize(elf_obj:, output:, entry: nil, debug: false, executable: true, shared: false, pie: false)
+        @elf_obj, @output, @entry, @debug, @executable, @shared, @pie = elf_obj, output, entry, debug, executable, shared, pie
         @write_sections = write_order_sections
       end
 
@@ -100,6 +100,7 @@ module Caotral
         write_order = []
         write_order << @elf_obj.sections.find { |s| s.section_name.nil? }
         write_order << @elf_obj.find_by_name(".text")
+        write_order << @elf_obj.find_by_name(".interp")
         write_order << @elf_obj.find_by_name(".dynstr")
         write_order << @elf_obj.find_by_name(".dynsym")
         write_order << @elf_obj.find_by_name(".dynamic")
@@ -112,6 +113,13 @@ module Caotral
       def write_section_index(section_name) = @write_sections.index { it.section_name == section_name }
 
       def write_shared_dynamic_sections(file:)
+        if interp_section
+          interp_offset = file.pos
+          file.write(interp_section.body)
+          size = file.pos - interp_offset
+          interp_section.header.set!(offset: interp_offset, size:)
+        end
+        
         dynstr_offset = file.pos
         file.write(dynstr_section.body.build)
         size = file.pos - dynstr_offset
@@ -155,6 +163,7 @@ module Caotral
       def dynstr_section = @dynstr_section ||= @write_sections.find { |s| ".dynstr" === s.section_name.to_s }
       def dynsym_section = @dynsym_section ||= @write_sections.find { |s| ".dynsym" === s.section_name.to_s }
       def dynamic_section = @dynamic_section ||= @write_sections.find { |s| ".dynamic" === s.section_name.to_s }
+      def interp_section = @interp_section ||= @write_sections.find { |s| ".interp" === s.section_name.to_s }
     end
   end
 end

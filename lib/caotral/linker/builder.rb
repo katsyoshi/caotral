@@ -11,15 +11,16 @@ module Caotral
       BIND_BY_VALUE = SYMTAB_BIND.invert.freeze
       RELOCATION_SECTION_NAMES = [".rela.text", ".rel.text"].freeze
       ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
-      GENERATED_SECTION_NAMES = [".text", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr", ".dynsym", ".dynamic"].freeze
+      GENERATED_SECTION_NAMES = [".text", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr", ".dynsym", ".dynamic", ".interp"].freeze
+      SHT = Caotral::Binary::ELF::SectionHeader::SHT
 
       attr_reader :symbols
 
-      def initialize(elf_objs:, executable: true, debug: false, shared: false)
+      def initialize(elf_objs:, executable: true, debug: false, shared: false, pie: false)
         @elf_objs = elf_objs
-        @executable, @debug, @shared = executable, debug, shared
+        @executable, @debug, @shared, @pie = executable, debug, shared, pie
         @symbols = { locals: Set.new, globals: Set.new, weaks: Set.new }
-        sharing_object!
+        _mode!
       end
 
       def build
@@ -152,7 +153,9 @@ module Caotral
           entsize: 24
         )
 
-        sections += build_shared_dynamic_sections(sections:, symtab_section:, strtab_section:, text_section:) if @shared
+        sections += build_pie_sections if @pie
+        sections += build_shared_dynamic_sections if @shared || @pie
+        sections << build_dynamic_section if @shared || @pie
         sections << symtab_section
 
         rel_sections.each { |s| sections << s.dup }
@@ -257,15 +260,15 @@ module Caotral
       end
 
       private
-      def build_shared_dynamic_sections(sections:, symtab_section:, strtab_section:, text_section:)
-        sht = Caotral::Binary::ELF::SectionHeader::SHT
+
+      def build_shared_dynamic_sections
         dynstr_section = Caotral::Binary::ELF::Section.new(
           body: Caotral::Binary::ELF::Section::Strtab.new("\0".b),
           section_name: ".dynstr",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
 
-        dynstr_section.header.set!(type: sht[:strtab], flags: 0, addralign: 1, entsize: 0)
+        dynstr_section.header.set!(type: SHT[:strtab], flags: 0, addralign: 1, entsize: 0)
 
         dynsym_section = Caotral::Binary::ELF::Section.new(
           body: [Caotral::Binary::ELF::Section::Symtab.new],
@@ -273,19 +276,33 @@ module Caotral
           header: Caotral::Binary::ELF::SectionHeader.new
         )
 
-        dynsym_section.header.set!(type: sht[:dynsym], flags: 0, addralign: 8, entsize: 24)
+        dynsym_section.header.set!(type: SHT[:dynsym], flags: 0, addralign: 8, entsize: 24)
 
+        [dynstr_section, dynsym_section,]
+      end
+
+      def build_pie_sections
+        interp_section = Caotral::Binary::ELF::Section.new(
+          body: "/lib64/ld-linux-x86-64.so.2\0".b,
+          section_name: ".interp",
+          header: Caotral::Binary::ELF::SectionHeader.new
+        )
+
+        interp_section.header.set!(type: SHT[:progbits], addralign: 1, flags: 0, entsize: 0)
+        [interp_section]
+      end
+
+      def build_dynamic_section
         dynamic_section = Caotral::Binary::ELF::Section.new(
           body: [Caotral::Binary::ELF::Section::Dynamic.new],
           section_name: ".dynamic",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
 
-        dynamic_section.header.set!(type: sht[:dynamic], flags: 0, addralign: 8, entsize: 16)
-
-        [dynstr_section, dynsym_section, dynamic_section]
+        dynamic_section.header.set!(type: SHT[:dynamic], flags: 0, addralign: 8, entsize: 16)
+        dynamic_section
       end
-      
+
       def ref_index(sections, section_name)
         raise Caotral::Binary::ELF::Error, "invalid section name: #{section_name}" if section_name.nil?
         ref_names = "." + section_name.split(".").filter { |sn| !sn.empty? && sn != "rel" && sn != "rela" }.join(".")
@@ -295,7 +312,10 @@ module Caotral
 
       def rel_type(section) = section.section_name&.start_with?(".rela.") ? 4 : 9
       def rel_entsize(section) = section.section_name&.start_with?(".rela.") ? 24 : 16
-      def sharing_object! = (@executable = false if @shared)
+      def _mode!
+        @executable = false if @shared
+        raise Caotral::Binary::ELF::Error, "disallow both mode: shared and PIE" if @pie && @shared
+      end
     end
   end
 end
