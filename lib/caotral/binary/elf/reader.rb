@@ -24,10 +24,28 @@ module Caotral
           entry = header[24, 8].unpack1("Q<")
           phoffset = header[32, 8].unpack1("Q<")
           shoffset = header[40, 8].unpack1("Q<")
+          phsize = header[54, 2].unpack1("S<")
+          phnum = header[56, 2].unpack1("S<")
           shentsize = header[58, 2].unpack1("S<")
           shnum = header[60, 2].unpack1("S<")
           shstrndx = header[62, 2].unpack1("S<")
-          @context.header.set!(type:, arch:, entry:, phoffset:, shoffset:, shnum:, shstrndx:)
+          @context.header.set!(type:, arch:, entry:, phoffset:, phsize:, phnum:, shoffset:, shnum:, shstrndx:)
+
+          @bin.pos = phoffset
+          phnum.times do |i|
+            ph_entry = @bin.read(phsize)
+            type = ph_entry[0, 4].unpack1("L<")
+            flags = ph_entry[4, 4].unpack1("L<")
+            offset = ph_entry[8, 8].unpack1("Q<")
+            vaddr = ph_entry[16, 8].unpack1("Q<")
+            paddr = ph_entry[24, 8].unpack1("Q<")
+            filesz = ph_entry[32, 8].unpack1("Q<")
+            memsz = ph_entry[40, 8].unpack1("Q<")
+            align = ph_entry[48, 8].unpack1("Q<")
+            ph = Caotral::Binary::ELF::ProgramHeader.new
+            ph.set!(type:, flags:, offset:, vaddr:, paddr:, filesz:, memsz:, align:)
+            @context.program_headers.push(ph)
+          end
 
           @bin.pos = shoffset
           shnum.times do |i|
@@ -92,6 +110,16 @@ module Caotral
                                info = rel_bin[8, 8].unpack1("Q<")
                                addend = rela ? rel_bin[16, 8].unpack1("q<") : nil
                                Caotral::Binary::ELF::Section::Rel.new(addend: rela).set!(offset:, info:, addend:)
+                             end
+                           when :dynamic
+                             dyn_entsize = section.header.entsize
+                             dyn_entsize = 16 if dyn_entsize.zero?
+                             count = body_bin.bytesize / dyn_entsize
+                             count.times.map do |i|
+                               dyn_bin = body_bin.byteslice(i * dyn_entsize, dyn_entsize)
+                               tag = dyn_bin[0, 8].unpack1("Q<")
+                               un = dyn_bin[8, 8].unpack1("Q<")
+                               Caotral::Binary::ELF::Section::Dynamic.new.set!(tag:, un:)
                              end
                            when :progbits
                              body_bin

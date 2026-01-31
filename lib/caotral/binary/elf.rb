@@ -14,9 +14,10 @@ module Caotral
   module Binary
     class ELF
       include Enumerable
-      attr_reader :sections
+      attr_reader :sections, :program_headers
       attr_accessor :header
       def initialize
+        @program_headers = []
         @sections = []
         @header = nil
       end
