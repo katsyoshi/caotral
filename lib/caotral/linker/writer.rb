@@ -37,7 +37,7 @@ module Caotral
         type, flags = 1, program_header_flags(:RX)
         filesz = text_section.body.bytesize
         memsz = filesz
-        entry = @shared ? 0 : (@entry || vaddr)
+        entry = (@shared || !@executable) ? 0 : (@entry || vaddr)
 
         header.set!(entry:)
         lph.set!(type:, offset: text_offset, vaddr:, paddr:, filesz:, memsz:, flags:, align:)
