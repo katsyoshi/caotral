@@ -20,20 +20,21 @@ module Caotral
       def write
         f = File.open(@output, "wb")
         phoffset, phsize, ehsize = 64, 56, 64
-        file_type = @shared ? :DYN : :EXEC
-        e_type = Caotral::Binary::ELF::Header::TYPE[file_type]
+        e_type = elf_type
 
         # PT_LOAD
         lph = Caotral::Binary::ELF::ProgramHeader.new
         # PT_INTERP
         iph = Caotral::Binary::ELF::ProgramHeader.new if interp_section
-        phnum = iph ? 2 : 1
+        # PT_DYNAMIC
+        dph = Caotral::Binary::ELF::ProgramHeader.new if dynamic_section
+        phnum = [lph, iph, dph].compact.size
         header = @elf_obj.header.set!(type: e_type, phoffset:, phnum:, phsize:, ehsize:)
         text_offset = text_section.header.offset
         align = 0x1000
         vaddr = text_section.header.addr
         paddr = vaddr
-        type, flags = 1, 5
+        type, flags = 1, program_header_flags(:RX)
         filesz = text_section.body.bytesize
         memsz = filesz
         entry = @shared ? 0 : (@entry || vaddr)
@@ -47,12 +48,21 @@ module Caotral
         f.write("\0" * gap)
         f.write(text_section.body)
         write_shared_dynamic_sections(file: f) if @shared || @pie
+        ph_pos = phoffset
         if iph
           ish = interp_section.header
-          iph.set!(type: 3, offset: ish.offset, vaddr: 0, paddr: 0, filesz: ish.size, memsz: ish.size, flags: 4, align: 1)
+          iph.set!(type: 3, offset: ish.offset, vaddr: 0, paddr: 0, filesz: ish.size, memsz: ish.size, flags: program_header_flags(:R), align: 1)
           cur = f.pos
-          f.seek(phoffset + phsize)
+          f.seek(ph_pos += phsize)
           f.write(iph.build)
+          f.seek(cur)
+        end
+        if dph
+          dsh = dynamic_section.header
+          dph.set!(type: 2, offset: dsh.offset, filesz: dsh.size, memsz: dsh.size, vaddr: dsh.addr || 0, paddr: dsh.addr || 0, flags: program_header_flags(:R), align: dsh.addralign)
+          cur = f.pos
+          f.seek(ph_pos += phsize)
+          f.write(dph.build)
           f.seek(cur)
         end
         symtab_offset = f.pos
@@ -167,6 +177,9 @@ module Caotral
           nil
         end
       end
+
+      def program_header_flags(flag) = Caotral::Binary::ELF::ProgramHeader::PF[flag.to_sym]
+      def elf_type = Caotral::Binary::ELF::Header::TYPE[@shared || @pie ? :DYN : :EXEC]
 
       def text_section = @text_section ||= @write_sections.find { |s| ".text" === s.section_name.to_s }
       def rel_sections = @rel_sections ||= @write_sections.select { RELOCATION_SECTION_NAMES.include?(it.section_name) }

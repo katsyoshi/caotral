@@ -5,6 +5,18 @@ module Caotral
     class ELF
       class ProgramHeader
         include Caotral::Binary::ELF::Utils
+        PF_X = 1
+        PF_W = 2
+        PF_R = 4
+        PF = {
+          RWX: PF_R | PF_W | PF_X,
+          RW: PF_R | PF_W,
+          RX: PF_R | PF_X,
+          WX: PF_W | PF_X,
+          R: PF_R,
+          W: PF_W,
+          X: PF_X,
+        }
         def initialize
           @type = num2bytes(0, 4)
           @flags = num2bytes(0, 4)
@@ -27,6 +39,7 @@ module Caotral
           @align = num2bytes(align, 8) if check(align, 8)
           self
         end
+
         private def bytes = [@type, @flags, @offset, @vaddr, @paddr, @filesz, @memsz, @align]
       end
     end

@@ -47,6 +47,7 @@ module Caotral
         def info = @info.pack("C*").unpack1("L<")
         def addr = @addr.pack("C*").unpack1("Q<")
         def link = @link.pack("C*").unpack1("L<")
+        def addralign = @addralign.pack("C*").unpack1("Q<")
 
         private def bytes = [@name, @type, @flags, @addr, @offset, @size, @link, @info, @addralign, @entsize]
       end
