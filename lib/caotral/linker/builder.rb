@@ -154,7 +154,7 @@ module Caotral
         )
 
         sections += build_pie_sections if @pie
-        if @shared || @pie
+        if dynamic?
           dynstr, dynsym = build_shared_dynamic_sections
           rela_dyn = build_rela_dyn_section
           sections << dynstr
@@ -300,8 +300,14 @@ module Caotral
       end
 
       def build_dynamic_section
+        tag_types = Caotral::Binary::ELF::Section::Dynamic::TAG_TYPES
         dynamic_section = Caotral::Binary::ELF::Section.new(
-          body: [Caotral::Binary::ELF::Section::Dynamic.new],
+          body: [
+            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:RELA], un: 0),
+            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:RELASZ], un: 0),
+            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:RELAENT], un: 24),
+            Caotral::Binary::ELF::Section::Dynamic.new
+          ],
           section_name: ".dynamic",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
@@ -334,6 +340,8 @@ module Caotral
         @executable = false if @shared
         raise Caotral::Binary::ELF::Error, "disallow both mode: shared and PIE" if @pie && @shared
       end
+
+      def dynamic? = @shared || @pie
     end
   end
 end

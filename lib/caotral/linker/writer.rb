@@ -37,7 +37,7 @@ module Caotral
         type, flags = 1, program_header_flags(:RX)
         filesz = text_section.body.bytesize
         memsz = filesz
-        entry = (@shared || !@executable) ? 0 : (@entry || vaddr)
+        entry = non_executable? ? 0 : (@entry || vaddr)
 
         header.set!(entry:)
         lph.set!(type:, offset: text_offset, vaddr:, paddr:, filesz:, memsz:, flags:, align:)
@@ -47,7 +47,9 @@ module Caotral
         gap = [text_offset - f.pos, 0].max
         f.write("\0" * gap)
         f.write(text_section.body)
-        write_shared_dynamic_sections(file: f) if @shared || @pie
+        if dynamic?
+          write_shared_dynamic_sections(file: f)
+        end
         ph_pos = phoffset
         if iph
           ish = interp_section.header
@@ -80,6 +82,13 @@ module Caotral
           rel_size = f.pos - rel_offset
           entsize = rel.body.first&.build&.bytesize.to_i
           rel.header.set!(offset: rel_offset, size: rel_size, entsize:)
+        end
+        if dynamic? && dynamic_section
+          rdsh = rela_dyn_section&.header
+          rela = dynamic_section.body.find { |dyn| dyn.tag == dynamic_tables[:RELA] }
+          relasz = dynamic_section.body.find { |dyn| dyn.tag == dynamic_tables[:RELASZ] }
+          rela&.set!(un: rdsh&.addr.to_i)
+          relasz&.set!(un: rdsh&.size.to_i)
         end
         offset = f.pos
         names = @write_sections.map { |s| s.section_name.to_s }
@@ -180,7 +189,12 @@ module Caotral
       end
 
       def program_header_flags(flag) = Caotral::Binary::ELF::ProgramHeader::PF[flag.to_sym]
-      def elf_type = Caotral::Binary::ELF::Header::TYPE[@shared || @pie ? :DYN : :EXEC]
+      def elf_type = Caotral::Binary::ELF::Header::TYPE[dynamic? ? :DYN : :EXEC]
+
+      def non_executable? = (@shared || !@executable)
+      def dynamic? = (@shared || @pie)
+
+      def dynamic_tables = Caotral::Binary::ELF::Section::Dynamic::TAG_TYPES
 
       def text_section = @text_section ||= @write_sections.find { |s| ".text" === s.section_name.to_s }
       def rel_sections = @rel_sections ||= @write_sections.select { |s| RELOCATION_SECTION_NAMES.include?(s.section_name.to_s) }
@@ -191,7 +205,7 @@ module Caotral
       def dynsym_section = @dynsym_section ||= @write_sections.find { |s| ".dynsym" === s.section_name.to_s }
       def dynamic_section = @dynamic_section ||= @write_sections.find { |s| ".dynamic" === s.section_name.to_s }
       def interp_section = @interp_section ||= @write_sections.find { |s| ".interp" === s.section_name.to_s }
-      def reladyn_section = @reladyn_section ||= @write_sections.find { |s| ".rela.dyn" === s.section_name.to_s }
+      def rela_dyn_section = @rela_dyn_section ||= @write_sections.find { |s| ".rela.dyn" === s.section_name.to_s }
     end
   end
 end

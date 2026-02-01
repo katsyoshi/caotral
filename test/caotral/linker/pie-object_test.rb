@@ -20,7 +20,7 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     section_names = elf.sections.map(&:section_name)
     program_header_types = elf.program_headers.map(&:type)
     interp = elf.find_by_name(".interp")
-    dynamic = elf.find_by_name(".dynamic").body.first
+    dynamic = elf.find_by_name(".dynamic").body.last
     assert_include(program_header_types, :LOAD)
     assert_include(program_header_types, :DYNAMIC)
     assert_include(program_header_types, :INTERP)
@@ -41,7 +41,7 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     section_names = elf.sections.map(&:section_name)
     program_header_types = elf.program_headers.map(&:type)
     interp = elf.find_by_name(".interp")
-    dynamic = elf.find_by_name(".dynamic").body.first
+    dynamic = elf.find_by_name(".dynamic").body.last
     assert_include(program_header_types, :LOAD)
     assert_include(program_header_types, :DYNAMIC)
     assert_include(program_header_types, :INTERP)
