@@ -11,7 +11,7 @@ module Caotral
       BIND_BY_VALUE = SYMTAB_BIND.invert.freeze
       RELOCATION_SECTION_NAMES = [".rela.text", ".rel.text"].freeze
       ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
-      GENERATED_SECTION_NAMES = [".text", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr", ".dynsym", ".dynamic", ".interp"].freeze
+      GENERATED_SECTION_NAMES = [".text", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr", ".dynsym", ".dynamic", ".interp", ".rela.dyn"].freeze
       SHT = Caotral::Binary::ELF::SectionHeader::SHT
 
       attr_reader :symbols
@@ -154,8 +154,15 @@ module Caotral
         )
 
         sections += build_pie_sections if @pie
-        sections += build_shared_dynamic_sections if @shared || @pie
-        sections << build_dynamic_section if @shared || @pie
+        if @shared || @pie
+          dynstr, dynsym = build_shared_dynamic_sections
+          rela_dyn = build_rela_dyn_section
+          sections << dynstr
+          sections << dynsym
+          sections << rela_dyn
+          rela_dyn.header.set!(link: sections.index(dynsym))
+          sections << build_dynamic_section
+        end
         sections << symtab_section
 
         rel_sections.each { |s| sections << s.dup }
@@ -301,6 +308,17 @@ module Caotral
 
         dynamic_section.header.set!(type: SHT[:dynamic], flags: 0, addralign: 8, entsize: 16)
         dynamic_section
+      end
+
+      def build_rela_dyn_section
+        rela_dyn_section = Caotral::Binary::ELF::Section.new(
+          body: [],
+          section_name: ".rela.dyn",
+          header: Caotral::Binary::ELF::SectionHeader.new
+        )
+
+        rela_dyn_section.header.set!(type: SHT[:rela], entsize: 24, addralign: 8, info: 0)
+        rela_dyn_section
       end
 
       def ref_index(sections, section_name)

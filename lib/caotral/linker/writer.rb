@@ -7,7 +7,7 @@ module Caotral
       R_X86_64_PC32 = 2
       R_X86_64_PLT32 = 4
       ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
-      RELOCATION_SECTION_NAMES = [".rela.text", ".rel.text"].freeze
+      RELOCATION_SECTION_NAMES = [".rela.text", ".rela.dyn"].freeze
       attr_reader :elf_obj, :output, :entry, :debug
       def self.write!(elf_obj:, output:, entry: nil, debug: false, executable: true, shared: false)
         new(elf_obj:, output:, entry:, debug:, shared:, executable:).write
@@ -142,7 +142,7 @@ module Caotral
           size = file.pos - interp_offset
           interp_section.header.set!(offset: interp_offset, size:)
         end
-        
+
         dynstr_offset = file.pos
         file.write(dynstr_section.body.build)
         size = file.pos - dynstr_offset
@@ -160,6 +160,7 @@ module Caotral
       end
       
       def ref_index(section_name)
+        return 0 if section_name == ".rela.dyn"
         ref_name = section_name.split(".").filter { |sn| !sn.empty? && sn != "rel" && sn != "rela" }
         ref_name = "." + ref_name.join(".")
         ref = @write_sections.find { |s| s.section_name == ref_name }
@@ -182,7 +183,7 @@ module Caotral
       def elf_type = Caotral::Binary::ELF::Header::TYPE[@shared || @pie ? :DYN : :EXEC]
 
       def text_section = @text_section ||= @write_sections.find { |s| ".text" === s.section_name.to_s }
-      def rel_sections = @rel_sections ||= @write_sections.select { RELOCATION_SECTION_NAMES.include?(it.section_name) }
+      def rel_sections = @rel_sections ||= @write_sections.select { |s| RELOCATION_SECTION_NAMES.include?(s.section_name.to_s) }
       def symtab_section = @symtab_section ||= @write_sections.find { |s| ".symtab" === s.section_name.to_s }
       def strtab_section = @strtab_section ||= @write_sections.find { |s| ".strtab" === s.section_name.to_s }
       def shstrtab_section = @shstrtab_section ||= @write_sections.find { |s| ".shstrtab" === s.section_name.to_s }
@@ -190,6 +191,7 @@ module Caotral
       def dynsym_section = @dynsym_section ||= @write_sections.find { |s| ".dynsym" === s.section_name.to_s }
       def dynamic_section = @dynamic_section ||= @write_sections.find { |s| ".dynamic" === s.section_name.to_s }
       def interp_section = @interp_section ||= @write_sections.find { |s| ".interp" === s.section_name.to_s }
+      def reladyn_section = @reladyn_section ||= @write_sections.find { |s| ".rela.dyn" === s.section_name.to_s }
     end
   end
 end
