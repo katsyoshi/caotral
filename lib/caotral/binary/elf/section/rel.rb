@@ -5,6 +5,17 @@ module Caotral
       class Section
         class Rel
           include Caotral::Binary::ELF::Utils
+          TYPES = {
+            AMD64_NONE: 0,
+            AMD64_64: 1,
+            AMD64_PC32: 2,
+            AMD64_GOT32: 3,
+            AMD64_PLT32: 4,
+            AMD64_COPY: 5,
+            AMD64_GLOB_DAT: 6,
+          }.freeze
+          TYPES_BY_V = TYPES.invert.freeze
+
           def initialize(addend: true)
             @offset = num2bytes(0, 8)
             @info = num2bytes(0, 8)
@@ -27,6 +38,7 @@ module Caotral
           end
           def sym = @info.pack("C*").unpack1("Q<") >> 32
           def type = @info.pack("C*").unpack1("Q<") & 0xffffffff
+          def type_name = TYPES_BY_V[type]
           def addend? = !!@addend
 
           private def bytes = addend? ? [@offset, @info, @addend] : [@offset, @info]

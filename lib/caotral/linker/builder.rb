@@ -5,8 +5,10 @@ module Caotral
   class Linker
     class Builder
       include Caotral::Binary::ELF::Utils
+      R_X86_64_64 = 1
       R_X86_64_PC32 = 2
       R_X86_64_PLT32 = 4
+      R_X86_64_RELATIVE = 8
       SYMTAB_BIND = { locals: 0, globals: 1, weaks: 2, }.freeze
       BIND_BY_VALUE = SYMTAB_BIND.invert.freeze
       RELOCATION_SECTION_NAMES = [".rela.text", ".rel.text"].freeze
@@ -50,6 +52,11 @@ module Caotral
         shstrtab_section = Caotral::Binary::ELF::Section.new(
           body: Caotral::Binary::ELF::Section::Strtab.new("\0".b),
           section_name: ".shstrtab",
+          header: Caotral::Binary::ELF::SectionHeader.new
+        )
+        rela_dyn_section = Caotral::Binary::ELF::Section.new(
+          body: [],
+          section_name: ".rela.dyn",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
 
@@ -101,6 +108,10 @@ module Caotral
             )
             section.body.each do |rel|
               offset = rel.offset + text_offsets.fetch(elf_obj.object_id, 0)
+              if rel.type == R_X86_64_64
+                rela_dyn_section.body << Caotral::Binary::ELF::Section::Rel.new.set!(offset:, info: (0 << 32) | R_X86_64_RELATIVE, addend: rel.addend? ? rel.addend : 0)
+                next
+              end
               addend = rel.addend? ? rel.addend : nil
               new_rel = Caotral::Binary::ELF::Section::Rel.new(addend: rel.addend?)
               sym = base_index.nil? ? rel.sym : base_index + rel.sym
@@ -156,11 +167,11 @@ module Caotral
         sections += build_pie_sections if @pie
         if dynamic?
           dynstr, dynsym = build_shared_dynamic_sections
-          rela_dyn = build_rela_dyn_section
           sections << dynstr
           sections << dynsym
-          sections << rela_dyn
-          rela_dyn.header.set!(link: sections.index(dynsym))
+          sections << rela_dyn_section
+          sym = sections.index(dynsym)
+          rela_dyn_section.header.set!(link: sym, type: rel_type(rela_dyn_section), info: 0, addralign: 8, entsize: rel_entsize(rela_dyn_section))
           sections << build_dynamic_section
         end
         sections << symtab_section
@@ -314,17 +325,6 @@ module Caotral
 
         dynamic_section.header.set!(type: SHT[:dynamic], flags: 0, addralign: 8, entsize: 16)
         dynamic_section
-      end
-
-      def build_rela_dyn_section
-        rela_dyn_section = Caotral::Binary::ELF::Section.new(
-          body: [],
-          section_name: ".rela.dyn",
-          header: Caotral::Binary::ELF::SectionHeader.new
-        )
-
-        rela_dyn_section.header.set!(type: SHT[:rela], entsize: 24, addralign: 8, info: 0)
-        rela_dyn_section
       end
 
       def ref_index(sections, section_name)
