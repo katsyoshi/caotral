@@ -87,13 +87,35 @@ module Caotral
           entsize = rel.body.first&.build&.bytesize.to_i
           rel.header.set!(offset: rel_offset, size: rel_size, entsize:)
         end
+
+        dynamic_sections.each do |dyn|
+          addr = text_section.header.addr + (dyn.header.offset - text_section.header.offset)
+          dyn.header.set!(addr:)
+        end
+
         if dynamic? && dynamic_section && rela_dyn_section
           rdsh = rela_dyn_section&.header
           rela = dynamic_section.body.find { |dyn| dyn.tag == dynamic_tables[:RELA] }
           relasz = dynamic_section.body.find { |dyn| dyn.tag == dynamic_tables[:RELASZ] }
           rela&.set!(un: rdsh&.addr.to_i)
           relasz&.set!(un: rdsh&.size.to_i)
+
+          segment_start = text_section.header.offset
+          segment_end = [text_section,].concat(dynamic_sections).compact.map { |s| s.header.offset + s.header.size }.max
+
+          dynamic_filesz = segment_end - segment_start
+          cur = f.pos
+          lph.set!(filesz: dynamic_filesz, memsz: dynamic_filesz)
+          f.seek(phoffset)
+          f.write(lph.build)
+          f.seek(cur)
+
+          cur = f.pos
+          f.seek(dynamic_section.header.offset)
+          dynamic_section.body.each { |dyn| f.write(dyn.build) }
+          f.seek(cur)
         end
+
         offset = f.pos
         names = @write_sections.map { |s| s.section_name.to_s }
         if names.last != ".shstrtab"
@@ -149,27 +171,29 @@ module Caotral
       def write_section_index(section_name) = @write_sections.index { it.section_name == section_name }
 
       def write_shared_dynamic_sections(file:)
+        tsh = text_section&.header
+        text_addr = tsh&.addr || 0
         if interp_section
           interp_offset = file.pos
           file.write(interp_section.body)
           size = file.pos - interp_offset
-          interp_section.header.set!(offset: interp_offset, size:)
+          interp_section.header.set!(offset: interp_offset, size:, addr: text_addr + (interp_offset - tsh.offset))
         end
 
         dynstr_offset = file.pos
         file.write(dynstr_section.body.build)
         size = file.pos - dynstr_offset
-        dynstr_section.header.set!(offset: dynstr_offset, size:)
+        dynstr_section.header.set!(offset: dynstr_offset, size:, addr: text_addr + (dynstr_offset - tsh.offset))
 
         dynsym_offset = file.pos
         dynsym_section.body.each { |dynsym| file.write(dynsym.build) }
         size = file.pos - dynsym_offset
-        dynsym_section.header.set!(offset: dynsym_offset, size:)
+        dynsym_section.header.set!(offset: dynsym_offset, size:, addr: text_addr + (dynsym_offset - tsh.offset))
 
         dynamic_offset = file.pos
         dynamic_section.body.each { |dynamic| file.write(dynamic.build) }
         size = file.pos - dynamic_offset
-        dynamic_section.header.set!(offset: dynamic_offset, size:)
+        dynamic_section.header.set!(offset: dynamic_offset, size:, addr: text_addr + (dynamic_offset - tsh.offset))
       end
       
       def ref_index(section_name)
@@ -210,6 +234,7 @@ module Caotral
       def dynamic_section = @dynamic_section ||= @write_sections.find { |s| ".dynamic" === s.section_name.to_s }
       def interp_section = @interp_section ||= @write_sections.find { |s| ".interp" === s.section_name.to_s }
       def rela_dyn_section = @rela_dyn_section ||= @write_sections.find { |s| ".rela.dyn" === s.section_name.to_s }
+      def dynamic_sections = @dynamic_sections ||= [interp_section, dynstr_section, dynsym_section, dynamic_section, rela_dyn_section].compact
     end
   end
 end
