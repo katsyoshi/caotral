@@ -6,6 +6,11 @@ module Caotral
       class SectionHeader
         include Caotral::Binary::ELF::Utils
         SHT = { null: 0, progbits: 1, symtab: 2, strtab: 3, rela: 4, hash: 5, dynamic: 6, note: 7, nobits: 8, rel: 9, shlib: 10, dynsym: 11, }.freeze
+        SHF = {
+          WRITE: 0x1,
+          ALLOC: 0x2,
+          EXECINSTR: 0x4,
+        }.freeze
         SHT_BY_VALUE = SHT.invert.freeze
 
         def initialize

@@ -15,6 +15,7 @@ module Caotral
       ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
       GENERATED_SECTION_NAMES = [".text", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr", ".dynsym", ".dynamic", ".interp", ".rela.dyn"].freeze
       SHT = Caotral::Binary::ELF::SectionHeader::SHT
+      SHF = Caotral::Binary::ELF::SectionHeader::SHF
 
       attr_reader :symbols
 
@@ -171,7 +172,7 @@ module Caotral
           sections << dynsym
           sections << rela_dyn_section
           sym = sections.index(dynsym)
-          rela_dyn_section.header.set!(link: sym, type: rel_type(rela_dyn_section), info: 0, addralign: 8, entsize: rel_entsize(rela_dyn_section))
+          rela_dyn_section.header.set!(flags: SHF[:ALLOC], link: sym, type: rel_type(rela_dyn_section), info: 0, addralign: 8, entsize: rel_entsize(rela_dyn_section))
           sections << build_dynamic_section
         end
         sections << symtab_section
@@ -286,7 +287,7 @@ module Caotral
           header: Caotral::Binary::ELF::SectionHeader.new
         )
 
-        dynstr_section.header.set!(type: SHT[:strtab], flags: 0, addralign: 1, entsize: 0)
+        dynstr_section.header.set!(type: SHT[:strtab], flags: SHF[:ALLOC], addralign: 1, entsize: 0)
 
         dynsym_section = Caotral::Binary::ELF::Section.new(
           body: [Caotral::Binary::ELF::Section::Symtab.new],
@@ -294,7 +295,7 @@ module Caotral
           header: Caotral::Binary::ELF::SectionHeader.new
         )
 
-        dynsym_section.header.set!(type: SHT[:dynsym], flags: 0, addralign: 8, entsize: 24)
+        dynsym_section.header.set!(info: 1, type: SHT[:dynsym], flags: SHF[:ALLOC], addralign: 8, entsize: 24)
 
         [dynstr_section, dynsym_section,]
       end
@@ -306,7 +307,7 @@ module Caotral
           header: Caotral::Binary::ELF::SectionHeader.new
         )
 
-        interp_section.header.set!(type: SHT[:progbits], addralign: 1, flags: 0, entsize: 0)
+        interp_section.header.set!(type: SHT[:progbits], addralign: 1, flags: SHF[:ALLOC], entsize: 0)
         [interp_section]
       end
 
@@ -323,7 +324,7 @@ module Caotral
           header: Caotral::Binary::ELF::SectionHeader.new
         )
 
-        dynamic_section.header.set!(type: SHT[:dynamic], flags: 0, addralign: 8, entsize: 16)
+        dynamic_section.header.set!(type: SHT[:dynamic], flags: SHF[:ALLOC] | SHF[:WRITE], addralign: 8, entsize: 16)
         dynamic_section
       end
 
