@@ -76,6 +76,10 @@ module Caotral
         f.write(strtab_section.body.build)
         strtab_section.header.set!(offset: strtab_offset, size: strtab_section.body.names.bytesize)
 
+        if rela_dyn_section
+          rela_dyn_section.body.each { |entry| entry.set!(offset: entry.offset + text_section.header.addr) }
+        end
+
         rel_sections.each do |rel|
           rel_offset = f.pos
           rel.body.each { |entry| f.write(entry.build) }
@@ -83,7 +87,7 @@ module Caotral
           entsize = rel.body.first&.build&.bytesize.to_i
           rel.header.set!(offset: rel_offset, size: rel_size, entsize:)
         end
-        if dynamic? && dynamic_section
+        if dynamic? && dynamic_section && rela_dyn_section
           rdsh = rela_dyn_section&.header
           rela = dynamic_section.body.find { |dyn| dyn.tag == dynamic_tables[:RELA] }
           relasz = dynamic_section.body.find { |dyn| dyn.tag == dynamic_tables[:RELASZ] }
