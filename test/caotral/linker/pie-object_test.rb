@@ -90,6 +90,11 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
 
     Caotral::Linker.link!(inputs: @inputs, output: @output, linker: "self", pie: true)
     elf = Caotral::Binary::ELF::Reader.read!(input: @output, debug: false)
+    IO.popen("./pie").close
+    exit_code, handle_code = check_process($?.to_i)
+    assert_equal(60, exit_code)
+    assert_equal(0, handle_code)
+
     section_names = elf.sections.map(&:section_name)
     program_header_types = elf.program_headers.map(&:type)
     interp = elf.find_by_name(".interp")

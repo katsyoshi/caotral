@@ -7,7 +7,7 @@ module Caotral
       R_X86_64_PC32 = 2
       R_X86_64_PLT32 = 4
       ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
-      RELOCATION_SECTION_NAMES = [".rela.text", ".rela.dyn"].freeze
+      RELOCATION_SECTION_NAMES = [".rela.text", ".rela.dyn", ".rela.data"].freeze
       attr_reader :elf_obj, :output, :entry, :debug
       def self.write!(elf_obj:, output:, entry: nil, debug: false, executable: true, shared: false)
         new(elf_obj:, output:, entry:, debug:, shared:, executable:).write
@@ -37,7 +37,7 @@ module Caotral
         align = 0x1000
         vaddr = text_section.header.addr
         paddr = vaddr
-        type, flags = 1, program_header_flags(:RX)
+        type, flags = 1, program_header_flags(:RWX)
         filesz = text_section.body.bytesize
         memsz = filesz
         entry = non_executable? ? 0 : (@entry || vaddr)
@@ -61,6 +61,15 @@ module Caotral
         gap = [text_offset - f.pos, 0].max
         f.write("\0" * gap)
         f.write(text_section.body)
+        if data_section
+          data_offset = f.pos
+          f.write(data_section.body)
+          data_section.header.set!(
+            offset: data_offset,
+            size: data_section.body.bytesize,
+            addr: text_section.header.addr + (data_offset - text_section.header.offset)
+          )
+        end
         if dynamic?
           write_shared_dynamic_sections(file: f)
         end
@@ -92,10 +101,6 @@ module Caotral
         f.write(strtab_section.body.build)
         strtab_section.header.set!(offset: strtab_offset, size: strtab_section.body.names.bytesize)
 
-        if rela_dyn_section
-          rela_dyn_section.body.each { |entry| entry.set!(offset: entry.offset + text_section.header.addr) }
-        end
-
         rel_sections.each do |rel|
           rel_offset = f.pos
           rel.body.each { |entry| f.write(entry.build) }
@@ -121,7 +126,8 @@ module Caotral
           bodies.find { |dyn| dyn.tag == dynamic_tables[:HASH] }&.set!(un: hash_section.header.addr.to_i) if hash_section
 
           segment_start = text_section.header.offset
-          segment_end = [text_section,].concat(dynamic_sections).compact.map { |s| s.header.offset + s.header.size }.max
+          segment_start = 0 if @pie
+          segment_end = [text_section, data_section,].concat(dynamic_sections).compact.map { |s| s.header.offset + s.header.size }.max
 
           dynamic_filesz = segment_end - segment_start
           cur = f.pos
@@ -180,6 +186,7 @@ module Caotral
         write_order = []
         write_order << @elf_obj.sections.find { |s| s.section_name.nil? }
         write_order << @elf_obj.find_by_name(".text")
+        write_order << @elf_obj.find_by_name(".data")
         write_order << @elf_obj.find_by_name(".interp")
         write_order << @elf_obj.find_by_name(".dynstr")
         write_order << @elf_obj.find_by_name(".dynsym")
@@ -212,6 +219,13 @@ module Caotral
         dynsym_section.body.each { |dynsym| file.write(dynsym.build) }
         size = file.pos - dynsym_offset
         dynsym_section.header.set!(offset: dynsym_offset, size:, addr: text_addr + (dynsym_offset - tsh.offset))
+
+        if @pie
+          hash_offset = file.pos
+          file.write(hash_section.body.build)
+          size = file.pos - hash_offset
+          hash_section.header.set!(offset: hash_offset, size:, addr: text_addr + (hash_offset - tsh.offset))
+        end
 
         dynamic_offset = file.pos
         dynamic_section.body.each { |dynamic| file.write(dynamic.build) }
@@ -259,6 +273,7 @@ module Caotral
       def dynamic_section = @dynamic_section ||= @write_sections.find { |s| ".dynamic" === s.section_name.to_s }
       def interp_section = @interp_section ||= @write_sections.find { |s| ".interp" === s.section_name.to_s }
       def rela_dyn_section = @rela_dyn_section ||= @write_sections.find { |s| ".rela.dyn" === s.section_name.to_s }
+      def data_section = @data_section ||= @write_sections.find { |s| ".data" === s.section_name.to_s }
       def hash_section = @hash_section ||= @write_sections.find { |s| ".hash" === s.section_name.to_s }
 
       def dynamic_sections = @dynamic_sections ||= [interp_section, dynstr_section, dynsym_section, dynamic_section, rela_dyn_section].compact

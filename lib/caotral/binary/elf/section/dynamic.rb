@@ -8,9 +8,14 @@ module Caotral
           TAG_TYPES = {
             NULL: 0,
             HASH: 4,
+            STRTAB: 5,
+            SYMTAB: 6,
             RELA: 7,
             RELASZ: 8,
             RELAENT: 9,
+            STRSZ: 10,
+            SYMENT: 11,
+            TEXTREL: 22,
           }.freeze
           TAG_TYPES_BY_V = TAG_TYPES.invert.freeze
 
