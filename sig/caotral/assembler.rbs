@@ -5,6 +5,7 @@ class Caotral::Assembler
   @asm_reader: Caotral::Assembler::Reader
   @debug: bool
 
+  def self.assemble!: (input: String, ?output: String, ?assembler: String, ?assembler_options: Array[String] | [], ?debug: bool, ?shared: bool) -> String
   def initialize: (input: String, ?output: String, ?assembler: String, ?type: Symbol, ?debug: bool) -> void
   def assemble: (?assembler: String, ?assembler_options: Array[String] | [], ?input: String, ?output: String, ?debug: bool, ?shared: bool) -> String
   def obj_file: () -> String
