@@ -95,10 +95,14 @@ module Caotral
 
         if dynamic? && dynamic_section && rela_dyn_section
           rdsh = rela_dyn_section&.header
-          rela = dynamic_section.body.find { |dyn| dyn.tag == dynamic_tables[:RELA] }
-          relasz = dynamic_section.body.find { |dyn| dyn.tag == dynamic_tables[:RELASZ] }
-          rela&.set!(un: rdsh&.addr.to_i)
-          relasz&.set!(un: rdsh&.size.to_i)
+          bodies = dynamic_section.body
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:RELA] }.set!(un: rdsh&.addr.to_i)
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:RELASZ] }.set!(un: rdsh&.size.to_i)
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:STRSZ] }&.set!(un: dynstr_section.header.size.to_i)
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:SYMENT] }&.set!(un: dynsym_section.header.entsize.to_i)
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:STRTAB] }&.set!(un: dynstr_section.header.addr.to_i)
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:SYMTAB] }&.set!(un: dynsym_section.header.addr.to_i)
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:HASH] }&.set!(un: hash_section.header.addr.to_i) if hash_section
 
           segment_start = text_section.header.offset
           segment_end = [text_section,].concat(dynamic_sections).compact.map { |s| s.header.offset + s.header.size }.max
@@ -161,6 +165,7 @@ module Caotral
         write_order << @elf_obj.find_by_name(".interp")
         write_order << @elf_obj.find_by_name(".dynstr")
         write_order << @elf_obj.find_by_name(".dynsym")
+        write_order << @elf_obj.find_by_name(".hash")
         write_order << @elf_obj.find_by_name(".dynamic")
         write_order << @elf_obj.find_by_name(".symtab")
         write_order << @elf_obj.find_by_name(".strtab")
@@ -211,6 +216,8 @@ module Caotral
           write_section_index(".strtab")
         when ".dynsym", ".dynamic"
           write_section_index(".dynstr")
+        when ".hash"
+          write_section_index(".dynsym")
         else
           nil
         end
@@ -234,6 +241,8 @@ module Caotral
       def dynamic_section = @dynamic_section ||= @write_sections.find { |s| ".dynamic" === s.section_name.to_s }
       def interp_section = @interp_section ||= @write_sections.find { |s| ".interp" === s.section_name.to_s }
       def rela_dyn_section = @rela_dyn_section ||= @write_sections.find { |s| ".rela.dyn" === s.section_name.to_s }
+      def hash_section = @hash_section ||= @write_sections.find { |s| ".hash" === s.section_name.to_s }
+
       def dynamic_sections = @dynamic_sections ||= [interp_section, dynstr_section, dynsym_section, dynamic_section, rela_dyn_section].compact
     end
   end

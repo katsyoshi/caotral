@@ -7,6 +7,7 @@ module Caotral
           include Caotral::Binary::ELF::Utils
           TAG_TYPES = {
             NULL: 0,
+            HASH: 4,
             RELA: 7,
             RELASZ: 8,
             RELAENT: 9,
