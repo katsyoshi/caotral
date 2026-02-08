@@ -28,7 +28,10 @@ module Caotral
         iph = Caotral::Binary::ELF::ProgramHeader.new if interp_section
         # PT_DYNAMIC
         dph = Caotral::Binary::ELF::ProgramHeader.new if dynamic_section
-        phnum = [lph, iph, dph].compact.size
+        # PT_PHDR
+        pph = Caotral::Binary::ELF::ProgramHeader.new if @pie
+        phs = [pph, lph, iph, dph].compact
+        phnum = phs.size
         header = @elf_obj.header.set!(type: e_type, phoffset:, phnum:, phsize:, ehsize:)
         text_offset = text_section.header.offset
         align = 0x1000
@@ -42,31 +45,44 @@ module Caotral
         header.set!(entry:)
         lph.set!(type:, offset: text_offset, vaddr:, paddr:, filesz:, memsz:, flags:, align:)
         f.write(@elf_obj.header.build)
-        f.write(lph.build)
-        f.write(iph.build) if iph
+        phs.each { |ph| f.write(ph.build) }
+        if pph
+          pph.set!(
+            type: 6,
+            offset: phoffset,
+            vaddr: phoffset,
+            paddr: phoffset,
+            filesz: phsize * phnum,
+            memsz: phsize * phnum,
+            flags: program_header_flags(:R),
+            align: 8
+          )
+        end
         gap = [text_offset - f.pos, 0].max
         f.write("\0" * gap)
         f.write(text_section.body)
         if dynamic?
           write_shared_dynamic_sections(file: f)
         end
-        ph_pos = phoffset
+
         if iph
           ish = interp_section.header
           iph.set!(type: 3, offset: ish.offset, vaddr: 0, paddr: 0, filesz: ish.size, memsz: ish.size, flags: program_header_flags(:R), align: 1)
-          cur = f.pos
-          f.seek(ph_pos += phsize)
-          f.write(iph.build)
-          f.seek(cur)
         end
+
         if dph
           dsh = dynamic_section.header
           dph.set!(type: 2, offset: dsh.offset, filesz: dsh.size, memsz: dsh.size, vaddr: dsh.addr || 0, paddr: dsh.addr || 0, flags: program_header_flags(:R), align: dsh.addralign)
-          cur = f.pos
-          f.seek(ph_pos += phsize)
-          f.write(dph.build)
-          f.seek(cur)
         end
+
+        cur = f.pos
+        phs.each_with_index do |ph, idx|
+          next if ph == lph
+          f.seek(phoffset + (idx * phsize))
+          f.write(ph.build)
+        end
+        f.seek(cur)
+
         symtab_offset = f.pos
         symtab_section.body.each { |sym| f.write(sym.build) }
         symtab_entsize = symtab_section.body.first&.build&.bytesize.to_i
@@ -109,8 +125,10 @@ module Caotral
 
           dynamic_filesz = segment_end - segment_start
           cur = f.pos
-          lph.set!(filesz: dynamic_filesz, memsz: dynamic_filesz)
-          f.seek(phoffset)
+          lphndx = phs.index(lph)
+
+          lph.set!(offset: 0, vaddr: 0, paddr: 0, filesz: dynamic_filesz, memsz: dynamic_filesz)
+          f.seek(phoffset + phsize * lphndx)
           f.write(lph.build)
           f.seek(cur)
 
