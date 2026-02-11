@@ -24,6 +24,7 @@ module Caotral
           LOAD: 1,
           DYNAMIC: 2,
           INTERP: 3,
+          PHDR: 6,
         }.freeze
         PT_BY_V = PT.invert.freeze
         def initialize
