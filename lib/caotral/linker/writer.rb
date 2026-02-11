@@ -84,15 +84,6 @@ module Caotral
           dph.set!(type: 2, offset: dsh.offset, filesz: dsh.size, memsz: dsh.size, vaddr: dsh.addr || 0, paddr: dsh.addr || 0, flags: program_header_flags(:R), align: dsh.addralign)
         end
 
-        # phdr patch
-        cur = f.pos
-        phs.each_with_index do |ph, idx|
-          next if ph == lph
-          f.seek(phoffset + (idx * phsize))
-          f.write(ph.build)
-        end
-        f.seek(cur)
-
         # section write
         symtab_offset = f.pos
         symtab_section.body.each { |sym| f.write(sym.build) }
@@ -148,6 +139,15 @@ module Caotral
           dynamic_section.body.each { |dyn| f.write(dyn.build) } # dynamic patch write
           f.seek(cur)
         end
+
+        # phdr patch
+        cur = f.pos
+        phs.each_with_index do |ph, idx|
+          next if ph == lph
+          f.seek(phoffset + (idx * phsize))
+          f.write(ph.build)
+        end
+        f.seek(cur)
 
         offset = f.pos
         names = @write_sections.map { |s| s.section_name.to_s }
