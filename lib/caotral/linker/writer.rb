@@ -94,30 +94,7 @@ module Caotral
         shstrtab_section.header.set!(offset:, size: shstrtab_section.body.names.bytesize)
         f.write(shstrtab_section.body.names)
         shoffset = f.pos
-        shstrndx  = write_section_index(".shstrtab")
-        symtabndx = write_section_index(".symtab")
-        shnum = @write_sections.size
-        @elf_obj.header.set!(shoffset:, shnum:, shstrndx:)
-        names = shstrtab_section.body
-
-        # shdr patch
-        @write_sections.each do |section|
-          header = section.header
-          lookup_name = section.section_name
-          name_offset = names.offset_of(lookup_name)
-          name, info, entsize = (name_offset.nil? ? 0 : name_offset), header.info, header.entsize
-          link = link_index(section.section_name)
-          link = header.link if link.nil?
-          if [:rel, :rela].include?(header.type)
-            link = symtabndx
-            info = ref_index(section.section_name)
-          end
-          header.set!(name:, info:, link:, entsize:)
-          f.write(section.header.build)
-        end
-
-        f.seek(0)
-        f.write(@elf_obj.header.build) # shdr write
+        write_section_headers(file: f, shoffset:)
         output
       ensure
         f.close if f
@@ -257,6 +234,31 @@ module Caotral
         else
           nil
         end
+      end
+
+      def write_section_headers(file:, shoffset:)
+        shnum = @write_sections.size
+        shstrndx  = write_section_index(".shstrtab")
+        symtabndx = write_section_index(".symtab")
+
+        @elf_obj.header.set!(shoffset:, shnum:, shstrndx:)
+        names = shstrtab_section.body
+        @write_sections.each do |section|
+          header = section.header
+          lookup_name = section.section_name
+          name = names.offset_of(lookup_name) || 0
+          info, entsize = header.info, header.entsize
+          link = link_index(section.section_name)
+          link = header.link if link.nil?
+          if [:rela, :rel].include?(header.type)
+            link = symtabndx
+            info = ref_index(section.section_name)
+          end
+          header.set!(name:, info:, link:, entsize:)
+          file.write(section.header.build)
+        end
+        file.seek(0)
+        file.write(@elf_obj.header.build)
       end
 
       def program_header_flags(flag) = Caotral::Binary::ELF::ProgramHeader::PF[flag.to_sym]
