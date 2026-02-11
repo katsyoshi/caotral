@@ -33,7 +33,11 @@ module Caotral
           end
 
           def tag = @tag.pack("C*").unpack1("Q<")
+          def un = @un.pack("C*").unpack1("Q<")
           def null? = tag == TAG_TYPES[:NULL]
+          def rela? = tag == TAG_TYPES[:RELA]
+          def rela_size? = tag == TAG_TYPES[:RELASZ]
+          def rela_ent? = tag == TAG_TYPES[:RELAENT]
 
           private def bytes = [@tag, @un]
         end

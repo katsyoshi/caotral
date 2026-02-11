@@ -139,6 +139,39 @@ module Caotral
           @input.close
         end
 
+        def validate_relocations
+          rela_dyn = @context.sections.find { |section| section.section_name.to_s == ".rela.dyn" }
+          pt_load = @context.program_headers.find { |ph| ph.type == :LOAD }
+          dynamic = @context.sections.find { |section| section.section_name.to_s == ".dynamic" }
+          unless rela_dyn && pt_load && dynamic
+            data = [
+              rela_dyn ? nil : ".rela.dyn section",
+              pt_load ? nil : "LOAD program header",
+              dynamic ? nil : ".dynamic section"
+            ].compact.join(", ")
+            raise Caotral::Binary::ELF::Error, "Missing required relocations inputs: #{data}"
+          end
+          addr = rela_dyn.header.addr
+          size = rela_dyn.header.size
+          dynamic.body.each do |dyn|
+            val = nil
+            val = addr if dyn.rela?
+            val = size if dyn.rela_size?
+            val = 24 if dyn.rela_ent?
+            next unless val
+            if dyn.un != val
+              raise Caotral::Binary::ELF::Error, "Invalid dynamic section entry: expected #{val}, got #{dyn.un}"
+            end
+          end
+
+          valid_range = (pt_load.vaddr...(pt_load.vaddr + pt_load.memsz))
+          unless rela_dyn.body.all? { |rel| valid_range.include?(rel.offset) }
+            raise Caotral::Binary::ELF::Error, "Relocation entries in .rela.dyn exceed LOAD segment range"
+          end
+
+          true
+        end
+
         private
         def decision(input)
           case input
