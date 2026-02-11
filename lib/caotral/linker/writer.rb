@@ -14,7 +14,7 @@ module Caotral
       end
       def initialize(elf_obj:, output:, entry: nil, debug: false, executable: true, shared: false, pie: false)
         @elf_obj, @output, @entry, @debug, @executable, @shared, @pie = elf_obj, output, entry, debug, executable, shared, pie
-        @write_sections = write_order_sections
+        @write_sections = elf_obj.sections
       end
 
       def write
@@ -182,22 +182,6 @@ module Caotral
       end
 
       private
-      def write_order_sections
-        write_order = []
-        write_order << @elf_obj.sections.find { |s| s.section_name.nil? }
-        write_order << @elf_obj.find_by_name(".text")
-        write_order << @elf_obj.find_by_name(".data")
-        write_order << @elf_obj.find_by_name(".interp")
-        write_order << @elf_obj.find_by_name(".dynstr")
-        write_order << @elf_obj.find_by_name(".dynsym")
-        write_order << @elf_obj.find_by_name(".hash")
-        write_order << @elf_obj.find_by_name(".dynamic")
-        write_order << @elf_obj.find_by_name(".symtab")
-        write_order << @elf_obj.find_by_name(".strtab")
-        write_order.concat(@elf_obj.select_by_names(RELOCATION_SECTION_NAMES))
-        write_order << @elf_obj.find_by_name(".shstrtab")
-        write_order.compact
-      end
       def write_section_index(section_name) = @write_sections.index { it.section_name == section_name }
 
       def write_shared_dynamic_sections(file:)
