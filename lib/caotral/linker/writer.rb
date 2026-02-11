@@ -82,51 +82,8 @@ module Caotral
           rel.header.set!(offset: rel_offset, size: rel_size, entsize:)
         end
 
-        # dynamic patch
-        dynamic_sections.each do |dyn|
-          addr = text_section.header.addr + (dyn.header.offset - text_section.header.offset)
-          dyn.header.set!(addr:)
-        end
-
-        # dynamic patch
-        if dynamic? && dynamic_section && rela_dyn_section
-          rdsh = rela_dyn_section&.header
-          bodies = dynamic_section.body
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:RELA] }.set!(un: rdsh&.addr.to_i)
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:RELASZ] }.set!(un: rdsh&.size.to_i)
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:STRSZ] }&.set!(un: dynstr_section.header.size.to_i)
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:SYMENT] }&.set!(un: dynsym_section.header.entsize.to_i)
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:STRTAB] }&.set!(un: dynstr_section.header.addr.to_i)
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:SYMTAB] }&.set!(un: dynsym_section.header.addr.to_i)
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:HASH] }&.set!(un: hash_section.header.addr.to_i) if hash_section
-
-          segment_start = text_section.header.offset
-          segment_start = 0 if @pie
-          segment_end = [text_section, data_section,].concat(dynamic_sections).compact.map { |s| s.header.offset + s.header.size }.max
-
-          dynamic_filesz = segment_end - segment_start
-          cur = f.pos
-          lphndx = phs.index(lph)
-
-          lph.set!(offset: 0, vaddr: 0, paddr: 0, filesz: dynamic_filesz, memsz: dynamic_filesz)
-          f.seek(phoffset + phsize * lphndx)
-          f.write(lph.build)
-          f.seek(cur)
-
-          cur = f.pos
-          f.seek(dynamic_section.header.offset)
-          dynamic_section.body.each { |dyn| f.write(dyn.build) } # dynamic patch write
-          f.seek(cur)
-        end
-
-        # phdr patch
-        cur = f.pos
-        phs.each_with_index do |ph, idx|
-          next if ph == lph
-          f.seek(phoffset + (idx * phsize))
-          f.write(ph.build)
-        end
-        f.seek(cur)
+        patch_dynamic_sections(file: f)
+        patch_program_headers(file: f, program_headers: phs, phoffset:, phsize:)
 
         offset = f.pos
         names = @write_sections.map { |s| s.section_name.to_s }
@@ -167,8 +124,62 @@ module Caotral
       end
 
       private
+      def patch_dynamic_sections(file:)
+        dynamic_sections.each do |dyn|
+          addr = text_section.header.addr + (dyn.header.offset - text_section.header.offset)
+          dyn.header.set!(addr:)
+        end
+
+        if dynamic? && dynamic_section && rela_dyn_section
+          rdsh = rela_dyn_section&.header
+          bodies = dynamic_section.body
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:RELA] }.set!(un: rdsh&.addr.to_i)
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:RELASZ] }.set!(un: rdsh&.size.to_i)
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:STRSZ] }&.set!(un: dynstr_section.header.size.to_i)
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:SYMENT] }&.set!(un: dynsym_section.header.entsize.to_i)
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:STRTAB] }&.set!(un: dynstr_section.header.addr.to_i)
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:SYMTAB] }&.set!(un: dynsym_section.header.addr.to_i)
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:HASH] }&.set!(un: hash_section.header.addr.to_i) if hash_section
+          cur = file.pos
+          file.seek(dynamic_section.header.offset)
+          file.write(dynamic_section.build)
+          file.seek(cur)
+        end
+      end
+
+      def patch_program_headers(file:, program_headers:, phoffset:, phsize:)
+        segment_start = text_section.header.offset
+        segment_start = 0 if @pie
+        segment_end = [text_section, data_section,].concat(dynamic_sections).compact.map { |s| s.header.offset + s.header.size }.max
+
+        dynamic_filesz = segment_end - segment_start
+        cur = file.pos
+        lph = program_headers.find { |ph| ph.type == :LOAD }
+        lphndx = program_headers.index(lph)
+        lph.set!(filesz: dynamic_filesz, memsz: dynamic_filesz)
+        lph.set!(offset: 0, vaddr: 0, paddr: 0) if @pie
+        file.seek(phoffset + phsize * lphndx)
+        file.write(lph.build)
+        file.seek(cur)
+
+        cur = file.pos
+        program_headers.each_with_index do |ph, idx|
+          next if ph == lph
+          file.seek(phoffset + (idx * phsize))
+          file.write(ph.build)
+        end
+        file.seek(cur)
+      end
+
       def write_elf_sections(file:)
+        text_offset = file.pos
         file.write(text_section.build)
+        text_section.header.set!(
+          offset: text_offset,
+          size: text_section.body.bytesize,
+          addr: text_section.header.addr
+        )
+
         if data_section
           data_offset = file.pos
           file.write(data_section.build)
@@ -178,6 +189,7 @@ module Caotral
             addr: text_section.header.addr + (data_offset - text_section.header.offset)
           )
         end
+
         write_shared_dynamic_sections(file:) if dynamic?
 
         # section write
