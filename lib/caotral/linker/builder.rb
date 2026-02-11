@@ -226,10 +226,6 @@ module Caotral
           entsize: 0
         )
 
-        @elf_objs.first.without_sections(GENERATED_SECTION_NAMES).each do |section|
-          sections << section.dup
-        end
-
         sections << shstrtab_section
 
         shstrtab_section_names = [*sections.map(&:section_name), "\0"].join("\0")
