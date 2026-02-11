@@ -5,6 +5,27 @@ module Caotral
     class ELF
       class ProgramHeader
         include Caotral::Binary::ELF::Utils
+        PF_X = 1
+        PF_W = 2
+        PF_R = 4
+        PF = {
+          RWX: PF_R | PF_W | PF_X,
+          RW: PF_R | PF_W,
+          RX: PF_R | PF_X,
+          WX: PF_W | PF_X,
+          R: PF_R,
+          W: PF_W,
+          X: PF_X,
+          NOP: 0,
+        }.freeze
+        PF_BY_V = PF.invert.freeze
+        PT = {
+          NULL: 0,
+          LOAD: 1,
+          DYNAMIC: 2,
+          INTERP: 3,
+        }.freeze
+        PT_BY_V = PT.invert.freeze
         def initialize
           @type = num2bytes(0, 4)
           @flags = num2bytes(0, 4)
@@ -27,6 +48,13 @@ module Caotral
           @align = num2bytes(align, 8) if check(align, 8)
           self
         end
+
+        def type = PT_BY_V[@type.pack("C*").unpack1("L<")]
+        def flags = PF_BY_V[@flags.pack("C*").unpack1("L<")]
+        def offset = @offset.pack("C*").unpack1("Q<")
+        def filesz = @filesz.pack("C*").unpack1("Q<")
+        def memsz = @memsz.pack("C*").unpack1("Q<")
+
         private def bytes = [@type, @flags, @offset, @vaddr, @paddr, @filesz, @memsz, @align]
       end
     end

@@ -1,0 +1,4 @@
+class Caotral::Binary::ELF::Section::Hash
+  def initialize: (nchain: Integer, ?nbucket: Integer) -> void
+  def build: () -> String
+end

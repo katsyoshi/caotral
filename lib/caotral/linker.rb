@@ -5,18 +5,18 @@ require_relative "linker/writer"
 
 module Caotral
   class Linker
-    def self.link!(inputs:, output: "a.out", linker: "mold", debug: false, shared: false, executable: true)
-      new(inputs:, output:, linker:, debug:, shared:, executable:).link
+    def self.link!(inputs:, output: "a.out", linker: "mold", debug: false, shared: false, executable: true, pie: false)
+      new(inputs:, output:, linker:, debug:, shared:, executable:, pie:).link
     end
 
-    def initialize(inputs:, output: "a.out", linker: "mold", linker_options: [], executable: true, shared: false, debug: false)
+    def initialize(inputs:, output: "a.out", linker: "mold", linker_options: [], executable: true, shared: false, pie: false, debug: false)
       @inputs, @output, @linker = inputs, output, linker
       @options = linker_options
-      @executable, @debug, @shared = executable, debug, shared
+      @executable, @debug, @shared, @pie = executable, debug, shared, pie
     end
 
-    def link(inputs: @inputs, output: @output, debug: @debug, shared: @shared, executable: @executable)
-      return to_elf(inputs:, output:, debug:, shared:, executable:) if @linker == "self"
+    def link(inputs: @inputs, output: @output, debug: @debug, shared: @shared, executable: @executable, pie: @pie)
+      return to_elf(inputs:, output:, debug:, shared:, executable:, pie:) if @linker == "self"
 
       IO.popen(link_command).close
     end
@@ -49,12 +49,12 @@ module Caotral
     def libpath = @libpath ||= File.dirname(Dir.glob("/usr/lib*/**/crti.o").last)
     def gcc_libpath = @gcc_libpath ||= File.dirname(Dir.glob("/usr/lib/gcc/x86_64-*/*/crtbegin.o").last)
 
-    def to_elf(inputs: @inputs, output: @output, debug: @debug, shared: @shared, executable: @executable)
+    def to_elf(inputs: @inputs, output: @output, debug: @debug, shared: @shared, executable: @executable, pie: @pie)
       elf_objs = inputs.map { |input| Caotral::Binary::ELF::Reader.new(input:, debug:).read }
-      builder = Caotral::Linker::Builder.new(elf_objs:, debug:, shared:, executable:)
+      builder = Caotral::Linker::Builder.new(elf_objs:, debug:, shared:, executable:, pie:)
       builder.resolve_symbols
       elf_obj = builder.build
-      Caotral::Linker::Writer.new(elf_obj:, output:, debug:, shared:, executable:).write
+      Caotral::Linker::Writer.new(elf_obj:, output:, debug:, shared:, executable:, pie:).write
       File.chmod(0755, output) if executable
       output
     end

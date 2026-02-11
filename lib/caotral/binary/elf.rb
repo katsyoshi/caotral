@@ -4,6 +4,7 @@ require_relative "elf/header"
 require_relative "elf/program_header"
 require_relative "elf/section"
 require_relative "elf/section/dynamic"
+require_relative "elf/section/hash"
 require_relative "elf/section/rel"
 require_relative "elf/section/strtab"
 require_relative "elf/section/symtab"
@@ -14,9 +15,10 @@ module Caotral
   module Binary
     class ELF
       include Enumerable
-      attr_reader :sections
+      attr_reader :sections, :program_headers
       attr_accessor :header
       def initialize
+        @program_headers = []
         @sections = []
         @header = nil
       end
