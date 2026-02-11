@@ -9,6 +9,13 @@ module Caotral
           @body = body
           @section_name = section_name
         end
+
+        def build
+          return @body.build if @body.respond_to?(:build)
+          return @body.each_with_object(StringIO.new) { |b, io| io.write(b.build) }.string if @body.is_a?(Array)
+          return @body if @body.is_a?(String)
+          "".b
+        end
       end
     end
   end

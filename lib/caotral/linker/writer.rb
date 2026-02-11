@@ -60,19 +60,8 @@ module Caotral
         end
         gap = [text_offset - f.pos, 0].max
         f.write("\0" * gap)
-        f.write(text_section.body)
-        if data_section
-          data_offset = f.pos
-          f.write(data_section.body)
-          data_section.header.set!(
-            offset: data_offset,
-            size: data_section.body.bytesize,
-            addr: text_section.header.addr + (data_offset - text_section.header.offset)
-          )
-        end
-        if dynamic?
-          write_shared_dynamic_sections(file: f)
-        end
+
+        write_elf_sections(file: f)
 
         if iph
           ish = interp_section.header
@@ -83,16 +72,6 @@ module Caotral
           dsh = dynamic_section.header
           dph.set!(type: 2, offset: dsh.offset, filesz: dsh.size, memsz: dsh.size, vaddr: dsh.addr || 0, paddr: dsh.addr || 0, flags: program_header_flags(:R), align: dsh.addralign)
         end
-
-        # section write
-        symtab_offset = f.pos
-        symtab_section.body.each { |sym| f.write(sym.build) }
-        symtab_entsize = symtab_section.body.first&.build&.bytesize.to_i
-        symtab_size = f.pos - symtab_offset
-        symtab_section.header.set!(offset: symtab_offset, size: symtab_size, entsize: symtab_entsize)
-        strtab_offset = f.pos
-        f.write(strtab_section.body.build)
-        strtab_section.header.set!(offset: strtab_offset, size: strtab_section.body.names.bytesize)
 
         # relocation
         rel_sections.each do |rel|
@@ -188,6 +167,29 @@ module Caotral
       end
 
       private
+      def write_elf_sections(file:)
+        file.write(text_section.build)
+        if data_section
+          data_offset = file.pos
+          file.write(data_section.build)
+          data_section.header.set!(
+            offset: data_offset,
+            size: data_section.body.bytesize,
+            addr: text_section.header.addr + (data_offset - text_section.header.offset)
+          )
+        end
+        write_shared_dynamic_sections(file:) if dynamic?
+
+        # section write
+        symtab_offset = file.pos
+        file.write(symtab_section.build)
+        symtab_entsize = symtab_section.body.first&.build&.bytesize.to_i
+        symtab_size = file.pos - symtab_offset
+        symtab_section.header.set!(offset: symtab_offset, size: symtab_size, entsize: symtab_entsize)
+        strtab_offset = file.pos
+        file.write(strtab_section.build)
+        strtab_section.header.set!(offset: strtab_offset, size: strtab_section.body.names.bytesize)
+      end
       def write_section_index(section_name) = @write_sections.index { it.section_name == section_name }
 
       def write_shared_dynamic_sections(file:)
