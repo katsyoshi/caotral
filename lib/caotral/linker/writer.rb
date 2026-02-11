@@ -84,6 +84,7 @@ module Caotral
           dph.set!(type: 2, offset: dsh.offset, filesz: dsh.size, memsz: dsh.size, vaddr: dsh.addr || 0, paddr: dsh.addr || 0, flags: program_header_flags(:R), align: dsh.addralign)
         end
 
+        # phdr patch
         cur = f.pos
         phs.each_with_index do |ph, idx|
           next if ph == lph
@@ -92,6 +93,7 @@ module Caotral
         end
         f.seek(cur)
 
+        # section write
         symtab_offset = f.pos
         symtab_section.body.each { |sym| f.write(sym.build) }
         symtab_entsize = symtab_section.body.first&.build&.bytesize.to_i
@@ -101,6 +103,7 @@ module Caotral
         f.write(strtab_section.body.build)
         strtab_section.header.set!(offset: strtab_offset, size: strtab_section.body.names.bytesize)
 
+        # relocation
         rel_sections.each do |rel|
           rel_offset = f.pos
           rel.body.each { |entry| f.write(entry.build) }
@@ -109,11 +112,13 @@ module Caotral
           rel.header.set!(offset: rel_offset, size: rel_size, entsize:)
         end
 
+        # dynamic patch
         dynamic_sections.each do |dyn|
           addr = text_section.header.addr + (dyn.header.offset - text_section.header.offset)
           dyn.header.set!(addr:)
         end
 
+        # dynamic patch
         if dynamic? && dynamic_section && rela_dyn_section
           rdsh = rela_dyn_section&.header
           bodies = dynamic_section.body
@@ -140,7 +145,7 @@ module Caotral
 
           cur = f.pos
           f.seek(dynamic_section.header.offset)
-          dynamic_section.body.each { |dyn| f.write(dyn.build) }
+          dynamic_section.body.each { |dyn| f.write(dyn.build) } # dynamic patch write
           f.seek(cur)
         end
 
@@ -159,6 +164,7 @@ module Caotral
         @elf_obj.header.set!(shoffset:, shnum:, shstrndx:)
         names = shstrtab_section.body
 
+        # shdr patch
         @write_sections.each do |section|
           header = section.header
           lookup_name = section.section_name
@@ -175,7 +181,7 @@ module Caotral
         end
 
         f.seek(0)
-        f.write(@elf_obj.header.build)
+        f.write(@elf_obj.header.build) # shdr write
         output
       ensure
         f.close if f
