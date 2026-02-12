@@ -7,6 +7,8 @@ module Caotral
           include Caotral::Binary::ELF::Utils
           TAG_TYPES = {
             NULL: 0,
+            PLTRELSZ: 2,
+            PLTGOT: 3,
             HASH: 4,
             STRTAB: 5,
             SYMTAB: 6,
@@ -15,7 +17,9 @@ module Caotral
             RELAENT: 9,
             STRSZ: 10,
             SYMENT: 11,
+            PLTREL: 20,
             TEXTREL: 22,
+            JMPREL: 23,
           }.freeze
           TAG_TYPES_BY_V = TAG_TYPES.invert.freeze
 

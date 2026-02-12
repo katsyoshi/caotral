@@ -13,7 +13,7 @@ module Caotral
       BIND_BY_VALUE = SYMTAB_BIND.invert.freeze
       RELOCATION_SECTION_NAMES = [".rela.text", ".rel.text", ".rela.data", ".rel.data"].freeze
       ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
-      GENERATED_SECTION_NAMES = [".text", ".data", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr", ".dynsym", ".dynamic", ".interp", ".rela.dyn"].freeze
+      GENERATED_SECTION_NAMES = [".text", ".data", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr", ".dynsym", ".dynamic", ".interp", ".rela.dyn", ".plt", ".got.plt"].freeze
       SHT = Caotral::Binary::ELF::SectionHeader::SHT
       SHF = Caotral::Binary::ELF::SectionHeader::SHF
 
@@ -44,6 +44,25 @@ module Caotral
           body: String.new,
           section_name: ".data",
           header: Caotral::Binary::ELF::SectionHeader.new
+                    .set!(type: SHT[:progbits], flags: SHF[:ALLOC] | SHF[:WRITE], addralign: 8)
+        )
+        plt_section = Caotral::Binary::ELF::Section.new(
+          body: String.new,
+          section_name: ".plt",
+          header: Caotral::Binary::ELF::SectionHeader.new
+                    .set!(type: SHT[:progbits], flags: SHF[:ALLOC] | SHF[:EXECINSTR], addralign: 16)
+        )
+        got_plt_section = Caotral::Binary::ELF::Section.new(
+          body: String.new,
+          section_name: ".got.plt",
+          header: Caotral::Binary::ELF::SectionHeader.new
+                    .set!(type: SHT[:progbits], flags: SHF[:ALLOC] | SHF[:WRITE], addralign: 8)
+        )
+        rela_plt_section = Caotral::Binary::ELF::Section.new(
+          body: String.new,
+          section_name: ".rela.plt",
+          header: Caotral::Binary::ELF::SectionHeader.new
+                    .set!(type: SHT[:rela], flags: SHF[:ALLOC], addralign: 8, entsize: 24)
         )
         strtab_section = Caotral::Binary::ELF::Section.new(
           body: Caotral::Binary::ELF::Section::Strtab.new("\0".b),
@@ -64,9 +83,8 @@ module Caotral
           body: [],
           section_name: ".rela.dyn",
           header: Caotral::Binary::ELF::SectionHeader.new
+                    .set!(flags: SHF[:ALLOC], info: 0, addralign: 8)
         )
-
-        data_section.header.set!(type: SHT[:progbits], flags: SHF[:ALLOC] | SHF[:WRITE], addralign: 8)
 
         start_bytes = [0xe8, *[0] * 4, 0x48, 0x89, 0xc7, 0x48, 0xc7, 0xc0, 0x3c, 0x00, 0x00, 0x00, 0x0f, 0x05]
         exec_text_offset = 0x1000
@@ -182,6 +200,10 @@ module Caotral
         sections << text_section
         strtab_section.header.set!(type: 3, flags: 0, addralign: 1, entsize: 0)
         sections << data_section
+        if dynamic?
+          sections << plt_section
+          sections << got_plt_section
+        end
         sections << strtab_section
         text_index = sections.index(text_section)
         symtab_section.body.each do |sym|
@@ -211,8 +233,10 @@ module Caotral
           sections << dynsym
           sections << build_hash_section if @pie
           sections << rela_dyn_section
+          sections << rela_plt_section
           sym = sections.index(dynsym)
-          rela_dyn_section.header.set!(flags: SHF[:ALLOC], link: sym, type: rel_type(rela_dyn_section), info: 0, addralign: 8, entsize: rel_entsize(rela_dyn_section))
+          rela_dyn_section.header.set!(link: sym, type: rel_type(rela_dyn_section), entsize: rel_entsize(rela_dyn_section))
+          rela_plt_section.header.set!(link: sym, type: rel_type(rela_plt_section))
           sections << build_dynamic_section
         end
         sections << symtab_section
@@ -362,17 +386,21 @@ module Caotral
         tag_types = Caotral::Binary::ELF::Section::Dynamic::TAG_TYPES
         dynamic_section = Caotral::Binary::ELF::Section.new(
           body: [
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:HASH], un: 0),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:RELA], un: 0),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:RELASZ], un: 0),
+            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:PLTRELSZ]),
+            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:PLTGOT]),
+            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:HASH]),
+            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:RELA]),
+            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:RELASZ]),
             Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:RELAENT], un: 24),
             Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:STRTAB]),
             Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:STRSZ]),
             Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:SYMTAB]),
             Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:SYMENT], un: 24),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:TEXTREL], un: 0),
+            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:PLTREL]),
+            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:TEXTREL]),
+            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:JMPREL]),
             Caotral::Binary::ELF::Section::Dynamic.new
-          ],
+          ].compact,
           section_name: ".dynamic",
           header: Caotral::Binary::ELF::SectionHeader.new
         )

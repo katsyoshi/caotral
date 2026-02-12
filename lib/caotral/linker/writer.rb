@@ -107,6 +107,10 @@ module Caotral
           bodies.find { |dyn| dyn.tag == dynamic_tables[:STRTAB] }&.set!(un: dynstr_section.header.addr.to_i)
           bodies.find { |dyn| dyn.tag == dynamic_tables[:SYMTAB] }&.set!(un: dynsym_section.header.addr.to_i)
           bodies.find { |dyn| dyn.tag == dynamic_tables[:HASH] }&.set!(un: hash_section.header.addr.to_i) if hash_section
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:PLTRELSZ] }&.set!(un: rela_plt_section.header.size.to_i)
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:JMPREL] }&.set!(un: rela_plt_section.header.addr.to_i)
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:PLTREL] }&.set!(un: dynamic_tables[:RELA])
+          bodies.find { |dyn| dyn.tag == dynamic_tables[:PLTGOT] }&.set!(un: got_plt_section.header.addr.to_i)
           cur = file.pos
           file.seek(dynamic_section.header.offset)
           file.write(dynamic_section.build)
@@ -320,8 +324,11 @@ module Caotral
       def rela_dyn_section = @rela_dyn_section ||= @write_sections.find { |s| ".rela.dyn" === s.section_name.to_s }
       def data_section = @data_section ||= @write_sections.find { |s| ".data" === s.section_name.to_s }
       def hash_section = @hash_section ||= @write_sections.find { |s| ".hash" === s.section_name.to_s }
+      def plt_section = @plt_section ||= @write_sections.find { |s| ".plt" === s.section_name.to_s }
+      def got_plt_section = @got_plt_section ||= @write_sections.find { |s| ".got.plt" === s.section_name.to_s }
+      def rela_plt_section = @rela_plt_section ||= @write_sections.find { |s| ".rela.plt" === s.section_name.to_s }
 
-      def dynamic_sections = @dynamic_sections ||= [interp_section, dynstr_section, dynsym_section, dynamic_section, rela_dyn_section].compact
+      def dynamic_sections = @dynamic_sections ||= [interp_section, dynstr_section, dynsym_section, dynamic_section, rela_dyn_section, rela_plt_section].compact
     end
   end
 end
