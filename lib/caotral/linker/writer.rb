@@ -7,7 +7,7 @@ module Caotral
       R_X86_64_PC32 = 2
       R_X86_64_PLT32 = 4
       ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
-      RELOCATION_SECTION_NAMES = [".rela.text", ".rela.dyn", ".rela.data"].freeze
+      RELOCATION_SECTION_NAMES = [".rela.text", ".rela.dyn", ".rela.data", ".rela.plt"].freeze
       attr_reader :elf_obj, :output, :entry, :debug
       def self.write!(elf_obj:, output:, entry: nil, debug: false, executable: true, shared: false)
         new(elf_obj:, output:, entry:, debug:, shared:, executable:).write
@@ -67,7 +67,7 @@ module Caotral
           rel_offset = f.pos
           f.write(rel.build)
           rel_size = f.pos - rel_offset
-          entsize = rel.body.first&.build&.bytesize.to_i
+          entsize = rel.body.respond_to?(:first) ? rel.body.first&.build&.bytesize.to_i : rel.header.entsize.to_i
           rel.header.set!(offset: rel_offset, size: rel_size, entsize:)
         end
 
