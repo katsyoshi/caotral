@@ -47,7 +47,7 @@ module Caotral
                     .set!(type: SHT[:progbits], flags: SHF[:ALLOC] | SHF[:WRITE], addralign: 8)
         )
         plt_section = Caotral::Binary::ELF::Section.new(
-          body: String.new,
+          body: [0, 0].pack("Q<Q<"),
           section_name: ".plt",
           header: Caotral::Binary::ELF::SectionHeader.new
                     .set!(type: SHT[:progbits], flags: SHF[:ALLOC] | SHF[:EXECINSTR], addralign: 16)
