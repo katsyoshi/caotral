@@ -5,14 +5,11 @@ module Caotral
   class Linker
     class Builder
       include Caotral::Binary::ELF::Utils
-      R_X86_64_64 = 1
-      R_X86_64_PC32 = 2
-      R_X86_64_PLT32 = 4
-      R_X86_64_RELATIVE = 8
+      REL_TYPES = Caotral::Binary::ELF::Section::Rel::TYPES
       SYMTAB_BIND = { locals: 0, globals: 1, weaks: 2, }.freeze
       BIND_BY_VALUE = SYMTAB_BIND.invert.freeze
       RELOCATION_SECTION_NAMES = [".rela.text", ".rel.text", ".rela.data", ".rel.data"].freeze
-      ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
+      ALLOW_RELOCATION_TYPES = [REL_TYPES[:AMD64_PC32], REL_TYPES[:AMD64_PLT32],].freeze
       GENERATED_SECTION_NAMES = [".text", ".data", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr", ".dynsym", ".dynamic", ".interp", ".rela.dyn", ".plt", ".got.plt"].freeze
       SHT = Caotral::Binary::ELF::SectionHeader::SHT
       SHF = Caotral::Binary::ELF::SectionHeader::SHF
@@ -59,7 +56,7 @@ module Caotral
                     .set!(type: SHT[:progbits], flags: SHF[:ALLOC] | SHF[:WRITE], addralign: 8)
         )
         rela_plt_section = Caotral::Binary::ELF::Section.new(
-          body: String.new,
+          body: [],
           section_name: ".rela.plt",
           header: Caotral::Binary::ELF::SectionHeader.new
                     .set!(type: SHT[:rela], flags: SHF[:ALLOC], addralign: 8, entsize: 24)
@@ -146,7 +143,7 @@ module Caotral
               header: Caotral::Binary::ELF::SectionHeader.new
             )
             section.body.each do |rel|
-              if rel.type == R_X86_64_64
+              if rel.type == REL_TYPES[:AMD64_64]
                 base_offset = case section.section_name.to_s
                               when /\.rela?\.text/
                                 vaddr + start_len + text_offsets.fetch(elf_obj.object_id, 0)
@@ -164,7 +161,7 @@ module Caotral
                              0
                            end
                 addend = sym_addr - base_addr
-                rela_dyn_section.body << Caotral::Binary::ELF::Section::Rel.new.set!(offset:, info: (0 << 32) | R_X86_64_RELATIVE, addend:)
+                rela_dyn_section.body << Caotral::Binary::ELF::Section::Rel.new.set!(offset:, info: (0 << 32) | REL_TYPES[:AMD64_RELATIVE], addend:)
                 next
               end
               offset = rel.offset + text_offsets.fetch(elf_obj.object_id, 0)
