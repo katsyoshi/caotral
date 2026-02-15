@@ -42,6 +42,10 @@ module Caotral
           def rela? = tag == TAG_TYPES[:RELA]
           def rela_size? = tag == TAG_TYPES[:RELASZ]
           def rela_ent? = tag == TAG_TYPES[:RELAENT]
+          def jmp_rel? = tag == TAG_TYPES[:JMPREL]
+          def plt_rel? = tag == TAG_TYPES[:PLTREL]
+          def plt_rel_size? = tag == TAG_TYPES[:PLTRELSZ]
+          def plt_got? = tag == TAG_TYPES[:PLTGOT]
 
           private def bytes = [@tag, @un]
         end
