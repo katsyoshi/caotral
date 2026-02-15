@@ -99,9 +99,12 @@ module Caotral
         strtab_names = []
         text_offsets = {}
         data_offsets = {}
+        got_plt_offsets = {}
         text_offset = 0
         data_offset = 0
+        got_plt_offset = 8
         sym_by_elf = Hash.new { |h, k| h[k] = [] }
+        dynstr, dynsym = build_shared_dynamic_sections if dynamic?
         @elf_objs.each do |elf_obj|
           text = elf_obj.find_by_name(".text")
           unless text.nil?
@@ -163,6 +166,28 @@ module Caotral
                 addend = sym_addr - base_addr
                 rela_dyn_section.body << Caotral::Binary::ELF::Section::Rel.new.set!(offset:, info: (0 << 32) | REL_TYPES[:AMD64_RELATIVE], addend:)
                 next
+              elsif (undefined = symtab.body[rel.sym]&.shndx.to_i == 0) && rel.type == REL_TYPES[:AMD64_PLT32]
+                sym = base_index.to_i + rel.sym
+                first_insertion = got_plt_offsets[sym].nil?
+                got_plt_offsets[sym] ||= got_plt_offset.tap { got_plt_offset += 8 }
+                if dynamic? && undefined && first_insertion
+                  got_plt_section.body << [0].pack("Q<")
+                  rps = Caotral::Binary::ELF::Section::Rel.new.set!(
+                    offset: got_plt_offsets[sym],
+                    info: ((sym) << 32) | REL_TYPES[:AMD64_JUMP_SLOT]
+                  )
+                  name = symtab_section.body[sym].name_string
+                  dynstr_index = dynstr.body.offset_of(name)
+                  if dynstr_index.nil?
+                    dynstr.body.names += name + "\0"
+                    dynsym.body << Caotral::Binary::ELF::Section::Symtab.new.set!(
+                      name: dynstr.body.offset_of(name),
+                      info: (1 << 4) | 2,
+                    )
+                  end
+                  rela_plt_section.body << rps
+                  next
+                end
               end
               offset = rel.offset + text_offsets.fetch(elf_obj.object_id, 0)
               addend = rel.addend? ? rel.addend : nil
@@ -176,6 +201,7 @@ module Caotral
           end
           rel_sections += rels
         end
+        
         strtab_section.body.names = strtab_names.to_a.sort.join("\0") + "\0"
         sections << null_section
 
@@ -225,7 +251,6 @@ module Caotral
 
         sections += build_pie_sections if @pie
         if dynamic?
-          dynstr, dynsym = build_shared_dynamic_sections
           sections << dynstr
           sections << dynsym
           sections << build_hash_section if @pie
@@ -233,7 +258,7 @@ module Caotral
           sections << rela_plt_section
           sym = sections.index(dynsym)
           rela_dyn_section.header.set!(link: sym, type: rel_type(rela_dyn_section), entsize: rel_entsize(rela_dyn_section))
-          rela_plt_section.header.set!(link: sym, type: rel_type(rela_plt_section))
+          rela_plt_section.header.set!(link: sym, type: rel_type(rela_plt_section), info: ref_index(sections, got_plt_section.section_name))
           sections << build_dynamic_section
         end
         sections << symtab_section

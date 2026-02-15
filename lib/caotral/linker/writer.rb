@@ -4,9 +4,8 @@ module Caotral
   class Linker
     class Writer
       include Caotral::Binary::ELF::Utils
-      R_X86_64_PC32 = 2
-      R_X86_64_PLT32 = 4
-      ALLOW_RELOCATION_TYPES = [R_X86_64_PC32, R_X86_64_PLT32].freeze
+      REL_TYPES = Caotral::Binary::ELF::Section::Rel::TYPES.freeze
+      ALLOW_RELOCATION_TYPES = [REL_TYPES[:AMD64_PC32], REL_TYPES[:AMD64_PLT32]].freeze
       RELOCATION_SECTION_NAMES = [".rela.text", ".rela.dyn", ".rela.data", ".rela.plt"].freeze
       attr_reader :elf_obj, :output, :entry, :debug
       def self.write!(elf_obj:, output:, entry: nil, debug: false, executable: true, shared: false)
@@ -61,6 +60,18 @@ module Caotral
         f.write("\0" * gap)
 
         write_elf_sections(file: f)
+
+        if rela_plt_section && got_plt_section
+          rela_plt_section&.body&.each do |rel|
+            sym = symtab_section.body[rel.sym]
+            dynsymndx = dynsym_section.body.index { |ds| ds.name_offset == dynstr_section.body.offset_of(sym.name_string) }
+            raise Caotral::Binary::ELF::Error, "cannot find symbol #{sym.name_string} in .dynsym for relocation in .rela.plt" if dynsymndx.nil?
+            rel.set!(
+              info: (dynsymndx << 32) | REL_TYPES[:AMD64_JUMP_SLOT],
+              offset: rel.offset + got_plt_section.header.addr
+            )
+          end
+        end
 
         # relocation
         rel_sections.each do |rel|
@@ -184,6 +195,25 @@ module Caotral
           )
         end
 
+        if plt_section
+          plt_offset = file.pos
+          file.write(plt_section.build)
+          plt_section.header.set!(
+            offset: plt_offset,
+            size: plt_section.body.bytesize,
+            addr: text_section.header.addr + (plt_offset - text_section.header.offset)
+          )
+        end
+        if got_plt_section
+          got_plt_offset = file.pos
+          file.write(got_plt_section.build)
+          got_plt_section.header.set!(
+            offset: got_plt_offset,
+            size: got_plt_section.body.bytesize,
+            addr: text_section.header.addr + (got_plt_offset - text_section.header.offset)
+          )
+        end
+
         write_shared_dynamic_sections(file:) if dynamic?
 
         # section write
@@ -268,8 +298,16 @@ module Caotral
           link = link_index(section.section_name)
           link = header.link if link.nil?
           if [:rela, :rel].include?(header.type)
-            link = symtabndx
-            info = ref_index(section.section_name)
+            if [".rela.dyn", ".rela.plt"].include?(section.section_name.to_s)
+              entsize = 24
+            elsif ".rela.text" == section.section_name.to_s
+              info = write_section_index(".text")
+              entsize = 24
+              link = symtabndx
+            else
+              link = symtabndx
+            end
+            info = ref_index(section.section_name) unless ".rela.plt" == section.section_name.to_s
           end
           header.set!(name:, info:, link:, entsize:)
           file.write(section.header.build)
