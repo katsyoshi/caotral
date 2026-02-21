@@ -15,6 +15,9 @@ module Caotral
             AMD64_GLOB_DAT: 6,
             AMD64_JUMP_SLOT: 7,
             AMD64_RELATIVE: 8,
+            AMD64_GOTPCREL: 9,
+            AMD64_GOTPCRELX: 41,
+            AMD64_REX_GOTPCRELX: 42,
           }.freeze
           TYPES_BY_V = TYPES.invert.freeze
 

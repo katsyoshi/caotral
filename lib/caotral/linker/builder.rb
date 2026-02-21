@@ -13,6 +13,11 @@ module Caotral
       GENERATED_SECTION_NAMES = [".text", ".data", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr", ".dynsym", ".dynamic", ".interp", ".rela.dyn", ".plt", ".got.plt"].freeze
       SHT = Caotral::Binary::ELF::SectionHeader::SHT
       SHF = Caotral::Binary::ELF::SectionHeader::SHF
+      UNSUPPORTED_REL_TYPES = [
+        REL_TYPES[:AMD64_GOTPCREL],
+        REL_TYPES[:AMD64_GOTPCRELX],
+        REL_TYPES[:AMD64_REX_GOTPCRELX],
+      ].freeze
 
       attr_reader :symbols
 
@@ -171,23 +176,25 @@ module Caotral
                 first_insertion = got_plt_offsets[sym].nil?
                 got_plt_offsets[sym] ||= got_plt_offset.tap { got_plt_offset += 8 }
                 if dynamic? && undefined && first_insertion
-                  got_plt_section.body << [0].pack("Q<")
-                  rps = Caotral::Binary::ELF::Section::Rel.new.set!(
-                    offset: got_plt_offsets[sym],
-                    info: ((sym) << 32) | REL_TYPES[:AMD64_JUMP_SLOT]
-                  )
-                  name = symtab_section.body[sym].name_string
-                  dynstr_index = dynstr.body.offset_of(name)
-                  if dynstr_index.nil?
-                    dynstr.body.names += name + "\0"
-                    dynsym.body << Caotral::Binary::ELF::Section::Symtab.new.set!(
-                      name: dynstr.body.offset_of(name),
-                      info: (1 << 4) | 2,
+                    got_plt_section.body << [0].pack("Q<")
+                    rps = Caotral::Binary::ELF::Section::Rel.new.set!(
+                      offset: got_plt_offsets[sym],
+                      info: ((sym) << 32) | REL_TYPES[:AMD64_JUMP_SLOT]
                     )
-                  end
-                  rela_plt_section.body << rps
-                  next
+                    name = symtab_section.body[sym].name_string
+                    dynstr_index = dynstr.body.offset_of(name)
+                    if dynstr_index.nil?
+                      dynstr.body.names += name + "\0"
+                      dynsym.body << Caotral::Binary::ELF::Section::Symtab.new.set!(
+                        name: dynstr.body.offset_of(name),
+                        info: (1 << 4) | 2,
+                      )
+                    end
+                    rela_plt_section.body << rps
+                    next
                 end
+              elsif UNSUPPORTED_REL_TYPES.include?(rel.type)
+                raise Caotral::Binary::ELF::Error, "unsupported relocation type: #{rel.type_name}"
               end
               offset = rel.offset + text_offsets.fetch(elf_obj.object_id, 0)
               addend = rel.addend? ? rel.addend : nil

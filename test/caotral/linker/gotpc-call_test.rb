@@ -20,6 +20,6 @@ class Caotral::Linker::GOTPCRelTest < Test::Unit::TestCase
     err = assert_raise(Caotral::Binary::ELF::Error) do
       Caotral::Linker.link!(inputs: ["libtmp.so.o"], output: "libtmp.so", linker: "self", pie: true)
     end
-    assert_match(/GOTPCREL|R_X86_64_GOTPCREL/, err.message)
+    assert_match("AMD64_GOTPCRELX", err.message)
   end
 end
