@@ -9,7 +9,7 @@ class Caotral::Linker::MultiFileLinkingTest < Test::Unit::TestCase
   end
 
   def teardown
-    # @outputs.each { |output| File.delete(output) if File.exist?(output) }
+    @outputs.each { |output| File.delete(output) if File.exist?(output) }
   end
 
   def test_link_multi_files
