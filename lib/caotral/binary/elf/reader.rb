@@ -139,6 +139,61 @@ module Caotral
           @input.close
         end
 
+        def validate_relocations
+          rela_dyn = @context.sections.find { |section| section.section_name.to_s == ".rela.dyn" }
+          pt_load = @context.program_headers.find { |ph| ph.type == :LOAD }
+          dynamic = @context.sections.find { |section| section.section_name.to_s == ".dynamic" }
+          rela_plt = @context.sections.find { |section| section.section_name.to_s == ".rela.plt" }
+          got_plt = @context.sections.find { |s| s.section_name.to_s == ".got.plt" }
+          failed_messages = []
+          unless rela_dyn && pt_load && dynamic
+            data = [
+              rela_dyn ? nil : ".rela.dyn section",
+              pt_load ? nil : "LOAD program header",
+              dynamic ? nil : ".dynamic section"
+            ].compact.join(", ")
+            raise Caotral::Binary::ELF::Error, "Missing required relocations inputs: #{data}"
+          end
+          addr = rela_dyn.header.addr
+          size = rela_dyn.header.size
+          dynamic.body.each do |dyn|
+            val = nil
+            val = addr if dyn.rela?
+            val = size if dyn.rela_size?
+            val = 24 if dyn.rela_ent?
+            next unless val
+            if dyn.un != val
+              failed_messages << "Invalid dynamic section entry: expected #{val}, got #{dyn.un}"
+            end
+          end
+
+          valid_range = (pt_load.vaddr...(pt_load.vaddr + pt_load.memsz))
+          unless rela_dyn.body.all? { |rel| valid_range.include?(rel.offset) }
+            failed_messages << "Relocation entries in .rela.dyn exceed LOAD segment range"
+          end
+
+          if rela_plt
+            jump_rel = dynamic.body.find { |dt| dt.jmp_rel? }&.un == rela_plt.header.addr
+            plt_rel_size = dynamic.body.find { |dt| dt.plt_rel_size? }&.un == rela_plt.header.size
+            plt_rel = dynamic.body.find { |dt| dt.plt_rel? }&.un == 7
+            plt_got = dynamic.body.find { |dt| dt.plt_got? }&.un == got_plt.header.addr if got_plt
+            basemsg = "Dynamic section entry"
+            failed_messages << "#{basemsg} DT_JMPREL does not match .rela.plt address" unless jump_rel
+            failed_messages << "#{basemsg} DT_PLTRELSZ does not match .rela.plt size" unless plt_rel_size
+            failed_messages << "#{basemsg} DT_PLTREL does not indicate RELA type" unless plt_rel
+            failed_messages << "#{basemsg} DT_PLTGOT does not match .got.plt address" if got_plt && !plt_got
+
+            rela_plt.body.each do |rel|
+              vr = valid_range.include?(rel.offset)
+              js = rel.type_name == :AMD64_JUMP_SLOT
+              failed_messages << "Relocation entries in .rela.plt exceed LOAD segment range" unless vr
+              failed_messages << "Unexpected relocation type in .rela.plt: #{rel.type_name}" unless js
+            end
+          end
+          raise Caotral::Binary::ELF::Error, failed_messages.join("\n") unless failed_messages.empty?
+          true
+        end
+
         private
         def decision(input)
           case input
@@ -148,8 +203,6 @@ module Caotral
             raise ArgumentError, "wrong input type"
           end
         end
-
-        def type(num) = Caotral::Binary::ELF::SectionHeader::SHT_BY_VALUE.fetch(num, :unknown)
       end
     end
   end

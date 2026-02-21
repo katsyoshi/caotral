@@ -24,6 +24,7 @@ module Caotral
           LOAD: 1,
           DYNAMIC: 2,
           INTERP: 3,
+          PHDR: 6,
         }.freeze
         PT_BY_V = PT.invert.freeze
         def initialize
@@ -54,6 +55,7 @@ module Caotral
         def offset = @offset.pack("C*").unpack1("Q<")
         def filesz = @filesz.pack("C*").unpack1("Q<")
         def memsz = @memsz.pack("C*").unpack1("Q<")
+        def vaddr = @vaddr.pack("C*").unpack1("Q<")
 
         private def bytes = [@type, @flags, @offset, @vaddr, @paddr, @filesz, @memsz, @align]
       end

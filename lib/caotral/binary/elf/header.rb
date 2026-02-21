@@ -48,6 +48,7 @@ module Caotral
 
         def entry = @entry.pack("C*").unpack1("Q<")
         def ehsize = @ehsize.pack("C*").unpack1("S<")
+        def phoffset = @phoffset.pack("C*").unpack1("Q<")
         def phsize = @phsize.pack("C*").unpack1("S<")
         def phnum = @phnum.pack("C*").unpack1("S<")
         def shentsize = @shentsize.pack("C*").unpack1("S<")

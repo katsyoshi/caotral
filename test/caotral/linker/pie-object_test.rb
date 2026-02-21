@@ -41,7 +41,8 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     IO.popen(["gcc", "-fPIE", "-c", "-o", @inputs.first, "%s" % path]).close
 
     Caotral::Linker.link!(inputs: @inputs, output: @output, linker: "self", pie: true)
-    elf = Caotral::Binary::ELF::Reader.read!(input: @output, debug: false)
+    elf_obj = Caotral::Binary::ELF::Reader.new(input: @output, debug: false)
+    elf = elf_obj.read
     section_names = elf.sections.map(&:section_name)
     program_header_types = elf.program_headers.map(&:type)
     interp = elf.find_by_name(".interp")
@@ -58,6 +59,7 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     assert_equal(:DYN, elf.header.type)
     assert_equal(:AMD64, elf.header.arch)
     assert_not_equal(0, elf.header.entry)
+    assert(elf_obj.validate_relocations)
   end
 
   def test_movabs_pie_object
@@ -65,7 +67,8 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     IO.popen(["gcc", "-fno-pic", "-fno-plt", "-c", "-o", @inputs.first, "%s" % path]).close
 
     Caotral::Linker.link!(inputs: @inputs, output: @output, linker: "self", executable: false, pie: true)
-    elf = Caotral::Binary::ELF::Reader.read!(input: @output, debug: false)
+    elf_obj = Caotral::Binary::ELF::Reader.new(input: @output, debug: false)
+    elf = elf_obj.read
     section_names = elf.sections.map(&:section_name)
     program_header_types = elf.program_headers.map(&:type)
     interp = elf.find_by_name(".interp")
@@ -82,6 +85,7 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     assert_equal(:DYN, elf.header.type)
     assert_equal(:AMD64, elf.header.arch)
     assert_equal(0, elf.header.entry)
+    assert(elf_obj.validate_relocations)
   end
 
   def test_executable_movabs_pie_object
@@ -89,7 +93,8 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     IO.popen(["gcc", "-fno-pic", "-fno-plt",  "-c", "-o", @inputs.first, "%s" % path]).close
 
     Caotral::Linker.link!(inputs: @inputs, output: @output, linker: "self", pie: true)
-    elf = Caotral::Binary::ELF::Reader.read!(input: @output, debug: false)
+    elf_obj = Caotral::Binary::ELF::Reader.new(input: @output, debug: false)
+    elf = elf_obj.read
     IO.popen("./pie").close
     exit_code, handle_code = check_process($?.to_i)
     assert_equal(60, exit_code)
@@ -111,5 +116,6 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     assert_equal(:DYN, elf.header.type)
     assert_equal(:AMD64, elf.header.arch)
     assert_not_equal(0, elf.header.entry)
+    assert(elf_obj.validate_relocations)
   end
 end

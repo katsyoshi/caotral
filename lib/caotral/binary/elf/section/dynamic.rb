@@ -7,6 +7,8 @@ module Caotral
           include Caotral::Binary::ELF::Utils
           TAG_TYPES = {
             NULL: 0,
+            PLTRELSZ: 2,
+            PLTGOT: 3,
             HASH: 4,
             STRTAB: 5,
             SYMTAB: 6,
@@ -15,7 +17,9 @@ module Caotral
             RELAENT: 9,
             STRSZ: 10,
             SYMENT: 11,
+            PLTREL: 20,
             TEXTREL: 22,
+            JMPREL: 23,
           }.freeze
           TAG_TYPES_BY_V = TAG_TYPES.invert.freeze
 
@@ -33,7 +37,15 @@ module Caotral
           end
 
           def tag = @tag.pack("C*").unpack1("Q<")
+          def un = @un.pack("C*").unpack1("Q<")
           def null? = tag == TAG_TYPES[:NULL]
+          def rela? = tag == TAG_TYPES[:RELA]
+          def rela_size? = tag == TAG_TYPES[:RELASZ]
+          def rela_ent? = tag == TAG_TYPES[:RELAENT]
+          def jmp_rel? = tag == TAG_TYPES[:JMPREL]
+          def plt_rel? = tag == TAG_TYPES[:PLTREL]
+          def plt_rel_size? = tag == TAG_TYPES[:PLTRELSZ]
+          def plt_got? = tag == TAG_TYPES[:PLTGOT]
 
           private def bytes = [@tag, @un]
         end
