@@ -343,7 +343,12 @@ module Caotral
           pph = Caotral::Binary::ELF::ProgramHeader.new
           pph.set!(type: 6)
         end
-        @program_headers = [pph, lph, iph, dph].compact
+        # ruby's dlopen support
+        if dynamic?
+          gsph = Caotral::Binary::ELF::ProgramHeader.new
+          gsph.set!(type: 0x6474e551, flags: program_header_flags(:RW))
+        end
+        @program_headers = [pph, lph, iph, dph, gsph].compact
       end
       def pie_program_header = @pie_program_header ||= program_headers.find { |ph| ph.type == :PHDR }
       def load_program_header = @load_program_header ||= program_headers.find { |ph| ph.type == :LOAD }

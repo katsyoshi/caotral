@@ -260,7 +260,7 @@ module Caotral
         if dynamic?
           sections << dynstr
           sections << dynsym
-          sections << build_hash_section if @pie
+          sections << build_hash_section
           sections << rela_dyn_section
           sections << rela_plt_section
           sym = sections.index(dynsym)
