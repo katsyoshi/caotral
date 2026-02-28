@@ -31,3 +31,5 @@ jobs:
       run: bundle exec rake steep:check
     - name: Run the default task
       run: bundle exec rake
+    - name: Run test using Ruby::Box
+      run: RUBY_BOX=1 bundle exec rake test
