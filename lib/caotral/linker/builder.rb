@@ -6,6 +6,7 @@ module Caotral
     class Builder
       include Caotral::Binary::ELF::Utils
       REL_TYPES = Caotral::Binary::ELF::Section::Rel::TYPES
+      DYNAMIC_TAGS = Caotral::Binary::ELF::Section::Dynamic::TAG_TYPES
       SYMTAB_BIND = { locals: 0, globals: 1, weaks: 2, }.freeze
       BIND_BY_VALUE = SYMTAB_BIND.invert.freeze
       RELOCATION_SECTION_NAMES = [".rela.text", ".rel.text", ".rela.data", ".rel.data"].freeze
@@ -17,6 +18,11 @@ module Caotral
         REL_TYPES[:AMD64_GOTPCREL],
         REL_TYPES[:AMD64_GOTPCRELX],
         REL_TYPES[:AMD64_REX_GOTPCRELX],
+      ].freeze
+      REJECT_DYNAMIC_TAGS = [
+        DYNAMIC_TAGS[:PLTRELSZ],
+        DYNAMIC_TAGS[:PLTREL],
+        DYNAMIC_TAGS[:JMPREL],
       ].freeze
 
       attr_reader :symbols
@@ -176,22 +182,22 @@ module Caotral
                 first_insertion = got_plt_offsets[sym].nil?
                 got_plt_offsets[sym] ||= got_plt_offset.tap { got_plt_offset += 8 }
                 if dynamic? && undefined && first_insertion
-                    got_plt_section.body << [0].pack("Q<")
-                    rps = Caotral::Binary::ELF::Section::Rel.new.set!(
-                      offset: got_plt_offsets[sym],
-                      info: ((sym) << 32) | REL_TYPES[:AMD64_JUMP_SLOT]
+                  got_plt_section.body << [0].pack("Q<")
+                  rps = Caotral::Binary::ELF::Section::Rel.new.set!(
+                    offset: got_plt_offsets[sym],
+                    info: ((sym) << 32) | REL_TYPES[:AMD64_JUMP_SLOT]
+                  )
+                  name = symtab_section.body[sym].name_string
+                  dynstr_index = dynstr.body.offset_of(name)
+                  if dynstr_index.nil?
+                    dynstr.body.names += name + "\0"
+                    dynsym.body << Caotral::Binary::ELF::Section::Symtab.new.set!(
+                      name: dynstr.body.offset_of(name),
+                      info: (1 << 4) | 2,
                     )
-                    name = symtab_section.body[sym].name_string
-                    dynstr_index = dynstr.body.offset_of(name)
-                    if dynstr_index.nil?
-                      dynstr.body.names += name + "\0"
-                      dynsym.body << Caotral::Binary::ELF::Section::Symtab.new.set!(
-                        name: dynstr.body.offset_of(name),
-                        info: (1 << 4) | 2,
-                      )
-                    end
-                    rela_plt_section.body << rps
-                    next
+                  end
+                  rela_plt_section.body << rps
+                  next
                 end
               elsif UNSUPPORTED_REL_TYPES.include?(rel.type)
                 raise Caotral::Binary::ELF::Error, "unsupported relocation type: #{rel.type_name}"
@@ -260,7 +266,8 @@ module Caotral
         if dynamic?
           sections << dynstr
           sections << dynsym
-          sections << build_hash_section
+          hash_section = build_hash_section
+          sections << hash_section
           sections << rela_dyn_section
           sections << rela_plt_section
           sym = sections.index(dynsym)
@@ -272,10 +279,27 @@ module Caotral
             copy_sym = sym.dup
             shndx = copy_sym.shndx
             name = dynstr.body.offset_of(sym.name_string)
-            dynstr.body.names += copy_sym.name_string + "\0" if name.nil?
-            dynsym.body << copy_sym.set!(name:, shndx:)
+            if name.nil?
+              dynstr.body.names += copy_sym.name_string + "\0"
+              name = dynstr.body.offset_of(copy_sym.name_string)
+            end
+            copy_sym.name_string = sym.name_string
+            dynsym.body << copy_sym.set!(name:, shndx:, value: sym.value)
           end
-          sections << build_dynamic_section
+          hash = Caotral::Binary::ELF::Section::Hash.new(nchain: dynsym.body.size)
+          hash.bucket[0] = num2bytes(1, 4) if dynsym.body.size > 1
+          dynsym.body.each_with_index do |sym, i|
+            next if i == 0
+            hash.chain[i] = num2bytes(0, 4)
+          end
+          hash_section.body = hash
+          dynamic_section = build_dynamic_section
+          if rela_plt_section.body.size == 0 && dynamic?
+            bodies = dynamic_section.body.reject { |ent| REJECT_DYNAMIC_TAGS.include?(ent.tag) }
+            dynamic_section.body = bodies
+          end
+
+          sections << dynamic_section
         end
         sections << symtab_section
 
