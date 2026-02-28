@@ -266,6 +266,15 @@ module Caotral
           sym = sections.index(dynsym)
           rela_dyn_section.header.set!(link: sym, type: rel_type(rela_dyn_section), entsize: rel_entsize(rela_dyn_section))
           rela_plt_section.header.set!(link: sym, type: rel_type(rela_plt_section), info: ref_index(sections, got_plt_section.section_name))
+          symtab_section.body.each do |sym|
+            next unless [SYMTAB_BIND[:globals], SYMTAB_BIND[:weaks]].include?(sym.bind)
+            next if sym.shndx == 0
+            copy_sym = sym.dup
+            shndx = copy_sym.shndx
+            name = dynstr.body.offset_of(sym.name_string)
+            dynstr.body.names += copy_sym.name_string + "\0" if name.nil?
+            dynsym.body << copy_sym.set!(name:, shndx:)
+          end
           sections << build_dynamic_section
         end
         sections << symtab_section
