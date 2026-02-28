@@ -144,6 +144,7 @@ module Caotral
           pt_load = @context.program_headers.find { |ph| ph.type == :LOAD }
           dynamic = @context.sections.find { |section| section.section_name.to_s == ".dynamic" }
           rela_plt = @context.sections.find { |section| section.section_name.to_s == ".rela.plt" }
+          rela_plt_exists = !rela_plt.body.empty?
           got_plt = @context.sections.find { |s| s.section_name.to_s == ".got.plt" }
           failed_messages = []
           unless rela_dyn && pt_load && dynamic
@@ -172,7 +173,7 @@ module Caotral
             failed_messages << "Relocation entries in .rela.dyn exceed LOAD segment range"
           end
 
-          if rela_plt
+          if rela_plt && rela_plt_exists
             jump_rel = dynamic.body.find { |dt| dt.jmp_rel? }&.un == rela_plt.header.addr
             plt_rel_size = dynamic.body.find { |dt| dt.plt_rel_size? }&.un == rela_plt.header.size
             plt_rel = dynamic.body.find { |dt| dt.plt_rel? }&.un == 7
