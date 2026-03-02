@@ -84,9 +84,9 @@ module Caotral
             @bin.pos = section.header.offset
             body_bin = @bin.read(section.header.size)
             section.body = case type
-                           when :strtab
+                           when :strtab, :dynstr
                              Caotral::Binary::ELF::Section::Strtab.new(body_bin)
-                           when :symtab
+                           when :symtab, :dynsym
                              symtab_entsize = section.header.entsize
                              count = body_bin.bytesize / symtab_entsize
                              count.times.map do |i|
