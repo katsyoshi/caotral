@@ -31,7 +31,7 @@ module Caotral
       def initialize(elf_objs:, executable: true, debug: false, shared: false, pie: false, needed: [])
         @elf_objs = elf_objs
         @executable, @debug, @shared, @pie, @needed = executable, debug, shared, pie, needed
-        @symbols = { locals: Set.new, globals: Set.new, weaks: Set.new }
+        @symbols = { locals: Set.new, globals: Set.new, weaks: Set.new, }.freeze
         _mode!
       end
 
@@ -117,6 +117,9 @@ module Caotral
         got_plt_offset = 8
         sym_by_elf = Hash.new { |h, k| h[k] = [] }
         dynstr, dynsym = build_shared_dynamic_sections if dynamic?
+
+        start_len = 0 if @elf_objs.any? { |elf| elf.find_by_name(".symtab").body.find { |sym| sym.name_string == "_start" } }
+
         @elf_objs.each do |elf_obj|
           text = elf_obj.find_by_name(".text")
           unless text.nil?
@@ -158,6 +161,7 @@ module Caotral
               header: Caotral::Binary::ELF::SectionHeader.new
             )
             section.body.each do |rel|
+              sym = base_index.nil? ? rel.sym : base_index + rel.sym
               if rel.type == REL_TYPES[:AMD64_64]
                 base_offset = case section.section_name.to_s
                               when /\.rela?\.text/
@@ -178,7 +182,7 @@ module Caotral
                 addend = sym_addr - base_addr
                 rela_dyn_section.body << Caotral::Binary::ELF::Section::Rel.new.set!(offset:, info: (0 << 32) | REL_TYPES[:AMD64_RELATIVE], addend:)
                 next
-              elsif (undefined = symtab.body[rel.sym]&.shndx.to_i == 0) && rel.type == REL_TYPES[:AMD64_PLT32]
+              elsif (undefined = symtab.body[rel.sym]&.shndx.to_i == 0) && ALLOW_RELOCATION_TYPES.include?(rel.type)
                 sym = base_index.to_i + rel.sym
                 first_insertion = got_plt_offsets[sym].nil?
                 got_plt_offsets[sym] ||= got_plt_offset.tap { got_plt_offset += 8 }
@@ -188,6 +192,7 @@ module Caotral
                     offset: got_plt_offsets[sym],
                     info: ((sym) << 32) | REL_TYPES[:AMD64_JUMP_SLOT]
                   )
+
                   name = symtab_section.body[sym].name_string
                   dynstr_index = dynstr.body.offset_of(name)
                   if dynstr_index.nil?
@@ -198,7 +203,6 @@ module Caotral
                     )
                   end
                   rela_plt_section.body << rps
-                  next
                 end
               elsif UNSUPPORTED_REL_TYPES.include?(rel.type)
                 raise Caotral::Binary::ELF::Error, "unsupported relocation type: #{rel.type_name}"
@@ -206,7 +210,6 @@ module Caotral
               offset = rel.offset + text_offsets.fetch(elf_obj.object_id, 0)
               addend = rel.addend? ? rel.addend : nil
               new_rel = Caotral::Binary::ELF::Section::Rel.new(addend: rel.addend?)
-              sym = base_index.nil? ? rel.sym : base_index + rel.sym
               info = (sym << 32) | rel.type
               new_rel.set!(offset:, info:, addend:)
               rel_section.body << new_rel
@@ -215,15 +218,19 @@ module Caotral
           end
           rel_sections += rels
         end
-        
+
         strtab_section.body.names = strtab_names.to_a.sort.join("\0") + "\0"
         sections << null_section
 
-        main_sym = symtab_section.body.find { |sym| sym.name_string == "main" }
-        raise Caotral::Binary::ELF::Error, "main function not found" if @executable && main_sym.nil?
-        main_offset = main_sym.nil? ? 0 : main_sym.value + start_len
-        start_bytes[1, 4] = num2bytes((main_offset - 5), 4) if @executable
-        text_section.body.prepend(start_bytes.pack("C*"))
+        _start = symtab_section.body.find { |sym| sym.name_string == "_start" }
+        entry_sym = _start || symtab_section.body.find { |sym| sym.name_string == "main" }
+
+        raise Caotral::Binary::ELF::Error, "main or _start function not found" if @executable && entry_sym.nil?
+        if _start.nil?
+          main_offset = entry_sym.nil? ? 0 : entry_sym.value + start_len
+          start_bytes[1, 4] = num2bytes((main_offset - 5), 4) if @executable
+          text_section.body.prepend(start_bytes.pack("C*"))
+        end
 
         text_section.header.set!(
           type: 1,
@@ -369,11 +376,15 @@ module Caotral
           rel.body.each do |entry|
             next unless ALLOW_RELOCATION_TYPES.include?(entry.type)
             sym = symtab_body[entry.sym]
-            next if sym.nil? || sym.shndx == 0
+            next if sym.nil?
             target_addr = target == text_section ? vaddr : target.header.addr
-            sym_addr = sym.shndx >= 0xff00 ? sym.value : sections[sym.shndx].then { |st| st.header.addr + sym.value }
             sym_offset = entry.offset + start_len
             sym_addend = entry.addend? ? entry.addend : bytes[sym_offset, 4].unpack1("l<")
+            sym_addr = if sym.shndx == 0
+                         plt_section.header.addr + 16 * (got_plt_offsets[entry.sym] / 8)
+                       else
+                         sym.shndx >= 0xff00 ? sym.value : sections[sym.shndx].then { |st| st.header.addr + sym.value }  
+                       end
             value = sym_addr + sym_addend - (target_addr + sym_offset)
             bytes[sym_offset, 4] = [value].pack("l<")
           end
