@@ -50,9 +50,9 @@ module Caotral
     def libpath = @libpath ||= File.dirname(Dir.glob("/usr/lib*/**/crti.o").last)
     def gcc_libpath = @gcc_libpath ||= File.dirname(Dir.glob("/usr/lib/gcc/x86_64-*/*/crtbegin.o").last)
 
-    def to_elf(inputs: @inputs, output: @output, debug: @debug, shared: @shared, executable: @executable, pie: @pie)
+    def to_elf(inputs: @inputs, output: @output, debug: @debug, shared: @shared, executable: @executable, pie: @pie, needed: @needed)
       elf_objs = inputs.map { |input| Caotral::Binary::ELF::Reader.new(input:, debug:).read }
-      builder = Caotral::Linker::Builder.new(elf_objs:, debug:, shared:, executable:, pie:)
+      builder = Caotral::Linker::Builder.new(elf_objs:, debug:, shared:, executable:, pie:, needed:)
       builder.resolve_symbols
       elf_obj = builder.build
       Caotral::Linker::Writer.new(elf_obj:, output:, debug:, shared:, executable:, pie:).write

@@ -14,6 +14,7 @@ module Caotral
       GENERATED_SECTION_NAMES = [".text", ".data", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr", ".dynsym", ".dynamic", ".interp", ".rela.dyn", ".plt", ".got.plt"].freeze
       SHT = Caotral::Binary::ELF::SectionHeader::SHT
       SHF = Caotral::Binary::ELF::SectionHeader::SHF
+      SectionDynamic = Caotral::Binary::ELF::Section::Dynamic
       UNSUPPORTED_REL_TYPES = [
         REL_TYPES[:AMD64_GOTPCREL],
         REL_TYPES[:AMD64_GOTPCRELX],
@@ -27,9 +28,9 @@ module Caotral
 
       attr_reader :symbols
 
-      def initialize(elf_objs:, executable: true, debug: false, shared: false, pie: false)
+      def initialize(elf_objs:, executable: true, debug: false, shared: false, pie: false, needed: [])
         @elf_objs = elf_objs
-        @executable, @debug, @shared, @pie = executable, debug, shared, pie
+        @executable, @debug, @shared, @pie, @needed = executable, debug, shared, pie, needed
         @symbols = { locals: Set.new, globals: Set.new, weaks: Set.new }
         _mode!
       end
@@ -264,6 +265,7 @@ module Caotral
 
         sections += build_pie_sections if @pie
         if dynamic?
+          @needed.each { |lib| dynstr.body.names += lib + "\0" if dynstr.body.offset_of(lib).nil? }
           sections << dynstr
           sections << dynsym
           hash_section = build_hash_section
@@ -293,7 +295,7 @@ module Caotral
             hash.chain[i] = num2bytes(0, 4)
           end
           hash_section.body = hash
-          dynamic_section = build_dynamic_section
+          dynamic_section = build_dynamic_section(dynstr:)
           if rela_plt_section.body.size == 0 && dynamic?
             bodies = dynamic_section.body.reject { |ent| REJECT_DYNAMIC_TAGS.include?(ent.tag) }
             dynamic_section.body = bodies
@@ -444,24 +446,25 @@ module Caotral
         hash_section
       end
 
-      def build_dynamic_section
+      def build_dynamic_section(dynstr:)
         tag_types = Caotral::Binary::ELF::Section::Dynamic::TAG_TYPES
         dynamic_section = Caotral::Binary::ELF::Section.new(
           body: [
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:PLTRELSZ]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:PLTGOT]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:HASH]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:RELA]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:RELASZ]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:RELAENT], un: 24),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:STRTAB]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:STRSZ]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:SYMTAB]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:SYMENT], un: 24),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:PLTREL]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:TEXTREL]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:JMPREL]),
-            Caotral::Binary::ELF::Section::Dynamic.new
+            *@needed.map { |lib| SectionDynamic.new.set!(tag: tag_types[:NEEDED], un: dynstr.body.offset_of(lib)) },
+            SectionDynamic.new.set!(tag: tag_types[:PLTRELSZ]),
+            SectionDynamic.new.set!(tag: tag_types[:PLTGOT]),
+            SectionDynamic.new.set!(tag: tag_types[:HASH]),
+            SectionDynamic.new.set!(tag: tag_types[:RELA]),
+            SectionDynamic.new.set!(tag: tag_types[:RELASZ]),
+            SectionDynamic.new.set!(tag: tag_types[:RELAENT], un: 24),
+            SectionDynamic.new.set!(tag: tag_types[:STRTAB]),
+            SectionDynamic.new.set!(tag: tag_types[:STRSZ]),
+            SectionDynamic.new.set!(tag: tag_types[:SYMTAB]),
+            SectionDynamic.new.set!(tag: tag_types[:SYMENT], un: 24),
+            SectionDynamic.new.set!(tag: tag_types[:PLTREL]),
+            SectionDynamic.new.set!(tag: tag_types[:TEXTREL]),
+            SectionDynamic.new.set!(tag: tag_types[:JMPREL]),
+            SectionDynamic.new
           ].compact,
           section_name: ".dynamic",
           header: Caotral::Binary::ELF::SectionHeader.new

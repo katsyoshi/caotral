@@ -1,4 +1,5 @@
 require "caotral/binary/elf/utils"
+
 module Caotral
   module Binary
     class ELF
@@ -7,6 +8,7 @@ module Caotral
           include Caotral::Binary::ELF::Utils
           TAG_TYPES = {
             NULL: 0,
+            NEEDED: 1,
             PLTRELSZ: 2,
             PLTGOT: 3,
             HASH: 4,
@@ -46,6 +48,7 @@ module Caotral
           def plt_rel? = tag == TAG_TYPES[:PLTREL]
           def plt_rel_size? = tag == TAG_TYPES[:PLTRELSZ]
           def plt_got? = tag == TAG_TYPES[:PLTGOT]
+          def needed? = tag == TAG_TYPES[:NEEDED]
 
           private def bytes = [@tag, @un]
         end
