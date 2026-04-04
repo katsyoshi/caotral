@@ -126,6 +126,7 @@ module Caotral
         if dynamic? && dynamic_section && rela_dyn_section
           rdsh = rela_dyn_section&.header
           bodies = dynamic_section.body
+          bodies.delete_if { |dyn| dyn.tag == dynamic_tables[:TEXTREL] } unless rela_dyn_section.body.any? { |rel| rel.type == REL_TYPES[:AMD64_RELATIVE] }
           bodies.find { |dyn| dyn.tag == dynamic_tables[:RELA] }.set!(un: rdsh&.addr.to_i)
           bodies.find { |dyn| dyn.tag == dynamic_tables[:RELASZ] }.set!(un: rdsh&.size.to_i)
           bodies.find { |dyn| dyn.tag == dynamic_tables[:STRSZ] }&.set!(un: dynstr_section.header.size.to_i)
