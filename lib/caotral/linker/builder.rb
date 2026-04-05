@@ -62,7 +62,7 @@ module Caotral
                     .set!(type: SHT[:progbits], flags: SHF[:ALLOC] | SHF[:EXECINSTR], addralign: 16)
         )
         got_plt_section = Caotral::Binary::ELF::Section.new(
-          body: [0].pack("Q<"),
+          body: [[0] * 8, [0] * 8, [0] * 8],
           section_name: ".got.plt",
           header: Caotral::Binary::ELF::SectionHeader.new
                     .set!(type: SHT[:progbits], flags: SHF[:ALLOC] | SHF[:WRITE], addralign: 8)
@@ -114,7 +114,7 @@ module Caotral
         got_plt_offsets = {}
         text_offset = 0
         data_offset = 0
-        got_plt_offset = 8
+        got_plt_offset = 24
         sym_by_elf = Hash.new { |h, k| h[k] = [] }
         dynstr, dynsym = build_shared_dynamic_sections if dynamic?
 
@@ -187,7 +187,8 @@ module Caotral
                 first_insertion = got_plt_offsets[sym].nil?
                 got_plt_offsets[sym] ||= got_plt_offset.tap { got_plt_offset += 8 }
                 if dynamic? && undefined && first_insertion
-                  got_plt_section.body << [0].pack("Q<")
+                  got_plt_body = [0]*8
+                  got_plt_section.body << got_plt_body
                   rps = Caotral::Binary::ELF::Section::Rel.new.set!(
                     offset: got_plt_offsets[sym],
                     info: ((sym) << 32) | REL_TYPES[:AMD64_JUMP_SLOT]

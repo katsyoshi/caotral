@@ -224,32 +224,13 @@ module Caotral
           raise Caotral::Binary::ELF::Error, "missing .got.plt for .plt" if got_plt_section.nil?
 
           got_plt_offset = file.pos
-          file.write(got_plt_section.build)
+          file.write(got_plt_section.body.flatten.pack("C*"))
+          size = file.pos - got_plt_offset
           got_plt_section.header.set!(
             offset: got_plt_offset,
-            size: got_plt_section.body.bytesize,
+            size:,
             addr: text_section.header.addr + (got_plt_offset - text_section.header.offset)
           )
-
-          current_offset = file.pos
-          primary, *rest = plt_section.body
-          file.seek(plt_offset)
-          plt_addr = plt_section.header.addr
-          got_plt_addr = got_plt_section.header.addr
-          # only support x86-64 binaries with PLT
-          primary[2..5] = [(got_plt_addr + 8) - (plt_addr + 6)].pack("l<").bytes
-          primary[8..11] = [(got_plt_addr + 16) - (plt_addr + 12)].pack("l<").bytes
-          slot_offset = 24
-          rest.each_with_index do |entry, i|
-            entry_addr = plt_addr + 16 + 16 * i
-            slot_addr = got_plt_addr + slot_offset + 8 * i
-            entry[2..5] = [slot_addr - (entry_addr + 6)].pack("l<").bytes
-            entry[7..10] = [i].pack("l<").bytes
-            entry[12..15] = [plt_addr - (entry_addr + 16)].pack("l<").bytes
-          end
-          file.write(primary.flatten.pack("C*"))
-          file.write(rest.flatten.pack("C*"))
-          file.seek(current_offset)
         end
 
         write_shared_dynamic_sections(file:) if dynamic?
@@ -301,6 +282,39 @@ module Caotral
         dynamic_section.body.each { |dynamic| file.write(dynamic.build) }
         size = file.pos - dynamic_offset
         dynamic_section.header.set!(offset: dynamic_offset, size:, addr: text_addr + (dynamic_offset - tsh.offset))
+
+        if plt_section
+          current_offset = file.pos
+          primary, *rest = plt_section.body
+          plt_offset = plt_section.header.offset
+          got_plt_offset = got_plt_section.header.offset
+          file.seek(plt_offset)
+          plt_addr = plt_section.header.addr
+          got_plt_addr = got_plt_section.header.addr
+          # only support x86-64 binaries with PLT
+          primary[2..5] = [(got_plt_addr + 8) - (plt_addr + 6)].pack("l<").bytes
+          primary[8..11] = [(got_plt_addr + 16) - (plt_addr + 12)].pack("l<").bytes
+          slot_offset = 24
+          rest.each_with_index do |entry, i|
+            entry_addr = plt_addr + 16 + 16 * i
+            slot_addr = got_plt_addr + slot_offset + 8 * i
+            entry[2..5] = [slot_addr - (entry_addr + 6)].pack("l<").bytes
+            entry[7..10] = [i].pack("l<").bytes
+            entry[12..15] = [plt_addr - (entry_addr + 16)].pack("l<").bytes
+          end
+          file.write(primary.flatten.pack("C*"))
+          file.write(rest.flatten.pack("C*"))
+
+          file.seek(got_plt_offset)
+          primary, secondary, third, *rest = got_plt_section.body
+          primary = [dynamic_section.header.addr].pack("Q<").bytes
+          rest.each_with_index { |_entry, i| rest[i] = [plt_addr + 22 + 16 * i].pack("Q<").bytes }
+          file.write(primary.flatten.pack("C*"))
+          file.write(secondary.flatten.pack("C*"))
+          file.write(third.flatten.pack("C*"))
+          file.write(rest.flatten.pack("C*"))
+          file.seek(current_offset)
+        end
       end
       
       def ref_index(section_name)
