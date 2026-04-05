@@ -56,7 +56,7 @@ module Caotral
                     .set!(type: SHT[:progbits], flags: SHF[:ALLOC] | SHF[:WRITE], addralign: 8)
         )
         plt_section = Caotral::Binary::ELF::Section.new(
-          body: [0, 0].pack("Q<Q<"),
+          body: [[0xff, 0x35, 0, 0, 0, 0, 0xff, 0x25, 0, 0, 0, 0, 0x0f, 0x1f, 0x40, 0]],
           section_name: ".plt",
           header: Caotral::Binary::ELF::SectionHeader.new
                     .set!(type: SHT[:progbits], flags: SHF[:ALLOC] | SHF[:EXECINSTR], addralign: 16)
@@ -203,6 +203,8 @@ module Caotral
                     )
                   end
                   rela_plt_section.body << rps
+                  pltx = [0xff, 0x25, 0, 0, 0, 0, 0x68, 0, 0, 0, 0, 0xe9, 0, 0, 0, 0]
+                  plt_section.body << pltx
                 end
               elsif UNSUPPORTED_REL_TYPES.include?(rel.type)
                 raise Caotral::Binary::ELF::Error, "unsupported relocation type: #{rel.type_name}"

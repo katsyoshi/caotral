@@ -213,13 +213,15 @@ module Caotral
 
         if plt_section
           plt_offset = file.pos
-          file.write(plt_section.build)
+          file.write(plt_section.body.flatten.pack("C*"))
+          size = file.pos - plt_offset
           plt_section.header.set!(
             offset: plt_offset,
-            size: plt_section.body.bytesize,
+            size:,
             addr: text_section.header.addr + (plt_offset - text_section.header.offset)
           )
         end
+
         if got_plt_section
           got_plt_offset = file.pos
           file.write(got_plt_section.build)
