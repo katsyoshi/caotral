@@ -220,9 +220,9 @@ module Caotral
             size:,
             addr: text_section.header.addr + (plt_offset - text_section.header.offset)
           )
-        end
 
-        if got_plt_section
+          raise Caotral::Binary::ELF::Error, "missing .got.plt for .plt" if got_plt_section.nil?
+
           got_plt_offset = file.pos
           file.write(got_plt_section.build)
           got_plt_section.header.set!(
@@ -230,6 +230,26 @@ module Caotral
             size: got_plt_section.body.bytesize,
             addr: text_section.header.addr + (got_plt_offset - text_section.header.offset)
           )
+
+          current_offset = file.pos
+          primary, *rest = plt_section.body
+          file.seek(plt_offset)
+          plt_addr = plt_section.header.addr
+          got_plt_addr = got_plt_section.header.addr
+          # only support x86-64 binaries with PLT
+          primary[2..5] = [(got_plt_addr + 8) - (plt_addr + 6)].pack("l<").bytes
+          primary[8..11] = [(got_plt_addr + 16) - (plt_addr + 12)].pack("l<").bytes
+          slot_offset = 24
+          rest.each_with_index do |entry, i|
+            entry_addr = plt_addr + 16 + 16 * i
+            slot_addr = got_plt_addr + slot_offset + 8 * i
+            entry[2..5] = [slot_addr - (entry_addr + 6)].pack("l<").bytes
+            entry[7..10] = [i].pack("l<").bytes
+            entry[12..15] = [plt_addr - (entry_addr + 16)].pack("l<").bytes
+          end
+          file.write(primary.flatten.pack("C*"))
+          file.write(rest.flatten.pack("C*"))
+          file.seek(current_offset)
         end
 
         write_shared_dynamic_sections(file:) if dynamic?
