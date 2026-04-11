@@ -370,33 +370,13 @@ module Caotral
             addralign: 8,
             entsize: rel_entsize(rel_section)
           )
-        end
-
-        rel_sections.each do |rel|
-          target = sections[rel.header.info]
-          bytes = target.body.dup
-          symtab_body = symtab_section.body
-          rel.body.each do |entry|
-            next unless ALLOW_RELOCATION_TYPES.include?(entry.type)
-            sym = symtab_body[entry.sym]
-            next if sym.nil?
-            target_addr = target == text_section ? vaddr : target.header.addr
-            sym_offset = entry.offset + start_len
-            sym_addend = entry.addend? ? entry.addend : bytes[sym_offset, 4].unpack1("l<")
-            sym_addr = if sym.shndx == 0
-                         plt_section.header.addr + 16 * (got_plt_offsets[entry.sym] / 8)
-                       else
-                         sym.shndx >= 0xff00 ? sym.value : sections[sym.shndx].then { |st| st.header.addr + sym.value }  
-                       end
-            value = sym_addr + sym_addend - (target_addr + sym_offset)
-            bytes[sym_offset, 4] = [value].pack("l<")
-          end
-          target.body = bytes
+          elf.rel_texts << rel_section if rel_section.section_name.to_s.start_with?(".rela.text", ".rel.text")
         end
 
         sections = sections.reject { |section| RELOCATION_SECTION_NAMES.any? { |name| name === section.section_name.to_s } } if @executable
         sections.each { |section| elf.sections << section }
 
+        elf.got_plt_offsets = got_plt_offsets
         elf
       end
 
