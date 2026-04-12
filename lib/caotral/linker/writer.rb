@@ -118,16 +118,16 @@ module Caotral
             sym_offset = entry.offset
             sym_addend = entry.addend? ? entry.addend : bytes[sym_offset, 4].unpack1("l<")
             sym_addr = if sym.shndx == 0
-                         plt_section.header.addr + 16 * (got_plt_offsets[entry.sym] / 8)
+                         plt_section.header.addr + 16 * (((got_plt_offsets[entry.sym] - 24) / 8) + 1)
                        elsif sym.shndx >= 0xff00
                          sym.value
                        else
-                         @elf_obj.sections[sym.shndx - 1].header.addr + sym.value
+                         @elf_obj.sections[sym.shndx].header.addr + sym.value
                        end
             value = sym_addr + sym_addend - (target_addr + sym_offset)
             bytes[sym_offset, 4] = [value].pack("l<")
-            file.write(bytes)
           end
+          file.write(bytes)
         end
         file.seek(cur)
       end
@@ -204,7 +204,7 @@ module Caotral
 
         segment_start = text_section.header.offset
         segment_start = 0 if @pie
-        segment_end = [text_section, data_section,].concat(dynamic_sections).compact.map { |s| s.header.offset + s.header.size }.max
+        segment_end = [text_section, rodata_section, data_section,].concat(dynamic_sections).compact.map { |s| s.header.offset + s.header.size }.max
 
         dynamic_filesz = segment_end - segment_start
         load_program_header.set!(filesz: dynamic_filesz, memsz: dynamic_filesz)
@@ -230,6 +230,16 @@ module Caotral
           size: text_section.body.bytesize,
           addr: text_section.header.addr
         )
+
+        if rodata_section
+          ordata_offset = file.pos
+          file.write(rodata_section.build)
+          rodata_section.header.set!(
+            offset: ordata_offset,
+            size: rodata_section.body.bytesize,
+            addr: text_section.header.addr + (ordata_offset - text_section.header.offset)
+          )
+        end
 
         if data_section
           data_offset = file.pos
@@ -460,6 +470,7 @@ module Caotral
       def interp_section = @interp_section ||= @write_sections.find { |s| ".interp" === s.section_name.to_s }
       def rela_dyn_section = @rela_dyn_section ||= @write_sections.find { |s| ".rela.dyn" === s.section_name.to_s }
       def data_section = @data_section ||= @write_sections.find { |s| ".data" === s.section_name.to_s }
+      def rodata_section = @rodata_section ||= @write_sections.find { |s| ".rodata" === s.section_name.to_s }
       def hash_section = @hash_section ||= @write_sections.find { |s| ".hash" === s.section_name.to_s }
       def plt_section = @plt_section ||= @write_sections.find { |s| ".plt" === s.section_name.to_s }
       def got_plt_section = @got_plt_section ||= @write_sections.find { |s| ".got.plt" === s.section_name.to_s }

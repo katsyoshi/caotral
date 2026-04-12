@@ -17,7 +17,7 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
     written_output = Caotral::Linker::Writer.write!(elf_obj: @elf_obj, output: "write.o", debug: false)
     read_written_elf = Caotral::Binary::ELF::Reader.read!(input: written_output, debug: false)
     assert_equal @elf_obj.header.shoffset, read_written_elf.header.shoffset
-    assert_equal 6, read_written_elf.sections.size
+    assert_equal 7, read_written_elf.sections.size
     assert_equal 0x401000, read_written_elf.header.entry
   end
 

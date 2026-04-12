@@ -49,6 +49,12 @@ module Caotral
           section_name: ".text",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
+        rodata_section = Caotral::Binary::ELF::Section.new(
+          body: String.new,
+          section_name: ".rodata",
+          header: Caotral::Binary::ELF::SectionHeader.new
+                    .set!(type: SHT[:progbits], flags: SHF[:ALLOC], addralign: 16)
+        )
         data_section = Caotral::Binary::ELF::Section.new(
           body: String.new,
           section_name: ".data",
@@ -110,9 +116,11 @@ module Caotral
         elf.header = elf_obj.header.dup
         strtab_names = []
         text_offsets = {}
+        rodata_offsets = {}
         data_offsets = {}
         got_plt_offsets = {}
         text_offset = 0
+        rodata_offset = 0
         data_offset = 0
         got_plt_offset = 24
         sym_by_elf = Hash.new { |h, k| h[k] = [] }
@@ -128,6 +136,12 @@ module Caotral
             size = text.body.bytesize
             text_offset += size
           end
+          rodata = elf_obj.find_by_name(".rodata")
+          unless rodata.nil?
+            rodata_section.body << rodata.body
+            rodata_offsets[elf_obj.object_id] = rodata_offset
+            rodata_offset += rodata.body.bytesize
+          end
           data = elf_obj.find_by_name(".data")
           unless data.nil?
             data_section.body << data.body
@@ -142,6 +156,7 @@ module Caotral
             base_index = symtab_section.body.size
             text_index = elf_obj.sections.index(text) unless text.nil?
             data_index = elf_obj.sections.index(data) unless data.nil?
+            rodata_index = elf_obj.sections.index(rodata) unless rodata.nil?
 
             symtab.body.each_with_index do |st, index|
               sym = Caotral::Binary::ELF::Section::Symtab.new
@@ -149,6 +164,7 @@ module Caotral
               sym_by_elf[elf_obj] << sym
               value += text_offsets.fetch(elf_obj.object_id, 0) if shndx == text_index
               value += data_offsets.fetch(elf_obj.object_id, 0) if shndx == data_index
+              value += rodata_offsets.fetch(elf_obj.object_id, 0) if shndx == rodata_index
               sym.set!(name:, info:, other:, shndx:, value:, size:)
               sym.name_string = strtab.body.lookup(name) unless strtab.nil?
               symtab_section.body << sym
@@ -246,6 +262,7 @@ module Caotral
 
         sections << text_section
         strtab_section.header.set!(type: 3, flags: 0, addralign: 1, entsize: 0)
+        sections << rodata_section
         sections << data_section
         if dynamic?
           sections << plt_section
