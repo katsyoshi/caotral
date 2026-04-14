@@ -16,13 +16,11 @@ module Caotral
     class ELF
       include Enumerable
       attr_reader :sections, :program_headers
-      attr_accessor :header, :rel_texts, :got_plt_offsets
+      attr_accessor :header
       def initialize
         @program_headers = []
         @sections = []
         @header = nil
-        @rel_texts = []
-        @got_plt_offsets = {}
       end
       def each(&block) = @sections.each(&block)
       def [](idx) = @sections[idx]

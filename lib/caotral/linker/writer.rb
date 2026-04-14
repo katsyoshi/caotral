@@ -7,15 +7,19 @@ module Caotral
       REL_TYPES = Caotral::Binary::ELF::Section::Rel::TYPES.freeze
       ALLOW_RELOCATION_TYPES = [REL_TYPES[:AMD64_PC32], REL_TYPES[:AMD64_PLT32]].freeze
       RELOCATION_SECTION_NAMES = [".rela.text", ".rela.dyn", ".rela.data", ".rela.plt"].freeze
-      attr_reader :elf_obj, :output, :entry, :debug
-      def self.write!(elf_obj:, output:, entry: nil, debug: false, executable: true, shared: false)
-        new(elf_obj:, output:, entry:, debug:, shared:, executable:).write
+      attr_reader :elf_obj, :output, :entry, :debug, :got_plt_offsets, :pending_text_relocations
+      def self.write!(elf_obj:, output:, metadata: nil, entry: nil, debug: false, executable: true, shared: false)
+        new(elf_obj:, output:, metadata:, entry:, debug:, shared:, executable:).write
       end
 
-      def initialize(elf_obj:, output:, entry: nil, debug: false, executable: true, shared: false, pie: false)
+      def initialize(elf_obj:, output:, metadata: nil, entry: nil, debug: false, executable: true, shared: false, pie: false)
         @elf_obj, @output, @entry, @debug, @executable, @shared, @pie = elf_obj, output, entry, debug, executable, shared, pie
         @program_headers = []
         @write_sections = elf_obj.sections
+        @got_plt_offsets = {}
+        @got_plt_offsets = metadata.fetch(:got_plt_offsets, {}) if metadata
+        @pending_text_relocations = []
+        @pending_text_relocations = metadata.fetch(:pending_text_relocations, []) if metadata
       end
 
       def write
@@ -81,6 +85,8 @@ module Caotral
           rel.header.set!(offset: rel_offset, size: rel_size, entsize:)
         end
 
+        rewrite_text_section(file: f) unless rel_text_sections.empty?
+
         patch_dynamic_sections(file: f) if dynamic?
         patch_program_headers(file: f)
         write_program_headers(file: f)
@@ -103,29 +109,31 @@ module Caotral
       private
       def rewrite_text_section(file:)
         cur = file.pos
-        got_plt_offsets = @elf_obj.got_plt_offsets
-        rel_text_sections.each do |rel|
-          target = @elf_obj.sections[rel.header.info]
+        grouped_rels = rel_text_sections.group_by { |rel| rel.header.info }
+        grouped_rels.each do |target_index, rels|
+          target = @elf_obj.sections[target_index]
           bytes = target.body.dup
           symtab_body = symtab_section.body
           vaddr = target.header.addr
           file.seek(target.header.offset)
-          rel.body.each do |entry|
-            next unless ALLOW_RELOCATION_TYPES.include?(entry.type)
-            sym = symtab_body[entry.sym]
-            next if sym.nil?
-            target_addr = target == text_section ? vaddr : target.header.addr
-            sym_offset = entry.offset
-            sym_addend = entry.addend? ? entry.addend : bytes[sym_offset, 4].unpack1("l<")
-            sym_addr = if sym.shndx == 0
-                         plt_section.header.addr + 16 * (((got_plt_offsets[entry.sym] - 24) / 8) + 1)
-                       elsif sym.shndx >= 0xff00
-                         sym.value
-                       else
-                         @elf_obj.sections[sym.shndx].header.addr + sym.value
-                       end
-            value = sym_addr + sym_addend - (target_addr + sym_offset)
-            bytes[sym_offset, 4] = [value].pack("l<")
+          rels.each do |rel|
+            rel.body.each do |entry|
+              next unless ALLOW_RELOCATION_TYPES.include?(entry.type)
+              sym = symtab_body[entry.sym]
+              next if sym.nil?
+              target_addr = target == text_section ? vaddr : target.header.addr
+              sym_offset = entry.offset
+              sym_addend = entry.addend? ? entry.addend : bytes[sym_offset, 4].unpack1("l<")
+              sym_addr = if sym.shndx == 0
+                           plt_section.header.addr + 16 * (((got_plt_offsets[entry.sym] - 24) / 8) + 1)
+                         elsif sym.shndx >= 0xff00
+                           sym.value
+                         else
+                           @elf_obj.sections[sym.shndx].header.addr + sym.value
+                         end
+              value = sym_addr + sym_addend - (target_addr + sym_offset)
+              bytes[sym_offset, 4] = [value].pack("l<")
+            end
           end
           file.write(bytes)
         end
@@ -355,7 +363,6 @@ module Caotral
           file.write(rest.flatten.pack("C*"))
           file.seek(current_offset)
         end
-        rewrite_text_section(file:) unless rel_text_sections.empty?
       end
       
       def ref_index(section_name)
@@ -460,7 +467,7 @@ module Caotral
 
       def text_section = @text_section ||= @write_sections.find { |s| ".text" === s.section_name.to_s }
       def rel_sections = @rel_sections ||= @write_sections.select { |s| RELOCATION_SECTION_NAMES.include?(s.section_name.to_s) }
-      def rel_text_sections = @rel_text_sections ||= @elf_obj.rel_texts
+      def rel_text_sections = @rel_text_sections ||= @pending_text_relocations
       def symtab_section = @symtab_section ||= @write_sections.find { |s| ".symtab" === s.section_name.to_s }
       def strtab_section = @strtab_section ||= @write_sections.find { |s| ".strtab" === s.section_name.to_s }
       def shstrtab_section = @shstrtab_section ||= @write_sections.find { |s| ".shstrtab" === s.section_name.to_s }

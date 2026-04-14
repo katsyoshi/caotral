@@ -26,13 +26,14 @@ module Caotral
         DYNAMIC_TAGS[:JMPREL],
       ].freeze
 
-      attr_reader :symbols
+      attr_reader :symbols, :linker_metadata
 
       def initialize(elf_objs:, executable: true, debug: false, shared: false, pie: false, needed: [])
         @elf_objs = elf_objs
         @executable, @debug, @shared, @pie, @needed = executable, debug, shared, pie, needed
         @symbols = { locals: Set.new, globals: Set.new, weaks: Set.new, }.freeze
         _mode!
+        @linker_metadata = {}
       end
 
       def build
@@ -113,6 +114,7 @@ module Caotral
         start_len = start_bytes.length
         sections = []
         rel_sections = []
+        rel_texts = []
         elf.header = elf_obj.header.dup
         strtab_names = []
         text_offsets = {}
@@ -227,6 +229,7 @@ module Caotral
                 raise Caotral::Binary::ELF::Error, "unsupported relocation type: #{rel.type_name}"
               end
               offset = rel.offset + text_offsets.fetch(elf_obj.object_id, 0)
+              offset += start_len if section.section_name.to_s.start_with?(".rela.text", ".rel.text")
               addend = rel.addend? ? rel.addend : nil
               new_rel = Caotral::Binary::ELF::Section::Rel.new(addend: rel.addend?)
               info = (sym << 32) | rel.type
@@ -387,13 +390,14 @@ module Caotral
             addralign: 8,
             entsize: rel_entsize(rel_section)
           )
-          elf.rel_texts << rel_section if rel_section.section_name.to_s.start_with?(".rela.text", ".rel.text")
+          rel_texts << rel_section if rel_section.section_name.to_s.start_with?(".rela.text", ".rel.text")
         end
 
         sections = sections.reject { |section| RELOCATION_SECTION_NAMES.any? { |name| name === section.section_name.to_s } } if @executable
         sections.each { |section| elf.sections << section }
 
-        elf.got_plt_offsets = got_plt_offsets
+        @linker_metadata[:got_plt_offsets] = got_plt_offsets
+        @linker_metadata[:pending_text_relocations] = rel_texts
         elf
       end
 
