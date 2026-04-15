@@ -14,6 +14,7 @@ module Caotral
       GENERATED_SECTION_NAMES = [".text", ".data", ".strtab", ".symtab", ".shstrtab", /\.rela?\./, ".dynstr", ".dynsym", ".dynamic", ".interp", ".rela.dyn", ".plt", ".got.plt"].freeze
       SHT = Caotral::Binary::ELF::SectionHeader::SHT
       SHF = Caotral::Binary::ELF::SectionHeader::SHF
+      SectionDynamic = Caotral::Binary::ELF::Section::Dynamic
       UNSUPPORTED_REL_TYPES = [
         REL_TYPES[:AMD64_GOTPCREL],
         REL_TYPES[:AMD64_GOTPCRELX],
@@ -25,13 +26,14 @@ module Caotral
         DYNAMIC_TAGS[:JMPREL],
       ].freeze
 
-      attr_reader :symbols
+      attr_reader :symbols, :linker_metadata
 
-      def initialize(elf_objs:, executable: true, debug: false, shared: false, pie: false)
+      def initialize(elf_objs:, executable: true, debug: false, shared: false, pie: false, needed: [])
         @elf_objs = elf_objs
-        @executable, @debug, @shared, @pie = executable, debug, shared, pie
-        @symbols = { locals: Set.new, globals: Set.new, weaks: Set.new }
+        @executable, @debug, @shared, @pie, @needed = executable, debug, shared, pie, needed
+        @symbols = { locals: Set.new, globals: Set.new, weaks: Set.new, }.freeze
         _mode!
+        @linker_metadata = {}
       end
 
       def build
@@ -48,6 +50,12 @@ module Caotral
           section_name: ".text",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
+        rodata_section = Caotral::Binary::ELF::Section.new(
+          body: String.new,
+          section_name: ".rodata",
+          header: Caotral::Binary::ELF::SectionHeader.new
+                    .set!(type: SHT[:progbits], flags: SHF[:ALLOC], addralign: 16)
+        )
         data_section = Caotral::Binary::ELF::Section.new(
           body: String.new,
           section_name: ".data",
@@ -55,13 +63,13 @@ module Caotral
                     .set!(type: SHT[:progbits], flags: SHF[:ALLOC] | SHF[:WRITE], addralign: 8)
         )
         plt_section = Caotral::Binary::ELF::Section.new(
-          body: [0, 0].pack("Q<Q<"),
+          body: [[0xff, 0x35, 0, 0, 0, 0, 0xff, 0x25, 0, 0, 0, 0, 0x0f, 0x1f, 0x40, 0]],
           section_name: ".plt",
           header: Caotral::Binary::ELF::SectionHeader.new
                     .set!(type: SHT[:progbits], flags: SHF[:ALLOC] | SHF[:EXECINSTR], addralign: 16)
         )
         got_plt_section = Caotral::Binary::ELF::Section.new(
-          body: [0].pack("Q<"),
+          body: [[0] * 8, [0] * 8, [0] * 8],
           section_name: ".got.plt",
           header: Caotral::Binary::ELF::SectionHeader.new
                     .set!(type: SHT[:progbits], flags: SHF[:ALLOC] | SHF[:WRITE], addralign: 8)
@@ -106,16 +114,22 @@ module Caotral
         start_len = start_bytes.length
         sections = []
         rel_sections = []
+        rel_texts = []
         elf.header = elf_obj.header.dup
         strtab_names = []
         text_offsets = {}
+        rodata_offsets = {}
         data_offsets = {}
         got_plt_offsets = {}
         text_offset = 0
+        rodata_offset = 0
         data_offset = 0
-        got_plt_offset = 8
+        got_plt_offset = 24
         sym_by_elf = Hash.new { |h, k| h[k] = [] }
         dynstr, dynsym = build_shared_dynamic_sections if dynamic?
+
+        start_len = 0 if @elf_objs.any? { |elf| elf.find_by_name(".symtab").body.find { |sym| sym.name_string == "_start" } }
+
         @elf_objs.each do |elf_obj|
           text = elf_obj.find_by_name(".text")
           unless text.nil?
@@ -123,6 +137,12 @@ module Caotral
             text_offsets[elf_obj.object_id] = text_offset
             size = text.body.bytesize
             text_offset += size
+          end
+          rodata = elf_obj.find_by_name(".rodata")
+          unless rodata.nil?
+            rodata_section.body << rodata.body
+            rodata_offsets[elf_obj.object_id] = rodata_offset
+            rodata_offset += rodata.body.bytesize
           end
           data = elf_obj.find_by_name(".data")
           unless data.nil?
@@ -138,6 +158,7 @@ module Caotral
             base_index = symtab_section.body.size
             text_index = elf_obj.sections.index(text) unless text.nil?
             data_index = elf_obj.sections.index(data) unless data.nil?
+            rodata_index = elf_obj.sections.index(rodata) unless rodata.nil?
 
             symtab.body.each_with_index do |st, index|
               sym = Caotral::Binary::ELF::Section::Symtab.new
@@ -145,6 +166,7 @@ module Caotral
               sym_by_elf[elf_obj] << sym
               value += text_offsets.fetch(elf_obj.object_id, 0) if shndx == text_index
               value += data_offsets.fetch(elf_obj.object_id, 0) if shndx == data_index
+              value += rodata_offsets.fetch(elf_obj.object_id, 0) if shndx == rodata_index
               sym.set!(name:, info:, other:, shndx:, value:, size:)
               sym.name_string = strtab.body.lookup(name) unless strtab.nil?
               symtab_section.body << sym
@@ -157,6 +179,7 @@ module Caotral
               header: Caotral::Binary::ELF::SectionHeader.new
             )
             section.body.each do |rel|
+              sym = base_index.nil? ? rel.sym : base_index + rel.sym
               if rel.type == REL_TYPES[:AMD64_64]
                 base_offset = case section.section_name.to_s
                               when /\.rela?\.text/
@@ -177,16 +200,18 @@ module Caotral
                 addend = sym_addr - base_addr
                 rela_dyn_section.body << Caotral::Binary::ELF::Section::Rel.new.set!(offset:, info: (0 << 32) | REL_TYPES[:AMD64_RELATIVE], addend:)
                 next
-              elsif (undefined = symtab.body[rel.sym]&.shndx.to_i == 0) && rel.type == REL_TYPES[:AMD64_PLT32]
+              elsif (undefined = symtab.body[rel.sym]&.shndx.to_i == 0) && ALLOW_RELOCATION_TYPES.include?(rel.type)
                 sym = base_index.to_i + rel.sym
                 first_insertion = got_plt_offsets[sym].nil?
                 got_plt_offsets[sym] ||= got_plt_offset.tap { got_plt_offset += 8 }
                 if dynamic? && undefined && first_insertion
-                  got_plt_section.body << [0].pack("Q<")
+                  got_plt_body = [0]*8
+                  got_plt_section.body << got_plt_body
                   rps = Caotral::Binary::ELF::Section::Rel.new.set!(
                     offset: got_plt_offsets[sym],
                     info: ((sym) << 32) | REL_TYPES[:AMD64_JUMP_SLOT]
                   )
+
                   name = symtab_section.body[sym].name_string
                   dynstr_index = dynstr.body.offset_of(name)
                   if dynstr_index.nil?
@@ -197,15 +222,16 @@ module Caotral
                     )
                   end
                   rela_plt_section.body << rps
-                  next
+                  pltx = [0xff, 0x25, 0, 0, 0, 0, 0x68, 0, 0, 0, 0, 0xe9, 0, 0, 0, 0]
+                  plt_section.body << pltx
                 end
               elsif UNSUPPORTED_REL_TYPES.include?(rel.type)
                 raise Caotral::Binary::ELF::Error, "unsupported relocation type: #{rel.type_name}"
               end
               offset = rel.offset + text_offsets.fetch(elf_obj.object_id, 0)
+              offset += start_len if section.section_name.to_s.start_with?(".rela.text", ".rel.text")
               addend = rel.addend? ? rel.addend : nil
               new_rel = Caotral::Binary::ELF::Section::Rel.new(addend: rel.addend?)
-              sym = base_index.nil? ? rel.sym : base_index + rel.sym
               info = (sym << 32) | rel.type
               new_rel.set!(offset:, info:, addend:)
               rel_section.body << new_rel
@@ -214,15 +240,19 @@ module Caotral
           end
           rel_sections += rels
         end
-        
+
         strtab_section.body.names = strtab_names.to_a.sort.join("\0") + "\0"
         sections << null_section
 
-        main_sym = symtab_section.body.find { |sym| sym.name_string == "main" }
-        raise Caotral::Binary::ELF::Error, "main function not found" if @executable && main_sym.nil?
-        main_offset = main_sym.nil? ? 0 : main_sym.value + start_len
-        start_bytes[1, 4] = num2bytes((main_offset - 5), 4) if @executable
-        text_section.body.prepend(start_bytes.pack("C*"))
+        _start = symtab_section.body.find { |sym| sym.name_string == "_start" }
+        entry_sym = _start || symtab_section.body.find { |sym| sym.name_string == "main" }
+
+        raise Caotral::Binary::ELF::Error, "main or _start function not found" if @executable && entry_sym.nil?
+        if _start.nil?
+          main_offset = entry_sym.nil? ? 0 : entry_sym.value + start_len
+          start_bytes[1, 4] = num2bytes((main_offset - 5), 4) if @executable
+          text_section.body.prepend(start_bytes.pack("C*"))
+        end
 
         text_section.header.set!(
           type: 1,
@@ -235,6 +265,7 @@ module Caotral
 
         sections << text_section
         strtab_section.header.set!(type: 3, flags: 0, addralign: 1, entsize: 0)
+        sections << rodata_section
         sections << data_section
         if dynamic?
           sections << plt_section
@@ -264,6 +295,7 @@ module Caotral
 
         sections += build_pie_sections if @pie
         if dynamic?
+          @needed.each { |lib| dynstr.body.names += lib + "\0" if dynstr.body.offset_of(lib).nil? }
           sections << dynstr
           sections << dynsym
           hash_section = build_hash_section
@@ -293,7 +325,7 @@ module Caotral
             hash.chain[i] = num2bytes(0, 4)
           end
           hash_section.body = hash
-          dynamic_section = build_dynamic_section
+          dynamic_section = build_dynamic_section(dynstr:)
           if rela_plt_section.body.size == 0 && dynamic?
             bodies = dynamic_section.body.reject { |ent| REJECT_DYNAMIC_TAGS.include?(ent.tag) }
             dynamic_section.body = bodies
@@ -358,29 +390,14 @@ module Caotral
             addralign: 8,
             entsize: rel_entsize(rel_section)
           )
-        end
-
-        rel_sections.each do |rel|
-          target = sections[rel.header.info]
-          bytes = target.body.dup
-          symtab_body = symtab_section.body
-          rel.body.each do |entry|
-            next unless ALLOW_RELOCATION_TYPES.include?(entry.type)
-            sym = symtab_body[entry.sym]
-            next if sym.nil? || sym.shndx == 0
-            target_addr = target == text_section ? vaddr : target.header.addr
-            sym_addr = sym.shndx >= 0xff00 ? sym.value : sections[sym.shndx].then { |st| st.header.addr + sym.value }
-            sym_offset = entry.offset + start_len
-            sym_addend = entry.addend? ? entry.addend : bytes[sym_offset, 4].unpack1("l<")
-            value = sym_addr + sym_addend - (target_addr + sym_offset)
-            bytes[sym_offset, 4] = [value].pack("l<")
-          end
-          target.body = bytes
+          rel_texts << rel_section if rel_section.section_name.to_s.start_with?(".rela.text", ".rel.text")
         end
 
         sections = sections.reject { |section| RELOCATION_SECTION_NAMES.any? { |name| name === section.section_name.to_s } } if @executable
         sections.each { |section| elf.sections << section }
 
+        @linker_metadata[:got_plt_offsets] = got_plt_offsets
+        @linker_metadata[:pending_text_relocations] = rel_texts
         elf
       end
 
@@ -444,24 +461,25 @@ module Caotral
         hash_section
       end
 
-      def build_dynamic_section
+      def build_dynamic_section(dynstr:)
         tag_types = Caotral::Binary::ELF::Section::Dynamic::TAG_TYPES
         dynamic_section = Caotral::Binary::ELF::Section.new(
           body: [
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:PLTRELSZ]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:PLTGOT]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:HASH]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:RELA]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:RELASZ]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:RELAENT], un: 24),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:STRTAB]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:STRSZ]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:SYMTAB]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:SYMENT], un: 24),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:PLTREL]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:TEXTREL]),
-            Caotral::Binary::ELF::Section::Dynamic.new.set!(tag: tag_types[:JMPREL]),
-            Caotral::Binary::ELF::Section::Dynamic.new
+            *@needed.map { |lib| SectionDynamic.new.set!(tag: tag_types[:NEEDED], un: dynstr.body.offset_of(lib)) },
+            SectionDynamic.new.set!(tag: tag_types[:PLTRELSZ]),
+            SectionDynamic.new.set!(tag: tag_types[:PLTGOT]),
+            SectionDynamic.new.set!(tag: tag_types[:HASH]),
+            SectionDynamic.new.set!(tag: tag_types[:RELA]),
+            SectionDynamic.new.set!(tag: tag_types[:RELASZ]),
+            SectionDynamic.new.set!(tag: tag_types[:RELAENT], un: 24),
+            SectionDynamic.new.set!(tag: tag_types[:STRTAB]),
+            SectionDynamic.new.set!(tag: tag_types[:STRSZ]),
+            SectionDynamic.new.set!(tag: tag_types[:SYMTAB]),
+            SectionDynamic.new.set!(tag: tag_types[:SYMENT], un: 24),
+            SectionDynamic.new.set!(tag: tag_types[:PLTREL]),
+            SectionDynamic.new.set!(tag: tag_types[:TEXTREL]),
+            SectionDynamic.new.set!(tag: tag_types[:JMPREL]),
+            SectionDynamic.new
           ].compact,
           section_name: ".dynamic",
           header: Caotral::Binary::ELF::SectionHeader.new

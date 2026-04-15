@@ -97,7 +97,9 @@ module Caotral
                                shndx = sym_bin[6, 2].unpack1("S<")
                                value = sym_bin[8, 8].unpack1("Q<")
                                size = sym_bin[16, 8].unpack1("Q<")
-                               Caotral::Binary::ELF::Section::Symtab.new.set!(name:, info:, other:, shndx:, value:, size:)
+                               name_string = @context.sections[section.header.link]&.body&.lookup(name).to_s
+
+                               Caotral::Binary::ELF::Section::Symtab.new.set!(name:, info:, other:, shndx:, value:, size:, name_string:)
                              end
                            when :rel, :rela
                              rela = type == :rela

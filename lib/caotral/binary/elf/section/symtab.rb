@@ -19,13 +19,14 @@ module Caotral
           end
           def build = bytes.flatten.pack("C*")
 
-          def set!(name: nil, info: nil, other: nil, shndx: nil, value: nil, size: nil)
+          def set!(name: nil, info: nil, other: nil, shndx: nil, value: nil, size: nil, name_string: nil)
             @name = num2bytes(name, 4) if check(name, 4)
             @info = num2bytes(info, 1) if check(info, 1)
             @other = num2bytes(other, 1) if check(other, 1)
             @shndx = num2bytes(shndx, 2) if check(shndx, 2)
             @value = num2bytes(value, 8) if check(value, 8)
             @size = num2bytes(size, 8) if check(size, 8)
+            @name_string = name_string if name_string
             self
           end
 

@@ -7,14 +7,19 @@ module Caotral
       REL_TYPES = Caotral::Binary::ELF::Section::Rel::TYPES.freeze
       ALLOW_RELOCATION_TYPES = [REL_TYPES[:AMD64_PC32], REL_TYPES[:AMD64_PLT32]].freeze
       RELOCATION_SECTION_NAMES = [".rela.text", ".rela.dyn", ".rela.data", ".rela.plt"].freeze
-      attr_reader :elf_obj, :output, :entry, :debug
-      def self.write!(elf_obj:, output:, entry: nil, debug: false, executable: true, shared: false)
-        new(elf_obj:, output:, entry:, debug:, shared:, executable:).write
+      attr_reader :elf_obj, :output, :entry, :debug, :got_plt_offsets, :pending_text_relocations
+      def self.write!(elf_obj:, output:, metadata: nil, entry: nil, debug: false, executable: true, shared: false)
+        new(elf_obj:, output:, metadata:, entry:, debug:, shared:, executable:).write
       end
-      def initialize(elf_obj:, output:, entry: nil, debug: false, executable: true, shared: false, pie: false)
+
+      def initialize(elf_obj:, output:, metadata: nil, entry: nil, debug: false, executable: true, shared: false, pie: false)
         @elf_obj, @output, @entry, @debug, @executable, @shared, @pie = elf_obj, output, entry, debug, executable, shared, pie
         @program_headers = []
         @write_sections = elf_obj.sections
+        @got_plt_offsets = {}
+        @got_plt_offsets = metadata.fetch(:got_plt_offsets, {}) if metadata
+        @pending_text_relocations = []
+        @pending_text_relocations = metadata.fetch(:pending_text_relocations, []) if metadata
       end
 
       def write
@@ -44,18 +49,16 @@ module Caotral
         lph.set!(type:, offset: text_offset, vaddr:, paddr:, filesz:, memsz:, flags:, align:)
         f.write(@elf_obj.header.build)
         phs.each { |ph| f.write(ph.build) }
-        if pph
-          pph.set!(
-            type: 6,
-            offset: phoffset,
-            vaddr: phoffset,
-            paddr: phoffset,
-            filesz: phsize * phnum,
-            memsz: phsize * phnum,
-            flags: program_header_flags(:R),
-            align: 8
-          )
-        end
+        pph.set!(
+          type: 6,
+          offset: phoffset,
+          vaddr: phoffset,
+          paddr: phoffset,
+          filesz: phsize * phnum,
+          memsz: phsize * phnum,
+          flags: program_header_flags(:R),
+          align: 8
+        ) if pph
         gap = [text_offset - f.pos, 0].max
         f.write("\0" * gap)
 
@@ -82,6 +85,8 @@ module Caotral
           rel.header.set!(offset: rel_offset, size: rel_size, entsize:)
         end
 
+        rewrite_text_section(file: f) unless rel_text_sections.empty?
+
         patch_dynamic_sections(file: f) if dynamic?
         patch_program_headers(file: f)
         write_program_headers(file: f)
@@ -102,6 +107,39 @@ module Caotral
       end
 
       private
+      def rewrite_text_section(file:)
+        cur = file.pos
+        grouped_rels = rel_text_sections.group_by { |rel| rel.header.info }
+        grouped_rels.each do |target_index, rels|
+          target = @elf_obj.sections[target_index]
+          bytes = target.body.dup
+          symtab_body = symtab_section.body
+          vaddr = target.header.addr
+          file.seek(target.header.offset)
+          rels.each do |rel|
+            rel.body.each do |entry|
+              next unless ALLOW_RELOCATION_TYPES.include?(entry.type)
+              sym = symtab_body[entry.sym]
+              next if sym.nil?
+              target_addr = target == text_section ? vaddr : target.header.addr
+              sym_offset = entry.offset
+              sym_addend = entry.addend? ? entry.addend : bytes[sym_offset, 4].unpack1("l<")
+              sym_addr = if sym.shndx == 0
+                           plt_section.header.addr + 16 * (((got_plt_offsets[entry.sym] - 24) / 8) + 1)
+                         elsif sym.shndx >= 0xff00
+                           sym.value
+                         else
+                           @elf_obj.sections[sym.shndx].header.addr + sym.value
+                         end
+              value = sym_addr + sym_addend - (target_addr + sym_offset)
+              bytes[sym_offset, 4] = [value].pack("l<")
+            end
+          end
+          file.write(bytes)
+        end
+        file.seek(cur)
+      end
+
       def patch_dynamic_sections(file:)
         dynamic_sections.each do |dyn|
           addr = text_section.header.addr + (dyn.header.offset - text_section.header.offset)
@@ -126,6 +164,7 @@ module Caotral
         if dynamic? && dynamic_section && rela_dyn_section
           rdsh = rela_dyn_section&.header
           bodies = dynamic_section.body
+          bodies.delete_if { |dyn| dyn.tag == dynamic_tables[:TEXTREL] } unless rela_dyn_section.body.any? { |rel| rel.type == REL_TYPES[:AMD64_RELATIVE] }
           bodies.find { |dyn| dyn.tag == dynamic_tables[:RELA] }.set!(un: rdsh&.addr.to_i)
           bodies.find { |dyn| dyn.tag == dynamic_tables[:RELASZ] }.set!(un: rdsh&.size.to_i)
           bodies.find { |dyn| dyn.tag == dynamic_tables[:STRSZ] }&.set!(un: dynstr_section.header.size.to_i)
@@ -173,7 +212,7 @@ module Caotral
 
         segment_start = text_section.header.offset
         segment_start = 0 if @pie
-        segment_end = [text_section, data_section,].concat(dynamic_sections).compact.map { |s| s.header.offset + s.header.size }.max
+        segment_end = [text_section, rodata_section, data_section,].concat(dynamic_sections).compact.map { |s| s.header.offset + s.header.size }.max
 
         dynamic_filesz = segment_end - segment_start
         load_program_header.set!(filesz: dynamic_filesz, memsz: dynamic_filesz)
@@ -200,6 +239,16 @@ module Caotral
           addr: text_section.header.addr
         )
 
+        if rodata_section
+          ordata_offset = file.pos
+          file.write(rodata_section.build)
+          rodata_section.header.set!(
+            offset: ordata_offset,
+            size: rodata_section.body.bytesize,
+            addr: text_section.header.addr + (ordata_offset - text_section.header.offset)
+          )
+        end
+
         if data_section
           data_offset = file.pos
           file.write(data_section.build)
@@ -212,19 +261,22 @@ module Caotral
 
         if plt_section
           plt_offset = file.pos
-          file.write(plt_section.build)
+          file.write(plt_section.body.flatten.pack("C*"))
+          size = file.pos - plt_offset
           plt_section.header.set!(
             offset: plt_offset,
-            size: plt_section.body.bytesize,
+            size:,
             addr: text_section.header.addr + (plt_offset - text_section.header.offset)
           )
-        end
-        if got_plt_section
+
+          raise Caotral::Binary::ELF::Error, "missing .got.plt for .plt" if got_plt_section.nil?
+
           got_plt_offset = file.pos
-          file.write(got_plt_section.build)
+          file.write(got_plt_section.body.flatten.pack("C*"))
+          size = file.pos - got_plt_offset
           got_plt_section.header.set!(
             offset: got_plt_offset,
-            size: got_plt_section.body.bytesize,
+            size:,
             addr: text_section.header.addr + (got_plt_offset - text_section.header.offset)
           )
         end
@@ -278,6 +330,39 @@ module Caotral
         dynamic_section.body.each { |dynamic| file.write(dynamic.build) }
         size = file.pos - dynamic_offset
         dynamic_section.header.set!(offset: dynamic_offset, size:, addr: text_addr + (dynamic_offset - tsh.offset))
+
+        if plt_section
+          current_offset = file.pos
+          primary, *rest = plt_section.body
+          plt_offset = plt_section.header.offset
+          got_plt_offset = got_plt_section.header.offset
+          file.seek(plt_offset)
+          plt_addr = plt_section.header.addr
+          got_plt_addr = got_plt_section.header.addr
+          # only support x86-64 binaries with PLT
+          primary[2..5] = [(got_plt_addr + 8) - (plt_addr + 6)].pack("l<").bytes
+          primary[8..11] = [(got_plt_addr + 16) - (plt_addr + 12)].pack("l<").bytes
+          slot_offset = 24
+          rest.each_with_index do |entry, i|
+            entry_addr = plt_addr + 16 + 16 * i
+            slot_addr = got_plt_addr + slot_offset + 8 * i
+            entry[2..5] = [slot_addr - (entry_addr + 6)].pack("l<").bytes
+            entry[7..10] = [i].pack("l<").bytes
+            entry[12..15] = [plt_addr - (entry_addr + 16)].pack("l<").bytes
+          end
+          file.write(primary.flatten.pack("C*"))
+          file.write(rest.flatten.pack("C*"))
+
+          file.seek(got_plt_offset)
+          primary, secondary, third, *rest = got_plt_section.body
+          primary = [dynamic_section.header.addr].pack("Q<").bytes
+          rest.each_with_index { |_entry, i| rest[i] = [plt_addr + 22 + 16 * i].pack("Q<").bytes }
+          file.write(primary.flatten.pack("C*"))
+          file.write(secondary.flatten.pack("C*"))
+          file.write(third.flatten.pack("C*"))
+          file.write(rest.flatten.pack("C*"))
+          file.seek(current_offset)
+        end
       end
       
       def ref_index(section_name)
@@ -382,6 +467,7 @@ module Caotral
 
       def text_section = @text_section ||= @write_sections.find { |s| ".text" === s.section_name.to_s }
       def rel_sections = @rel_sections ||= @write_sections.select { |s| RELOCATION_SECTION_NAMES.include?(s.section_name.to_s) }
+      def rel_text_sections = @rel_text_sections ||= @pending_text_relocations
       def symtab_section = @symtab_section ||= @write_sections.find { |s| ".symtab" === s.section_name.to_s }
       def strtab_section = @strtab_section ||= @write_sections.find { |s| ".strtab" === s.section_name.to_s }
       def shstrtab_section = @shstrtab_section ||= @write_sections.find { |s| ".shstrtab" === s.section_name.to_s }
@@ -391,6 +477,7 @@ module Caotral
       def interp_section = @interp_section ||= @write_sections.find { |s| ".interp" === s.section_name.to_s }
       def rela_dyn_section = @rela_dyn_section ||= @write_sections.find { |s| ".rela.dyn" === s.section_name.to_s }
       def data_section = @data_section ||= @write_sections.find { |s| ".data" === s.section_name.to_s }
+      def rodata_section = @rodata_section ||= @write_sections.find { |s| ".rodata" === s.section_name.to_s }
       def hash_section = @hash_section ||= @write_sections.find { |s| ".hash" === s.section_name.to_s }
       def plt_section = @plt_section ||= @write_sections.find { |s| ".plt" === s.section_name.to_s }
       def got_plt_section = @got_plt_section ||= @write_sections.find { |s| ".got.plt" === s.section_name.to_s }

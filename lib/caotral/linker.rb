@@ -5,13 +5,14 @@ require_relative "linker/writer"
 
 module Caotral
   class Linker
-    def self.link!(inputs:, output: "a.out", linker: "mold", debug: false, shared: false, executable: true, pie: false)
-      new(inputs:, output:, linker:, debug:, shared:, executable:, pie:).link
+    def self.link!(inputs:, output: "a.out", linker: "mold", debug: false, shared: false, executable: true, pie: false, needed: [])
+      new(inputs:, output:, linker:, debug:, shared:, executable:, pie:, needed:).link
     end
 
-    def initialize(inputs:, output: "a.out", linker: "mold", linker_options: [], executable: true, shared: false, pie: false, debug: false)
+    def initialize(inputs:, output: "a.out", linker: "mold", linker_options: [], executable: true, shared: false, pie: false, debug: false, needed: [])
       @inputs, @output, @linker = inputs, output, linker
       @options = linker_options
+      @needed = needed
       @executable, @debug, @shared, @pie = executable, debug, shared, pie
     end
 
@@ -49,12 +50,13 @@ module Caotral
     def libpath = @libpath ||= File.dirname(Dir.glob("/usr/lib*/**/crti.o").last)
     def gcc_libpath = @gcc_libpath ||= File.dirname(Dir.glob("/usr/lib/gcc/x86_64-*/*/crtbegin.o").last)
 
-    def to_elf(inputs: @inputs, output: @output, debug: @debug, shared: @shared, executable: @executable, pie: @pie)
+    def to_elf(inputs: @inputs, output: @output, debug: @debug, shared: @shared, executable: @executable, pie: @pie, needed: @needed)
       elf_objs = inputs.map { |input| Caotral::Binary::ELF::Reader.new(input:, debug:).read }
-      builder = Caotral::Linker::Builder.new(elf_objs:, debug:, shared:, executable:, pie:)
+      builder = Caotral::Linker::Builder.new(elf_objs:, debug:, shared:, executable:, pie:, needed:)
       builder.resolve_symbols
       elf_obj = builder.build
-      Caotral::Linker::Writer.new(elf_obj:, output:, debug:, shared:, executable:, pie:).write
+      metadata = builder.linker_metadata
+      Caotral::Linker::Writer.new(elf_obj:, output:, metadata:, debug:, shared:, executable:, pie:).write
       File.chmod(0755, output) if executable
       output
     end
