@@ -31,7 +31,11 @@ module Caotral
       def initialize(elf_objs:, executable: true, debug: false, shared: false, pie: false, needed: [])
         @elf_objs = elf_objs
         @executable, @debug, @shared, @pie, @needed = executable, debug, shared, pie, needed
-        @symbols = { locals: Set.new, globals: Set.new, weaks: Set.new, }.freeze
+        @symbols = {
+          locals: Set.new,
+          globals: { undefined: Set.new, defined: Hash.new }.freeze,
+          weaks: Set.new,
+        }.freeze
         _mode!
         @linker_metadata = {}
       end
@@ -202,28 +206,33 @@ module Caotral
                 next
               elsif (undefined = symtab.body[rel.sym]&.shndx.to_i == 0) && ALLOW_RELOCATION_TYPES.include?(rel.type)
                 sym = base_index.to_i + rel.sym
-                first_insertion = got_plt_offsets[sym].nil?
-                got_plt_offsets[sym] ||= got_plt_offset.tap { got_plt_offset += 8 }
-                if dynamic? && undefined && first_insertion
-                  got_plt_body = [0]*8
-                  got_plt_section.body << got_plt_body
-                  rps = Caotral::Binary::ELF::Section::Rel.new.set!(
-                    offset: got_plt_offsets[sym],
-                    info: ((sym) << 32) | REL_TYPES[:AMD64_JUMP_SLOT]
-                  )
+                name = symtab_section.body[sym].name_string
+                internally_defined = @symbols[:globals][:defined].key?(name)
+                if dynamic? && undefined && !internally_defined
+                  first_insertion = got_plt_offsets[sym].nil?
+                  got_plt_offsets[sym] ||= got_plt_offset.tap { got_plt_offset += 8 }
 
-                  name = symtab_section.body[sym].name_string
-                  dynstr_index = dynstr.body.offset_of(name)
-                  if dynstr_index.nil?
-                    dynstr.body.names += name + "\0"
-                    dynsym.body << Caotral::Binary::ELF::Section::Symtab.new.set!(
-                      name: dynstr.body.offset_of(name),
-                      info: (1 << 4) | 2,
+                  if first_insertion
+                    got_plt_body = [0]*8
+                    got_plt_section.body << got_plt_body
+                    rps = Caotral::Binary::ELF::Section::Rel.new.set!(
+                      offset: got_plt_offsets[sym],
+                      info: ((sym) << 32) | REL_TYPES[:AMD64_JUMP_SLOT]
                     )
+
+                    name = symtab_section.body[sym].name_string
+                    dynstr_index = dynstr.body.offset_of(name)
+                    if dynstr_index.nil?
+                      dynstr.body.names += name + "\0"
+                      dynsym.body << Caotral::Binary::ELF::Section::Symtab.new.set!(
+                        name: dynstr.body.offset_of(name),
+                        info: (1 << 4) | 2,
+                      )
+                    end
+                    rela_plt_section.body << rps
+                    pltx = [0xff, 0x25, 0, 0, 0, 0, 0x68, 0, 0, 0, 0, 0xe9, 0, 0, 0, 0]
+                    plt_section.body << pltx
                   end
-                  rela_plt_section.body << rps
-                  pltx = [0xff, 0x25, 0, 0, 0, 0, 0x68, 0, 0, 0, 0, 0xe9, 0, 0, 0, 0]
-                  plt_section.body << pltx
                 end
               elsif UNSUPPORTED_REL_TYPES.include?(rel.type)
                 raise Caotral::Binary::ELF::Error, "unsupported relocation type: #{rel.type_name}"
@@ -372,12 +381,23 @@ module Caotral
           end
         end
 
+        defined_global_index = {}
+        symtab_section.body.each_with_index do |sym, index|
+          next unless sym.bind == SYMTAB_BIND[:globals]
+          next if sym.shndx == 0
+          defined_global_index[sym.name_string] ||= index
+        end
+
         rel_sections.each do |rel_section|
           rel_section.body.each do |rel|
             orig_sym = old_syms[rel.sym]
             next if orig_sym.nil?
             name = orig_sym.name_string
-            new_index = resolved_index[name]
+            new_index = if orig_sym.shndx == 0 && defined_global_index.key?(name)
+                          defined_global_index[orig_sym.name_string]
+                        else
+                          resolved_index[name]
+                        end
             next if new_index.nil?
             rel.set!(info: (new_index << 32) | rel.type)
           end
@@ -408,10 +428,19 @@ module Caotral
             next if name.empty?
             info = symtab.info
             bind = BIND_BY_VALUE.fetch(info >> 4)
-            if bind == :globals && @symbols[bind].include?(name) && symtab.shndx != 0
-              raise Caotral::Binary::ELF::Error,"cannot add into globals: #{name}"
+            if bind == :globals
+              if symtab.shndx == 0
+                @symbols[bind][:undefined] << name unless @symbols[bind][:defined].include?(name)
+              else
+                if @symbols[bind][:defined].keys.include?(name)
+                  raise Caotral::Binary::ELF::Error,"cannot add into globals: #{name}"
+                end
+                @symbols[bind][:undefined].delete(name)
+                @symbols[bind][:defined][name] = symtab.shndx
+              end
+            else
+              @symbols[bind] << name
             end
-            @symbols[bind] << name
           end
         end
         @symbols
