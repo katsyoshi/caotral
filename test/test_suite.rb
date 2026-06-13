@@ -1,6 +1,7 @@
 require "caotral"
 require "test/unit"
 require "pathname"
+require "open3"
 
 module TestProcessHelper
   private
