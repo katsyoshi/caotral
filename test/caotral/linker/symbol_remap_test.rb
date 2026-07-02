@@ -28,4 +28,23 @@ class Caotral::Linker::SymbolRemapTest < Test::Unit::TestCase
     ec, hc = check_process(status.to_i)
     assert_equal(ec, 42)
   end
+
+  def test_remap_external_symbols_using_glibc
+    inputs = ["mixed_external_and_libc_functions.o", "symbol_remap_external_b.o"]
+    files = inputs.map { |f| "sample/C/#{f.sub(/\.o$/, ".c")}" }
+    execute = "combined_with_glibc"
+    @generated = [execute] + inputs
+    inputs.zip(files).each { |o, i| IO.popen(["gcc", "-fPIC", "-c", "-o", o, "%s" % i]).close }
+    Caotral::Linker.link!(inputs:, output: execute, linker: "self", pie: true, needed: ["libc.so.6"])
+    elf = Caotral::Binary::ELF::Reader.read!(input: execute)
+    dynsym = elf.find_by_name(".dynsym")
+    dynsym_names = dynsym.body.map(&:name_string)
+    assert_equal(4, dynsym.body.size)
+    assert_include(dynsym_names, "main")
+    assert_include(dynsym_names, "value_from_b")
+    assert_include(dynsym_names, "puts")
+    _o, _e, status = Open3.capture3("./#{execute}")
+    ec, hc = check_process(status.to_i)
+    assert_equal(ec, 42)
+  end
 end
