@@ -291,6 +291,9 @@ module Caotral
 
         old_syms = symtab_section.body.dup
         symtab_section.body.sort_by! { |sym| sym.info >> 4 }
+        sym_indexes = {}
+        symtab_section.body.each_with_index { |sym, index| sym_indexes[sym.object_id] = index }
+        sym_index_map = old_syms.each_with_index.to_h { |sym, index| [index, sym_indexes[sym.object_id]] }
         local_count = symtab_section.body.count { |sym| (sym.info >> 4) == SYMTAB_BIND[:locals] }
 
         symtab_section.header.set!(
@@ -366,13 +369,6 @@ module Caotral
           end
         end
 
-        resolved_index = {}
-        symtab_section.body.each_with_index do |sym, index|
-          name = sym.name_string
-          next if name.empty? || sym.shndx == 0 || sym.bind != 1
-          resolved_index[name] ||= index
-        end
-
         sym_by_elf.each do |elf_obj, syms|
           syms.each do |sym|
             next if sym.shndx == 0
@@ -388,6 +384,17 @@ module Caotral
           defined_global_index[sym.name_string] ||= index
         end
 
+        got_plt_offsets = got_plt_offsets.each_with_object({}) do |(old_index, offset), offsets|
+          new_index = sym_index_map[old_index]
+          offsets[new_index] = offset unless new_index.nil?
+        end
+
+        rela_plt_section.body.each do |rel|
+          new_index = sym_index_map[rel.sym]
+          next if new_index.nil?
+          rel.set!(info: (new_index << 32) | rel.type)
+        end
+
         rel_sections.each do |rel_section|
           rel_section.body.each do |rel|
             orig_sym = old_syms[rel.sym]
@@ -396,7 +403,7 @@ module Caotral
             new_index = if orig_sym.shndx == 0 && defined_global_index.key?(name)
                           defined_global_index[orig_sym.name_string]
                         else
-                          resolved_index[name]
+                          sym_index_map[rel.sym]
                         end
             next if new_index.nil?
             rel.set!(info: (new_index << 32) | rel.type)
