@@ -25,6 +25,7 @@ module Caotral
           DYNAMIC: 2,
           INTERP: 3,
           PHDR: 6,
+          GNU_STACK: 0x6474e551,
         }.freeze
         PT_BY_V = PT.invert.freeze
         def initialize

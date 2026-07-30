@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 require_relative "binary/elf/reader"
 require_relative "linker/builder"
+require_relative "linker/layout"
 require_relative "linker/writer"
 
 module Caotral
