@@ -7,14 +7,14 @@ module Caotral
       REL_TYPES = Caotral::Binary::ELF::Section::Rel::TYPES.freeze
       ALLOW_RELOCATION_TYPES = [REL_TYPES[:AMD64_PC32], REL_TYPES[:AMD64_PLT32]].freeze
       RELOCATION_SECTION_NAMES = [".rela.text", ".rela.dyn", ".rela.data", ".rela.plt"].freeze
-      attr_reader :elf_obj, :output, :entry, :debug, :got_plt_offsets, :pending_text_relocations
+      attr_reader :elf_obj, :output, :entry, :debug, :got_plt_offsets, :pending_text_relocations, :program_headers
       def self.write!(elf_obj:, output:, metadata: nil, entry: nil, debug: false, executable: true, shared: false)
         new(elf_obj:, output:, metadata:, entry:, debug:, shared:, executable:).write
       end
 
       def initialize(elf_obj:, output:, metadata: nil, entry: nil, debug: false, executable: true, shared: false, pie: false)
         @elf_obj, @output, @entry, @debug, @executable, @shared, @pie = elf_obj, output, entry, debug, executable, shared, pie
-        @program_headers = []
+        @program_headers = elf_obj.program_headers
         @write_sections = elf_obj.sections
         @got_plt_offsets = {}
         @got_plt_offsets = metadata.fetch(:got_plt_offsets, {}) if metadata
@@ -433,33 +433,6 @@ module Caotral
       def dynamic? = (@shared || @pie)
 
       def dynamic_tables = Caotral::Binary::ELF::Section::Dynamic::TAG_TYPES
-      def program_headers
-        return @program_headers unless @program_headers.empty?
-        # PT_LOAD
-        lph = Caotral::Binary::ELF::ProgramHeader.new
-        lph.set!(type: 1)
-        # PT_INTERP
-        if interp_section
-          iph = Caotral::Binary::ELF::ProgramHeader.new
-          iph.set!(type: 3)
-        end
-        # PT_DYNAMIC
-        if dynamic_section
-          dph = Caotral::Binary::ELF::ProgramHeader.new
-          dph.set!(type: 2)
-        end
-        # PT_PHDR
-        if @pie
-          pph = Caotral::Binary::ELF::ProgramHeader.new
-          pph.set!(type: 6)
-        end
-        # ruby's dlopen support
-        if dynamic?
-          gsph = Caotral::Binary::ELF::ProgramHeader.new
-          gsph.set!(type: 0x6474e551, flags: program_header_flags(:RW))
-        end
-        @program_headers = [pph, lph, iph, dph, gsph].compact
-      end
       def pie_program_header = @pie_program_header ||= program_headers.find { |ph| ph.type == :PHDR }
       def load_program_header = @load_program_header ||= program_headers.find { |ph| ph.type == :LOAD }
       def interp_program_header = @interp_program_header ||= program_headers.find { |ph| ph.type == :INTERP }
