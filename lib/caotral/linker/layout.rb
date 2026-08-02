@@ -4,12 +4,11 @@ module Caotral
   class Linker
     class Layout
       attr_reader :debug, :shared, :executable, :pie
+      LATE_SECTIONS = ["", ".shstrtab"].freeze
 
       def initialize(elf:, shared:, executable:, pie:)
         @elf = elf
-        @shared = shared
-        @executable = executable
-        @pie = pie
+        @shared, @executable, @pie, @file_offset = shared, executable, pie, 0
       end
 
       def apply!
@@ -42,7 +41,18 @@ module Caotral
         ph.set!(type:, flags:)
         ph
       end
-      def layout_sections! = nil
+      def layout_sections!
+        header_end = (64 + (@elf.program_headers.size * 56))
+        first_section = @elf.sections.find { |s| s.section_name && !LATE_SECTIONS.include?(s.section_name) }
+        first_offset = first_section&.header&.offset.to_i || 0
+        @file_offset = [header_end, first_offset].max
+
+        @elf.sections.each do |section|
+          next if section.section_name.nil?
+          next if LATE_SECTIONS.include?(section.section_name)
+          @file_offset = section.layout!(offset: @file_offset)
+        end
+      end
       def layout_section_headers! = nil
       def finalize_program_headers! = nil
       def finalize_elf_header! = nil
