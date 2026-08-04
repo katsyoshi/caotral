@@ -1,5 +1,7 @@
 require "caotral/binary/elf"
 
+require_relative "error"
+
 module Caotral
   class Linker
     class Layout
@@ -53,7 +55,20 @@ module Caotral
           @file_offset = section.layout!(offset: @file_offset)
         end
       end
-      def layout_section_headers! = nil
+      def layout_section_headers!
+        shstrtab = @elf.find_by_name(".shstrtab")
+        raise Caotral::Linker::Error, "Missing .shstrtab section" unless shstrtab
+        section_names = @elf.sections.map(&:section_name).map(&:to_s)
+        unless section_names.last == ".shstrtab"
+          raise Caotral::Linker::Error, "section header string table must be the last section"
+        end
+
+        shstrtab.body.names = section_names.uniq.join("\0") + "\0"
+        @file_offset = shstrtab.layout!(offset: @file_offset)
+
+        @section_headers_offset = @file_offset
+        @file_offset += @elf.sections.sum { |section| section.header.build.bytesize }
+      end
       def finalize_program_headers! = nil
       def finalize_elf_header! = nil
     end

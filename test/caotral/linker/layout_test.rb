@@ -1,17 +1,32 @@
 require_relative "../../test_suite"
 
 class Caotral::Linker::LayoutTest < Test::Unit::TestCase
-  attr_reader :elf
-  def setup = (@elf = Caotral::Binary::ELF.new)
+  attr_reader :elf, :shstrtab
+  def setup
+    @elf = Caotral::Binary::ELF.new
+    @shstrtab = build_dummy_section(
+      name: ".shstrtab",
+      body: Caotral::Binary::ELF::Section::Strtab.new
+    )
+  end
+
   def test_layout_without_sections
+    layout = Caotral::Linker::Layout.new(elf:, shared: false, executable: true, pie: false)
+    assert_raise(Caotral::Linker::Error) { layout.apply! }
+  end
+
+  def test_layout_minimal_section
+    elf.sections << shstrtab
     layout = Caotral::Linker::Layout.new(elf:, shared: false, executable: true, pie: false)
     layout.apply!
     assert_equal(1, elf.program_headers.size)
     assert_equal(:LOAD, elf.program_headers[0].type)
   end
+
   def test_layout_with_text
     text_section = build_dummy_section(name: ".text", offset: 0x1000)
     elf.sections << text_section
+    elf.sections << shstrtab
     layout = Caotral::Linker::Layout.new(elf:, shared: false, executable: true, pie: false)
     layout.apply!
     assert_equal(1, elf.program_headers.size)
@@ -20,6 +35,7 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
   end
   def test_layout_with_pie
     elf.sections << build_dummy_section(name: ".interp")
+    elf.sections << shstrtab
     layout = Caotral::Linker::Layout.new(elf:, shared: false, executable: false, pie: true)
     layout.apply!
     assert_equal(4, elf.program_headers.size)
@@ -31,6 +47,7 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
 
   def test_layout_with_dynamic
     elf.sections << build_dummy_section(name: ".dynamic")
+    elf.sections << shstrtab
     layout = Caotral::Linker::Layout.new(elf:, shared: true, executable: false, pie: false)
     layout.apply!
     assert_equal(3, elf.program_headers.size)
@@ -44,6 +61,7 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
     data = build_dummy_section(name: ".data", body: "def".b, addralign: 8)
     elf.sections << text
     elf.sections << data
+    elf.sections << shstrtab
     layout = Caotral::Linker::Layout.new(elf:, shared: false, executable: true, pie: false)
     layout.apply!
 
@@ -51,6 +69,9 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
     assert_equal(3, text.header.size)
     assert_equal(136, data.header.offset)
     assert_equal(3, data.header.size)
+    assert_equal(139, shstrtab.header.offset)
+    assert_equal(22, shstrtab.header.size)
+    assert_equal(".text\0.data\0.shstrtab\0", shstrtab.body.names)
   end
 
   private
