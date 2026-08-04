@@ -8,9 +8,18 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
       name: ".shstrtab",
       body: Caotral::Binary::ELF::Section::Strtab.new
     )
+    @elf.header = Caotral::Binary::ELF::Header.new
   end
 
   def test_layout_without_sections
+    layout = Caotral::Linker::Layout.new(elf:, shared: false, executable: true, pie: false)
+    assert_raise(Caotral::Linker::Error) { layout.apply! }
+  end
+
+  def test_layout_without_header
+    elf.sections << shstrtab
+    elf.header = nil
+
     layout = Caotral::Linker::Layout.new(elf:, shared: false, executable: true, pie: false)
     assert_raise(Caotral::Linker::Error) { layout.apply! }
   end
@@ -21,6 +30,13 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
     layout.apply!
     assert_equal(1, elf.program_headers.size)
     assert_equal(:LOAD, elf.program_headers[0].type)
+    assert_equal(:EXEC, elf.header.type)
+    assert_equal(64, elf.header.phoffset)
+    assert_equal(56, elf.header.phsize)
+    assert_equal(1, elf.header.phnum)
+    assert_equal(130, elf.header.shoffset)
+    assert_equal(1, elf.header.shnum)
+    assert_equal(0, elf.header.shstrndx)
   end
 
   def test_layout_with_text
@@ -43,6 +59,7 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
     assert_equal(:LOAD, elf.program_headers[1].type)
     assert_equal(:INTERP, elf.program_headers[2].type)
     assert_equal(:GNU_STACK, elf.program_headers[3].type)
+    assert_equal(:DYN, elf.header.type)
   end
 
   def test_layout_with_dynamic
@@ -54,6 +71,7 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
     assert_equal(:LOAD, elf.program_headers[0].type)
     assert_equal(:DYNAMIC, elf.program_headers[1].type)
     assert_equal(:GNU_STACK, elf.program_headers[2].type)
+    assert_equal(:DYN, elf.header.type)
   end
 
   def test_layout_sections

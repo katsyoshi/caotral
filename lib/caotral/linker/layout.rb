@@ -70,7 +70,23 @@ module Caotral
         @file_offset += @elf.sections.sum { |section| section.header.build.bytesize }
       end
       def finalize_program_headers! = nil
-      def finalize_elf_header! = nil
+      def finalize_elf_header!
+        header = @elf.header
+        raise Caotral::Linker::Error, "Missing ELF header" unless header
+
+        type_sym = dynamic? ? :DYN : :EXEC
+        type = Caotral::Binary::ELF::Header::TYPE[type_sym]
+        phoffset, ehsize, phsize = 64, 64, 56
+
+        header.set!(
+          type:, phoffset:, ehsize:, phsize:,
+          phnum: @elf.program_headers.size,
+          shnum: @elf.sections.size,
+          shstrndx: @elf.index(".shstrtab"),
+          shoffset: @section_headers_offset
+        )
+      end
+      def dynamic? = @pie || @shared
     end
   end
 end
