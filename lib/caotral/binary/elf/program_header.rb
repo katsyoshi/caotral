@@ -51,14 +51,19 @@ module Caotral
           self
         end
 
-        def type = PT_BY_V[@type.pack("C*").unpack1("L<")]
-        def flags = PF_BY_V[@flags.pack("C*").unpack1("L<")]
+        def type = PT_BY_V[type_value]
+        def flags = PF_BY_V[flags_value]
         def offset = @offset.pack("C*").unpack1("Q<")
         def filesz = @filesz.pack("C*").unpack1("Q<")
         def memsz = @memsz.pack("C*").unpack1("Q<")
         def vaddr = @vaddr.pack("C*").unpack1("Q<")
+        def paddr = @paddr.pack("C*").unpack1("Q<")
+        def align = @align.pack("C*").unpack1("Q<")
 
-        private def bytes = [@type, @flags, @offset, @vaddr, @paddr, @filesz, @memsz, @align]
+        private
+        def bytes = [@type, @flags, @offset, @vaddr, @paddr, @filesz, @memsz, @align]
+        def flags_value = @flags.pack("C*").unpack1("L<")
+        def type_value = @type.pack("C*").unpack1("L<")
       end
     end
   end

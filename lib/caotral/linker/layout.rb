@@ -78,7 +78,57 @@ module Caotral
         @section_headers_offset = @file_offset
         @file_offset += @elf.sections.sum { |section| section.header.build.bytesize }
       end
-      def finalize_program_headers! = nil
+      def finalize_program_headers!
+        @elf.program_headers.each do |ph|
+          case ph.type
+          when :PHDR
+            offset, vaddr, paddr, align = 64, 64, 64, 8
+            filesz = @elf.program_headers.size * 56
+            memsz = filesz
+            flags = Caotral::Binary::ELF::ProgramHeader::PF[:R]
+          when :LOAD
+            text = @elf.find_by_name(".text")
+            next unless text
+
+            allocated_sections = @elf.sections.select { |s| s.header.allocated? }
+            segment_start = @pie ? 0 : text.header.offset
+            segment_end = allocated_sections.map { |s| s.header.offset + s.header.size }.max
+
+            next unless segment_end
+
+            offset = segment_start
+            vaddr = @pie ? 0 : text.header.addr
+            paddr = vaddr
+            filesz = segment_end - segment_start
+            memsz = filesz
+            flags = Caotral::Binary::ELF::ProgramHeader::PF[:RWX]
+            align = 0x1000
+          when :INTERP
+            interp = @elf.find_by_name(".interp")
+            raise Caotral::Linker::Error, "Missing .interp section" unless interp
+            offset, vaddr, paddr, align = interp.header.offset, 0, 0, 1
+            filesz = interp.header.size
+            memsz = filesz
+            flags = Caotral::Binary::ELF::ProgramHeader::PF[:R]
+          when :DYNAMIC
+            dynamic = @elf.find_by_name(".dynamic")
+            raise Caotral::Linker::Error, "Missing .dynamic section" unless dynamic
+            header = dynamic.header
+            offset, vaddr, paddr, align = header.offset, header.addr, header.addr, header.addralign
+            filesz = header.size
+            memsz = filesz
+            flags = Caotral::Binary::ELF::ProgramHeader::PF[:R]
+          when :GNU_STACK
+            offset, vaddr, paddr, align = 0, 0, 0, 0
+            filesz = 0
+            memsz = 0
+            flags = Caotral::Binary::ELF::ProgramHeader::PF[:RW]
+          else
+            raise Caotral::Linker::Error, "Not Implemented: #{ph.type} program header layout"
+          end
+          ph.set!(offset:, vaddr:, paddr:, filesz:, memsz:, flags:, align:)
+        end
+      end
       def finalize_elf_header!
         header = @elf.header
         raise Caotral::Linker::Error, "Missing ELF header" unless header

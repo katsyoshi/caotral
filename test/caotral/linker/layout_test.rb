@@ -63,7 +63,14 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
   end
 
   def test_layout_with_dynamic
-    elf.sections << build_dummy_section(name: ".dynamic")
+    dynamic = build_dummy_section(
+      name: ".dynamic",
+      body: "dynamic".b,
+      addralign: 8,
+      addr: 0x3000,
+      flags: flags(:data)
+    )
+    elf.sections << dynamic
     elf.sections << shstrtab
     layout = Caotral::Linker::Layout.new(elf:, shared: true, executable: false, pie: false)
     layout.apply!
@@ -72,6 +79,13 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
     assert_equal(:DYNAMIC, elf.program_headers[1].type)
     assert_equal(:GNU_STACK, elf.program_headers[2].type)
     assert_equal(:DYN, elf.header.type)
+    assert_equal(dynamic.header.offset, elf.program_headers[1].offset)
+    assert_equal(dynamic.header.addr, elf.program_headers[1].vaddr)
+    assert_equal(dynamic.header.addr, elf.program_headers[1].paddr)
+    assert_equal(dynamic.header.size, elf.program_headers[1].filesz)
+    assert_equal(dynamic.header.size, elf.program_headers[1].memsz)
+    assert_equal(dynamic.header.addralign, elf.program_headers[1].align)
+    assert_equal(:R, elf.program_headers[1].flags)
   end
 
   def test_layout_sections
@@ -92,6 +106,7 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
     assert_equal(".text\0.data\0.shstrtab\0", shstrtab.body.names)
     assert_equal(0x10, text.header.addr)
     assert_equal(0x18, data.header.addr)
+    assert_equal(text.header.offset, elf.program_headers[0].offset)
   end
 
   private
