@@ -53,6 +53,7 @@ module Caotral
         def addr = @addr.pack("C*").unpack1("Q<")
         def link = @link.pack("C*").unpack1("L<")
         def addralign = @addralign.pack("C*").unpack1("Q<")
+        def allocated? = (@flags.pack("C*").unpack1("Q<") & SHF[:ALLOC]) != 0
 
         private def bytes = [@name, @type, @flags, @addr, @offset, @size, @link, @info, @addralign, @entsize]
       end

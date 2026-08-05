@@ -40,14 +40,14 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
   end
 
   def test_layout_with_text
-    text_section = build_dummy_section(name: ".text", offset: 0x1000)
-    elf.sections << text_section
+    text = build_dummy_section(name: ".text", offset: 0x1000)
+    elf.sections << text
     elf.sections << shstrtab
     layout = Caotral::Linker::Layout.new(elf:, shared: false, executable: true, pie: false)
     layout.apply!
     assert_equal(1, elf.program_headers.size)
     assert_equal(:LOAD, elf.program_headers[0].type)
-    assert_equal(0x1000, text_section.header.offset)
+    assert_equal(0x1000, text.header.offset)
   end
   def test_layout_with_pie
     elf.sections << build_dummy_section(name: ".interp")
@@ -75,8 +75,8 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
   end
 
   def test_layout_sections
-    text = build_dummy_section(name: ".text", body: "abc".b, addralign: 16)
-    data = build_dummy_section(name: ".data", body: "def".b, addralign: 8)
+    text = build_dummy_section(name: ".text", body: "abc".b, addralign: 16, flags: flags(:text), addr: 0x10)
+    data = build_dummy_section(name: ".data", body: "def".b, addralign: 8, flags: flags(:data))
     elf.sections << text
     elf.sections << data
     elf.sections << shstrtab
@@ -90,13 +90,26 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
     assert_equal(139, shstrtab.header.offset)
     assert_equal(22, shstrtab.header.size)
     assert_equal(".text\0.data\0.shstrtab\0", shstrtab.body.names)
+    assert_equal(0x10, text.header.addr)
+    assert_equal(0x18, data.header.addr)
   end
 
   private
-  def build_dummy_section(name:, body: "".b, addralign: 1, offset: 0)
+  def build_dummy_section(name:, body: "".b, addralign: 1, offset: 0, flags: 0, addr: 0)
     header = Caotral::Binary::ELF::SectionHeader.new
-    header.set!(addralign:, offset:)
+    header.set!(addralign:, offset:, flags:, addr:)
 
     Caotral::Binary::ELF::Section.new(header:, body:, section_name: name)
+  end
+
+  def flags(type = nil)
+    case type
+    when :text
+      Caotral::Binary::ELF::SectionHeader::SHF[:ALLOC] | Caotral::Binary::ELF::SectionHeader::SHF[:EXECINSTR]
+    when :data
+      Caotral::Binary::ELF::SectionHeader::SHF[:ALLOC] | Caotral::Binary::ELF::SectionHeader::SHF[:WRITE]
+    else
+      0
+    end
   end
 end

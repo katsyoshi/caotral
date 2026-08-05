@@ -54,6 +54,15 @@ module Caotral
           next if LATE_SECTIONS.include?(section.section_name)
           @file_offset = section.layout!(offset: @file_offset)
         end
+
+        text = @elf.find_by_name(".text")
+        return unless text
+        @elf.sections.each do |section|
+          next unless section.header.allocated?
+
+          addr = text.header.addr + (section.header.offset - text.header.offset)
+          section.header.set!(addr:)
+        end
       end
       def layout_section_headers!
         shstrtab = @elf.find_by_name(".shstrtab")
