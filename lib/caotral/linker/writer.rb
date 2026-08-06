@@ -52,7 +52,6 @@ module Caotral
         write_section(file:, section: symtab_section)
         write_section(file:, section: strtab_section)
       end
-      def write_section_index(section_name) = @write_sections.index { it.section_name == section_name }
 
       def write_shared_dynamic_sections(file:)
         write_section(file:, section: interp_section) if interp_section
@@ -62,54 +61,8 @@ module Caotral
         write_section(file:, section: dynamic_section) if dynamic_section
       end
 
-      def ref_index(section_name)
-        return 0 if section_name == ".rela.dyn"
-        ref_name = section_name.split(".").filter { |sn| !sn.empty? && sn != "rel" && sn != "rela" }
-        ref_name = "." + ref_name.join(".")
-        ref = @write_sections.find { |s| s.section_name == ref_name }
-        raise Caotral::Binary::ELF::Error, "cannot find reference section for #{section_name}" if ref.nil?
-        write_section_index(ref.section_name)
-      end
-
-      def link_index(section_name)
-        case section_name
-        when ".symtab"
-          write_section_index(".strtab")
-        when ".dynsym", ".dynamic"
-          write_section_index(".dynstr")
-        when ".hash"
-          write_section_index(".dynsym")
-        else
-          nil
-        end
-      end
-
       def write_section_headers(file:)
-        symtabndx = write_section_index(".symtab")
-
-        names = shstrtab_section.body
-        @write_sections.each do |section|
-          header = section.header
-          lookup_name = section.section_name
-          name = names.offset_of(lookup_name) || 0
-          info, entsize = header.info, header.entsize
-          link = link_index(section.section_name)
-          link = header.link if link.nil?
-          if [:rela, :rel].include?(header.type)
-            if [".rela.dyn", ".rela.plt"].include?(section.section_name.to_s)
-              entsize = 24
-            elsif ".rela.text" == section.section_name.to_s
-              info = write_section_index(".text")
-              entsize = 24
-              link = symtabndx
-            else
-              link = symtabndx
-            end
-            info = ref_index(section.section_name) unless ".rela.plt" == section.section_name.to_s
-          end
-          header.set!(name:, info:, link:, entsize:)
-          file.write(section.header.build)
-        end
+        @write_sections.each { |section| file.write(section.header.build) }
       end
 
       def write_section(file:, section:)

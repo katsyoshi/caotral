@@ -20,6 +20,7 @@ module Caotral
         finalize_text_relocations!
         finalize_dynamic_sections! if dynamic?
         finalize_shared_sections! if dynamic? && plt
+        finalize_section_headers!
         @elf
       end
 
@@ -122,6 +123,53 @@ module Caotral
         rest.each_with_index { |entry, i| entry.replace([plt_addr + 22 + 16 * i].pack("Q<").bytes) }
       end
 
+      def finalize_section_headers!
+        symtabndx = @elf.sections.index { |s| s.section_name == ".symtab" }
+        names = shstrtab.body
+        @elf.sections.each do |section|
+          header = section.header
+          lookup_name = section.section_name
+          name = names.offset_of(lookup_name) || 0
+          info, entsize = header.info, header.entsize
+          link = link_index(section.section_name)
+          link = header.link if link.nil?
+          if [:rela, :rel].include?(header.type)
+            if [".rela.dyn", ".rela.plt"].include?(section.section_name.to_s)
+              entsize = 24
+            elsif ".rela.text" == section.section_name.to_s
+              info = @elf.index(".text")
+              entsize = 24
+              link = symtabndx
+            else
+              link = symtabndx
+            end
+            info = ref_index(section.section_name) unless ".rela.plt" == section.section_name.to_s
+          end
+          header.set!(name:, info:, link:, entsize:)
+        end
+      end
+
+      def ref_index(section_name)
+        return 0 if section_name == ".rela.dyn"
+        ref_name = section_name.split(".").filter { |sn| !sn.empty? && sn != "rel" && sn != "rela" }.join(".")
+        index = @elf.index(".#{ref_name}")
+        raise Caotral::Linker::Error, "cannot find reference section for #{section_name}" unless index
+        index
+      end
+
+      def link_index(section_name)
+        case section_name
+        when ".symtab"
+          @elf.index(".strtab")
+        when ".dynsym", ".dynamic"
+          @elf.index(".dynstr")
+        when ".hash"
+          @elf.index(".dynsym")
+        else
+          nil
+        end
+      end
+
       def text = @text ||= @elf.find_by_name(".text")
       def plt = @plt ||= @elf.find_by_name(".plt")
       def rela_plt = @rela_plt ||= @elf.find_by_name(".rela.plt")
@@ -133,6 +181,7 @@ module Caotral
       def hash_section = @hash_section ||= @elf.find_by_name(".hash")
       def dynamic = @dynamic ||= @elf.find_by_name(".dynamic")
       def rela_dyn = @rela_dyn ||= @elf.find_by_name(".rela.dyn")
+      def shstrtab = @shstrtab ||= @elf.find_by_name(".shstrtab")
       def pending_text_relocations = @pending_text_relocations ||= @metadata.fetch(:pending_text_relocations, [])
       def got_plt_offsets = @got_plt_offsets ||= @metadata.fetch(:got_plt_offsets, {})
       def dynamic? = (@shared || @pie)
