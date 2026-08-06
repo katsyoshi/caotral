@@ -30,18 +30,6 @@ module Caotral
 
         write_elf_sections(file: f)
 
-        if rela_plt_section && got_plt_section
-          rela_plt_section&.body&.each do |rel|
-            sym = symtab_section.body[rel.sym]
-            dynsymndx = dynsym_section.body.index { |ds| ds.name_offset == dynstr_section.body.offset_of(sym.name_string) }
-            raise Caotral::Binary::ELF::Error, "cannot find symbol #{sym.name_string} in .dynsym for relocation in .rela.plt" if dynsymndx.nil?
-            rel.set!(
-              info: (dynsymndx << 32) | REL_TYPES[:AMD64_JUMP_SLOT],
-              offset: rel.offset + got_plt_section.header.addr
-            )
-          end
-        end
-
         # relocation
         rel_sections.each do |rel|
           write_section(file: f, section: rel)
