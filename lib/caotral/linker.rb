@@ -61,7 +61,7 @@ module Caotral
       builder.resolve_symbols
       elf_obj = builder.build
       metadata = builder.linker_metadata
-      Caotral::Linker::Writer.new(elf_obj:, output:, metadata:, debug:, shared:, executable:, pie:).write
+      Caotral::Linker::Writer.new(elf_obj:, output:, debug:, shared:, executable:, pie:).write
       File.chmod(0755, output) if executable
       output
     end

@@ -36,7 +36,7 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
     builder = Caotral::Linker::Builder.new(elf_objs: [input_elf], debug: false)
     builder.resolve_symbols
     elf_obj = builder.build
-    Caotral::Linker::Writer.write!(elf_obj:, output: "relocated_exec", debug: false, metadata: builder.linker_metadata)
+    Caotral::Linker::Writer.write!(elf_obj:, output: "relocated_exec", debug: false)
     File.chmod(0755, "./relocated_exec")
     IO.popen("./relocated_exec").close
     exit_code, _handle_code = check_process($?.to_i)
