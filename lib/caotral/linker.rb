@@ -2,6 +2,7 @@
 require_relative "binary/elf/reader"
 require_relative "linker/builder"
 require_relative "linker/layout"
+require_relative "linker/finalizer"
 require_relative "linker/writer"
 
 module Caotral
@@ -58,9 +59,12 @@ module Caotral
       elf_objs = inputs.map { |input| Caotral::Binary::ELF::Reader.new(input:, debug:).read }
       builder = Caotral::Linker::Builder.new(elf_objs:, debug:, shared:, executable:, pie:, needed:)
       builder.resolve_symbols
-      elf_obj = builder.build
+      elf = builder.build
       metadata = builder.linker_metadata
-      Caotral::Linker::Writer.new(elf_obj:, output:, metadata:, debug:, shared:, executable:, pie:).write
+      Caotral::Linker::Layout.new(elf:, shared:, executable:, pie:).apply!
+      elf_obj = Caotral::Linker::Finalizer.new(elf:, metadata:, shared:, executable:, pie:, debug:).apply!
+
+      Caotral::Linker::Writer.new(elf_obj:, output:, debug:, shared:, executable:, pie:).write
       File.chmod(0755, output) if executable
       output
     end
