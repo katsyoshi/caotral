@@ -7,13 +7,13 @@ module Caotral
       REL_TYPES = Caotral::Binary::ELF::Section::Rel::TYPES.freeze
       ALLOW_RELOCATION_TYPES = [REL_TYPES[:AMD64_PC32], REL_TYPES[:AMD64_PLT32]].freeze
       RELOCATION_SECTION_NAMES = [".rela.text", ".rela.dyn", ".rela.data", ".rela.plt"].freeze
-      attr_reader :elf_obj, :output, :entry, :debug, :got_plt_offsets, :pending_text_relocations, :program_headers
-      def self.write!(elf_obj:, output:, metadata: nil, entry: nil, debug: false, executable: true, shared: false)
-        new(elf_obj:, output:, metadata:, entry:, debug:, shared:, executable:).write
+      attr_reader :elf_obj, :output, :debug, :got_plt_offsets, :pending_text_relocations, :program_headers
+      def self.write!(elf_obj:, output:, metadata: nil, debug: false, executable: true, shared: false)
+        new(elf_obj:, output:, metadata:, debug:, shared:, executable:).write
       end
 
-      def initialize(elf_obj:, output:, metadata: nil, entry: nil, debug: false, executable: true, shared: false, pie: false)
-        @elf_obj, @output, @entry, @debug, @executable, @shared, @pie = elf_obj, output, entry, debug, executable, shared, pie
+      def initialize(elf_obj:, output:, metadata: nil, debug: false, executable: true, shared: false, pie: false)
+        @elf_obj, @output, @debug, @executable, @shared, @pie = elf_obj, output, debug, executable, shared, pie
         @program_headers = elf_obj.program_headers
         @write_sections = elf_obj.sections
         @got_plt_offsets = {}
@@ -25,10 +25,6 @@ module Caotral
       def write
         f = File.open(@output, "wb")
 
-        vaddr = text_section.header.addr
-        entry = non_executable? ? 0 : (@entry || vaddr)
-
-        @elf_obj.header.set!(entry:)
         f.write(@elf_obj.header.build)
         program_headers.each { |ph| f.write(ph.build) }
 
@@ -257,9 +253,7 @@ module Caotral
         file.write(section.build)
       end
 
-      def non_executable? = (@shared || !@executable)
       def dynamic? = (@shared || @pie)
-
       def dynamic_tables = Caotral::Binary::ELF::Section::Dynamic::TAG_TYPES
 
       def text_section = @text_section ||= @write_sections.find { |s| ".text" === s.section_name.to_s }
