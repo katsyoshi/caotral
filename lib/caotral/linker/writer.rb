@@ -4,7 +4,6 @@ module Caotral
   class Linker
     class Writer
       include Caotral::Binary::ELF::Utils
-      REL_TYPES = Caotral::Binary::ELF::Section::Rel::TYPES.freeze
       RELOCATION_SECTION_NAMES = [".rela.text", ".rela.dyn", ".rela.data", ".rela.plt"].freeze
       attr_reader :elf_obj, :output, :debug, :program_headers
       def self.write!(elf_obj:, output:, debug: false, executable: true, shared: false)
@@ -26,12 +25,7 @@ module Caotral
         write_elf_sections(file: f)
 
         # relocation
-        rel_sections.each do |rel|
-          write_section(file: f, section: rel)
-        end
-
-        patch_dynamic_sections(file: f) if dynamic?
-
+        rel_sections.each { |rel| write_section(file: f, section: rel) }
         write_section(file: f, section: shstrtab_section)
         shoffset = @elf_obj.header.shoffset
         f.seek(shoffset)
@@ -42,49 +36,6 @@ module Caotral
       end
 
       private
-      def patch_dynamic_sections(file:)
-        dynamic_sections.each do |dyn|
-          addr = text_section.header.addr + (dyn.header.offset - text_section.header.offset)
-          dyn.header.set!(addr:)
-        end
-
-        cur = file.pos
-        file.seek(dynsym_section.header.offset)
-        dynsym_section.body.each do |dynsym_body|
-          if dynsym_body.shndx != 0
-            value = dynsym_body.value
-            secndx = @write_sections[dynsym_body.shndx]&.header&.addr
-            unless secndx.nil?
-              value += secndx
-              dynsym_body.set!(value:)
-            end
-          end
-          file.write(dynsym_body.build)
-        end
-        file.seek(cur)
-
-        if dynamic? && dynamic_section && rela_dyn_section
-          rdsh = rela_dyn_section&.header
-          bodies = dynamic_section.body
-          bodies.delete_if { |dyn| dyn.tag == dynamic_tables[:TEXTREL] } unless rela_dyn_section.body.any? { |rel| rel.type == REL_TYPES[:AMD64_RELATIVE] }
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:RELA] }.set!(un: rdsh&.addr.to_i)
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:RELASZ] }.set!(un: rdsh&.size.to_i)
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:STRSZ] }&.set!(un: dynstr_section.header.size.to_i)
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:SYMENT] }&.set!(un: dynsym_section.header.entsize.to_i)
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:STRTAB] }&.set!(un: dynstr_section.header.addr.to_i)
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:SYMTAB] }&.set!(un: dynsym_section.header.addr.to_i)
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:HASH] }&.set!(un: hash_section.header.addr.to_i) if hash_section
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:PLTRELSZ] }&.set!(un: rela_plt_section.header.size.to_i)
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:JMPREL] }&.set!(un: rela_plt_section.header.addr.to_i)
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:PLTREL] }&.set!(un: dynamic_tables[:RELA])
-          bodies.find { |dyn| dyn.tag == dynamic_tables[:PLTGOT] }&.set!(un: got_plt_section.header.addr.to_i)
-          cur = file.pos
-          file.seek(dynamic_section.header.offset)
-          file.write(dynamic_section.build)
-          file.seek(cur)
-        end
-      end
-
       def write_elf_sections(file:)
         write_section(file:, section: text_section)
 
@@ -202,7 +153,6 @@ module Caotral
       end
 
       def dynamic? = (@shared || @pie)
-      def dynamic_tables = Caotral::Binary::ELF::Section::Dynamic::TAG_TYPES
 
       def text_section = @text_section ||= @write_sections.find { |s| ".text" === s.section_name.to_s }
       def rel_sections = @rel_sections ||= @write_sections.select { |s| RELOCATION_SECTION_NAMES.include?(s.section_name.to_s) }
@@ -220,8 +170,6 @@ module Caotral
       def plt_section = @plt_section ||= @write_sections.find { |s| ".plt" === s.section_name.to_s }
       def got_plt_section = @got_plt_section ||= @write_sections.find { |s| ".got.plt" === s.section_name.to_s }
       def rela_plt_section = @rela_plt_section ||= @write_sections.find { |s| ".rela.plt" === s.section_name.to_s }
-
-      def dynamic_sections = @dynamic_sections ||= [interp_section, dynstr_section, dynsym_section, hash_section, dynamic_section, rela_dyn_section, rela_plt_section].compact
     end
   end
 end

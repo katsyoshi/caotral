@@ -336,7 +336,8 @@ module Caotral
             hash.chain[i] = num2bytes(0, 4)
           end
           hash_section.body = hash
-          dynamic_section = build_dynamic_section(dynstr:)
+          textrel = rela_dyn_section.body.any? { |rel| rel.type == REL_TYPES[:AMD64_RELATIVE] }
+          dynamic_section = build_dynamic_section(dynstr:, textrel:)
           if rela_plt_section.body.size == 0 && dynamic?
             bodies = dynamic_section.body.reject { |ent| REJECT_DYNAMIC_TAGS.include?(ent.tag) }
             dynamic_section.body = bodies
@@ -500,7 +501,7 @@ module Caotral
         hash_section
       end
 
-      def build_dynamic_section(dynstr:)
+      def build_dynamic_section(dynstr:, textrel:)
         tag_types = Caotral::Binary::ELF::Section::Dynamic::TAG_TYPES
         dynamic_section = Caotral::Binary::ELF::Section.new(
           body: [
@@ -516,7 +517,7 @@ module Caotral
             SectionDynamic.new.set!(tag: tag_types[:SYMTAB]),
             SectionDynamic.new.set!(tag: tag_types[:SYMENT], un: 24),
             SectionDynamic.new.set!(tag: tag_types[:PLTREL]),
-            SectionDynamic.new.set!(tag: tag_types[:TEXTREL]),
+            textrel ? SectionDynamic.new.set!(tag: tag_types[:TEXTREL]) : nil,
             SectionDynamic.new.set!(tag: tag_types[:JMPREL]),
             SectionDynamic.new
           ].compact,

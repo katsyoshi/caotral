@@ -7,6 +7,7 @@ module Caotral
     class Finalizer
       REL_TYPES = Caotral::Binary::ELF::Section::Rel::TYPES.freeze
       ALLOW_RELOCATION_TYPES = [REL_TYPES[:AMD64_PC32], REL_TYPES[:AMD64_PLT32]].freeze
+      DYNAMIC_TABLES = Caotral::Binary::ELF::Section::Dynamic::TAG_TYPES
 
       def initialize(elf:, metadata:, shared:, executable:, pie:, debug:)
         @elf, @metadata = elf, metadata
@@ -17,6 +18,7 @@ module Caotral
         finalize_entry!
         finalize_plt_relocations!
         finalize_text_relocations!
+        finalize_dynamic_sections! if dynamic?
         @elf
       end
 
@@ -70,15 +72,48 @@ module Caotral
         end
       end
 
-      def text = @elf.find_by_name(".text")
-      def plt = @elf.find_by_name(".plt")
-      def rela_plt = @elf.find_by_name(".rela.plt")
-      def got_plt = @elf.find_by_name(".got.plt")
-      def dynsym = @elf.find_by_name(".dynsym")
-      def symtab = @elf.find_by_name(".symtab")
-      def dynstr = @elf.find_by_name(".dynstr")
-      def pending_text_relocations = @metadata.fetch(:pending_text_relocations, [])
-      def got_plt_offsets = @metadata.fetch(:got_plt_offsets, {})
+      def finalize_dynamic_sections!
+        dynsym.body.each do |dynsym_body|
+          if dynsym_body.shndx != 0
+            value = dynsym_body.value
+            secndx = @elf.sections[dynsym_body.shndx]&.header&.addr
+            unless secndx.nil?
+              value += secndx
+              dynsym_body.set!(value:)
+            end
+          end
+        end
+        if dynamic? && dynamic && rela_dyn
+          rdsh = rela_dyn&.header
+          bodies = dynamic.body
+          bodies.find { |dyn| dyn.tag == DYNAMIC_TABLES[:RELA] }.set!(un: rdsh&.addr.to_i)
+          bodies.find { |dyn| dyn.tag == DYNAMIC_TABLES[:RELASZ] }.set!(un: rdsh&.size.to_i)
+          bodies.find { |dyn| dyn.tag == DYNAMIC_TABLES[:STRSZ] }&.set!(un: dynstr.header.size.to_i)
+          bodies.find { |dyn| dyn.tag == DYNAMIC_TABLES[:SYMENT] }&.set!(un: dynsym.header.entsize.to_i)
+          bodies.find { |dyn| dyn.tag == DYNAMIC_TABLES[:STRTAB] }&.set!(un: dynstr.header.addr.to_i)
+          bodies.find { |dyn| dyn.tag == DYNAMIC_TABLES[:SYMTAB] }&.set!(un: dynsym.header.addr.to_i)
+          bodies.find { |dyn| dyn.tag == DYNAMIC_TABLES[:HASH] }&.set!(un: hash_section.header.addr.to_i) if hash_section
+          bodies.find { |dyn| dyn.tag == DYNAMIC_TABLES[:PLTRELSZ] }&.set!(un: rela_plt.header.size.to_i)
+          bodies.find { |dyn| dyn.tag == DYNAMIC_TABLES[:JMPREL] }&.set!(un: rela_plt.header.addr.to_i)
+          bodies.find { |dyn| dyn.tag == DYNAMIC_TABLES[:PLTREL] }&.set!(un: DYNAMIC_TABLES[:RELA])
+          bodies.find { |dyn| dyn.tag == DYNAMIC_TABLES[:PLTGOT] }&.set!(un: got_plt.header.addr.to_i)
+        end
+      end
+
+      def text = @text ||= @elf.find_by_name(".text")
+      def plt = @plt ||= @elf.find_by_name(".plt")
+      def rela_plt = @rela_plt ||= @elf.find_by_name(".rela.plt")
+      def got_plt = @got_plt ||= @elf.find_by_name(".got.plt")
+      def dynsym = @dynsym ||= @elf.find_by_name(".dynsym")
+      def symtab = @symtab ||= @elf.find_by_name(".symtab")
+      def dynstr = @dynstr ||= @elf.find_by_name(".dynstr")
+      def interp = @interp ||= @elf.find_by_name(".interp")
+      def hash_section = @hash_section ||= @elf.find_by_name(".hash")
+      def dynamic = @dynamic ||= @elf.find_by_name(".dynamic")
+      def rela_dyn = @rela_dyn ||= @elf.find_by_name(".rela.dyn")
+      def pending_text_relocations = @pending_text_relocations ||= @metadata.fetch(:pending_text_relocations, [])
+      def got_plt_offsets = @got_plt_offsets ||= @metadata.fetch(:got_plt_offsets, {})
+      def dynamic? = (@shared || @pie)
     end
   end
 end
