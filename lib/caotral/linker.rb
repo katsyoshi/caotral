@@ -59,8 +59,11 @@ module Caotral
       elf_objs = inputs.map { |input| Caotral::Binary::ELF::Reader.new(input:, debug:).read }
       builder = Caotral::Linker::Builder.new(elf_objs:, debug:, shared:, executable:, pie:, needed:)
       builder.resolve_symbols
-      elf_obj = builder.build
+      elf = builder.build
       metadata = builder.linker_metadata
+      Caotral::Linker::Layout.new(elf:, shared:, executable:, pie:).apply!
+      elf_obj = Caotral::Linker::Finalizer.new(elf:, metadata:, shared:, executable:, pie:, debug:).apply!
+
       Caotral::Linker::Writer.new(elf_obj:, output:, debug:, shared:, executable:, pie:).write
       File.chmod(0755, output) if executable
       output

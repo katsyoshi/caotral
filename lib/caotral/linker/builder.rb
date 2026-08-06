@@ -426,9 +426,6 @@ module Caotral
         @linker_metadata[:got_plt_offsets] = got_plt_offsets
         @linker_metadata[:pending_text_relocations] = rel_texts
 
-        Caotral::Linker::Layout.new(elf:, shared: @shared, executable: @executable, pie: @pie).apply!
-        Caotral::Linker::Finalizer.new(elf:, metadata: @linker_metadata, shared: @shared, executable: @executable, pie: @pie, debug: @debug).apply!
-
         elf
       end
 

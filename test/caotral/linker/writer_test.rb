@@ -4,7 +4,12 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
   def setup
     Caotral.assemble(input: "sample/assembler/plus.s", assembler: "self", output: "plus.o")
     elf_obj = Caotral::Binary::ELF::Reader.read!(input: "plus.o", debug: false)
-    @elf_obj = Caotral::Linker::Builder.new(elf_objs: [elf_obj], debug: false).build
+    builder = Caotral::Linker::Builder.new(elf_objs: [elf_obj], debug: false)
+    builder.resolve_symbols
+    @elf_obj = builder.build
+    metadata = builder.linker_metadata
+    Caotral::Linker::Layout.new(elf: @elf_obj, shared: false, pie: false, executable: true).apply!
+    Caotral::Linker::Finalizer.new(elf: @elf_obj, metadata:, shared: false, pie: false, executable: true, debug: false).apply!
   end
   def teardown
     File.delete("plus.o") if File.exist?("plus.o")
@@ -35,8 +40,11 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
     input_elf = Caotral::Binary::ELF::Reader.read!(input: "relocatable.o", debug: false)
     builder = Caotral::Linker::Builder.new(elf_objs: [input_elf], debug: false)
     builder.resolve_symbols
-    elf_obj = builder.build
-    Caotral::Linker::Writer.write!(elf_obj:, output: "relocated_exec", debug: false)
+    elf = builder.build
+    metadata = builder.linker_metadata
+    Caotral::Linker::Layout.new(elf:, shared: false, pie: false, executable: true).apply!
+    Caotral::Linker::Finalizer.new(elf:, metadata:, shared: false, pie: false, executable: true, debug: false).apply!
+    Caotral::Linker::Writer.write!(elf_obj: elf, output: "relocated_exec", debug: false)
     File.chmod(0755, "./relocated_exec")
     IO.popen("./relocated_exec").close
     exit_code, _handle_code = check_process($?.to_i)
