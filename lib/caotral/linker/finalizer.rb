@@ -19,6 +19,7 @@ module Caotral
         finalize_plt_relocations!
         finalize_text_relocations!
         finalize_dynamic_sections! if dynamic?
+        finalize_shared_sections! if dynamic? && plt
         @elf
       end
 
@@ -98,6 +99,27 @@ module Caotral
           bodies.find { |dyn| dyn.tag == DYNAMIC_TABLES[:PLTREL] }&.set!(un: DYNAMIC_TABLES[:RELA])
           bodies.find { |dyn| dyn.tag == DYNAMIC_TABLES[:PLTGOT] }&.set!(un: got_plt.header.addr.to_i)
         end
+      end
+
+      def finalize_shared_sections!
+        primary, *rest = plt.body
+        plt_addr = plt.header.addr
+        got_plt_addr = got_plt.header.addr
+        # only support x86-64 binaries with PLT
+        primary[2..5] = [(got_plt_addr + 8) - (plt_addr + 6)].pack("l<").bytes
+        primary[8..11] = [(got_plt_addr + 16) - (plt_addr + 12)].pack("l<").bytes
+        slot_offset = 24
+        rest.each_with_index do |entry, i|
+          entry_addr = plt_addr + 16 + 16 * i
+          slot_addr = got_plt_addr + slot_offset + 8 * i
+          entry[2..5] = [slot_addr - (entry_addr + 6)].pack("l<").bytes
+          entry[7..10] = [i].pack("l<").bytes
+          entry[12..15] = [plt_addr - (entry_addr + 16)].pack("l<").bytes
+        end
+        primary = got_plt.body.first
+        rest = got_plt.body.drop(3)
+        primary.replace([dynamic.header.addr].pack("Q<").bytes)
+        rest.each_with_index { |entry, i| entry.replace([plt_addr + 22 + 16 * i].pack("Q<").bytes) }
       end
 
       def text = @text ||= @elf.find_by_name(".text")
