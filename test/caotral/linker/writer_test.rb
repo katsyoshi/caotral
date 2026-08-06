@@ -32,8 +32,11 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
 
   def test_relocation_write_and_execute
     IO.popen("gcc -c -fno-pic -fno-pie -o relocatable.o sample/C/rel_text.c").close
-    elf_obj = Caotral::Binary::ELF::Reader.read!(input: "relocatable.o", debug: false)
-    Caotral::Linker::Writer.write!(elf_obj:, output: "relocated_exec", debug: false)
+    input_elf = Caotral::Binary::ELF::Reader.read!(input: "relocatable.o", debug: false)
+    builder = Caotral::Linker::Builder.new(elf_objs: [input_elf], debug: false)
+    builder.resolve_symbols
+    elf_obj = builder.build
+    Caotral::Linker::Writer.write!(elf_obj:, output: "relocated_exec", debug: false, metadata: builder.linker_metadata)
     File.chmod(0755, "./relocated_exec")
     IO.popen("./relocated_exec").close
     exit_code, _handle_code = check_process($?.to_i)

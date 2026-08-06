@@ -1,4 +1,4 @@
-require_relative "../../test_suite"
+require_relative "../../../test_suite"
 
 class Caotral::Linker::MultiFileLinkingTest < Test::Unit::TestCase
   include TestProcessHelper

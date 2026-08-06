@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 require_relative "binary/elf/reader"
 require_relative "linker/builder"
+require_relative "linker/layout"
 require_relative "linker/writer"
 
 module Caotral
@@ -13,7 +14,8 @@ module Caotral
       @inputs, @output, @linker = inputs, output, linker
       @options = linker_options
       @needed = needed
-      @executable, @debug, @shared, @pie = executable, debug, shared, pie
+      @executable = shared ? false : executable
+      @debug, @shared, @pie = debug, shared, pie
     end
 
     def link(inputs: @inputs, output: @output, debug: @debug, shared: @shared, executable: @executable, pie: @pie)
@@ -51,6 +53,8 @@ module Caotral
     def gcc_libpath = @gcc_libpath ||= File.dirname(Dir.glob("/usr/lib/gcc/x86_64-*/*/crtbegin.o").last)
 
     def to_elf(inputs: @inputs, output: @output, debug: @debug, shared: @shared, executable: @executable, pie: @pie, needed: @needed)
+      raise Caotral::Binary::ELF::Error, "disallow both mode: shared and PIE" if shared && pie
+
       elf_objs = inputs.map { |input| Caotral::Binary::ELF::Reader.new(input:, debug:).read }
       builder = Caotral::Linker::Builder.new(elf_objs:, debug:, shared:, executable:, pie:, needed:)
       builder.resolve_symbols

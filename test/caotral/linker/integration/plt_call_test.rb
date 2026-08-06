@@ -1,4 +1,4 @@
-require_relative "../../test_suite"
+require_relative "../../../test_suite"
 
 class Caotral::Linker::PLTCallTest < Test::Unit::TestCase
   def setup

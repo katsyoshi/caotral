@@ -36,7 +36,6 @@ module Caotral
           globals: { undefined: Set.new, defined: Hash.new }.freeze,
           weaks: Set.new,
         }.freeze
-        _mode!
         @linker_metadata = {}
       end
 
@@ -425,6 +424,9 @@ module Caotral
 
         @linker_metadata[:got_plt_offsets] = got_plt_offsets
         @linker_metadata[:pending_text_relocations] = rel_texts
+
+        Caotral::Linker::Layout.new(elf:, shared: @shared, executable: @executable, pie: @pie).apply!
+
         elf
       end
 
@@ -534,10 +536,6 @@ module Caotral
 
       def rel_type(section) = section.section_name&.start_with?(".rela.") ? 4 : 9
       def rel_entsize(section) = section.section_name&.start_with?(".rela.") ? 24 : 16
-      def _mode!
-        @executable = false if @shared
-        raise Caotral::Binary::ELF::Error, "disallow both mode: shared and PIE" if @pie && @shared
-      end
 
       def dynamic? = @shared || @pie
     end
