@@ -3,16 +3,18 @@ class Caotral::Linker
   @output: String
   @linker: String
   @options: Array[String]
+  @needed: Array[String]
   @executable: bool
   @shared: bool
+  @pie: bool
   @debug: bool
 
-  def self.link!: (inputs: Array[String], ?output: String, ?linker: String, ?debug: bool, ?shared: bool, ?executable: bool) -> void
-  def initialize: (inputs: Array[String], ?output: String, ?linker: String, ?linker_options: Array[String], ?executable: bool, ?shared: bool, ?debug: bool) -> void
-  def link: (inputs: Array[String], ?output: String, ?shared: bool, ?debug: bool, ?executable: bool) -> void
+  def self.link!: (inputs: Array[String], ?output: String, ?linker: String, ?debug: bool, ?shared: bool, ?executable: bool, ?pie: bool, ?needed: Array[String]) -> void
+  def initialize: (inputs: Array[String], ?output: String, ?linker: String, ?linker_options: Array[String], ?executable: bool, ?shared: bool, ?pie: bool, ?debug: bool, ?needed: Array[String]) -> void
+  def link: (inputs: Array[String], ?output: String, ?shared: bool, ?debug: bool, ?executable: bool, ?pie: bool) -> void
 
-  def link_command: (inputs: Array[String], ?output: String, ?shared: bool, ?debug: bool) -> String
+  def link_command: (inputs: Array[String], ?output: String) -> String
   def libpath: () -> String
   def gcc_libpath: () -> String
-  def to_elf: (inputs: Array[String], ?output: String, ?debug: bool, ?shared: bool, ?executable: bool) -> String
+  def to_elf: (inputs: Array[String], ?output: String, ?debug: bool, ?shared: bool, ?executable: bool, ?pie: bool, ?needed: Array[String]) -> String
 end
