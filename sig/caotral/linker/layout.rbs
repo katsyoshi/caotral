@@ -1,0 +1,16 @@
+class Caotral::Linker::Layout
+  @elf: Caotral::Binary::ELF
+  @shared: bool
+  @executable: bool
+  @pie: bool
+  @file_offset: Integer
+  @section_headers_offset: Integer
+
+  attr_reader debug: bool?
+  attr_reader shared: bool
+  attr_reader executable: bool
+  attr_reader pie: bool
+
+  def initialize: (elf: Caotral::Binary::ELF, shared: bool, executable: bool, pie: bool) -> void
+  def apply!: () -> Caotral::Binary::ELF
+end

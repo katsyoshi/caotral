@@ -2,6 +2,7 @@ class Caotral::Binary::ELF
   include Enumerable[Caotral::Binary::ELF::Section]
 
   attr_reader sections: Array[Caotral::Binary::ELF::Section]
+  attr_reader program_headers: Array[Caotral::Binary::ELF::ProgramHeader]
   attr_accessor header: Caotral::Binary::ELF::Header?
 
   def initialize: () -> void
@@ -11,5 +12,5 @@ class Caotral::Binary::ELF
   def select_by_name: (String | Symbol) -> Array[Caotral::Binary::ELF::Section]
   def index: (String | Symbol) -> Integer?
   def select_by_names: (Array[String | Regexp]) -> Array[Caotral::Binary::ELF::Section]
-  def without_section: (String | Symbol) -> Array[Caotral::Binary::ELF::Section]
+  def without_sections: (Array[String | Regexp]) -> Array[Caotral::Binary::ELF::Section]
 end

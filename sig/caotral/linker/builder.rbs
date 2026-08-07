@@ -1,13 +1,17 @@
 class Caotral::Linker::Builder
   @elf_objs: Array[Caotral::Binary::ELF]
-  @symbols: Hash[Symbol, Set[String]]
+  @symbols: Hash[Symbol, untyped]
+  @linker_metadata: Hash[Symbol, untyped]
   @executable: bool
   @debug: bool
   @shared: bool
+  @pie: bool
+  @needed: Array[String]
 
-  attr_reader symbols: Hash[Symbol, Set[String]]
+  attr_reader symbols: Hash[Symbol, untyped]
+  attr_reader linker_metadata: Hash[Symbol, untyped]
 
-  def initialize: (elf_objs: Array[Caotral::Binary::ELF], ?executable: bool, ?debug: bool, ?shared: bool) -> void
+  def initialize: (elf_objs: Array[Caotral::Binary::ELF], ?executable: bool, ?debug: bool, ?shared: bool, ?pie: bool, ?needed: Array[String]) -> void
   def build: () -> Caotral::Binary::ELF
-  def resolve_symbols: () -> Hash[Symbol, Set[String]]
+  def resolve_symbols: () -> Hash[Symbol, untyped]
 end
