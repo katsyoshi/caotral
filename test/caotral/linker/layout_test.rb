@@ -85,7 +85,7 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
     assert_equal(dynamic.header.size, elf.program_headers[1].filesz)
     assert_equal(dynamic.header.size, elf.program_headers[1].memsz)
     assert_equal(dynamic.header.addralign, elf.program_headers[1].align)
-    assert_equal(:R, elf.program_headers[1].flags)
+    assert_equal(:RW, elf.program_headers[1].flags)
   end
 
   def test_layout_sections
