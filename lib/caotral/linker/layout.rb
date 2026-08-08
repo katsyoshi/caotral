@@ -79,10 +79,15 @@ module Caotral
         @file_offset += @elf.sections.sum { |section| section.header.build.bytesize }
       end
       def finalize_program_headers!
+        text = @elf.find_by_name(".text")
+        load_bias = text.nil? ? 0 : text.header.addr - text.header.offset
+        phdr = @elf.program_headers.any? { |ph| ph.type == :PHDR }
         @elf.program_headers.each do |ph|
           case ph.type
           when :PHDR
-            offset, vaddr, paddr, align = 64, 64, 64, 8
+            offset, align = 64, 8
+            vaddr = load_bias + offset
+            paddr = vaddr
             filesz = @elf.program_headers.size * 56
             memsz = filesz
             flags = Caotral::Binary::ELF::ProgramHeader::PF[:R]
@@ -91,13 +96,13 @@ module Caotral
             next unless text
 
             allocated_sections = @elf.sections.select { |s| s.header.allocated? }
-            segment_start = @pie ? 0 : text.header.offset
+            segment_start = phdr ? 0 : allocated_sections.map { |s| s.header.offset }.min
             segment_end = allocated_sections.map { |s| s.header.offset + s.header.size }.max
 
             next unless segment_end
 
             offset = segment_start
-            vaddr = @pie ? 0 : text.header.addr
+            vaddr = load_bias + offset
             paddr = vaddr
             filesz = segment_end - segment_start
             memsz = filesz
@@ -106,7 +111,8 @@ module Caotral
           when :INTERP
             interp = @elf.find_by_name(".interp")
             raise Caotral::Linker::Error, "Missing .interp section" unless interp
-            offset, vaddr, paddr, align = interp.header.offset, 0, 0, 1
+            header = interp.header
+            offset, vaddr, paddr, align = header.offset, header.addr, header.addr, 1
             filesz = interp.header.size
             memsz = filesz
             flags = Caotral::Binary::ELF::ProgramHeader::PF[:R]
@@ -117,7 +123,7 @@ module Caotral
             offset, vaddr, paddr, align = header.offset, header.addr, header.addr, header.addralign
             filesz = header.size
             memsz = filesz
-            flags = Caotral::Binary::ELF::ProgramHeader::PF[:R]
+            flags = Caotral::Binary::ELF::ProgramHeader::PF[:RW]
           when :GNU_STACK
             offset, vaddr, paddr, align = 0, 0, 0, 0
             filesz = 0

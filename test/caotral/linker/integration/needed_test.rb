@@ -35,7 +35,7 @@ class LinkerNeededTest < Test::Unit::TestCase
     Caotral::Linker.link!(inputs: [@input], output: @output, linker: "self", pie: true, needed: ["libc.so.6"], executable: true)
 
     IO.popen(["./#{@output}"]).close
-    pid, exit_code = check_process($?.to_i)
+    _pid, exit_code = check_process($?.to_i)
     assert_equal(0, exit_code)
   end
 
@@ -91,7 +91,7 @@ class LinkerNeededTest < Test::Unit::TestCase
     io = IO.popen(["./#{@output}"])
     stdout = io.read
     io.close
-    pid, exit_code = check_process($?.to_i)
+    _pid, exit_code = check_process($?.to_i)
     assert_equal("hello, world!!!\n", stdout)
     assert_equal(0, exit_code)
   end

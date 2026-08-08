@@ -64,7 +64,7 @@ module Caotral
       Caotral::Linker::Layout.new(elf:, shared:, executable:, pie:).apply!
       elf_obj = Caotral::Linker::Finalizer.new(elf:, metadata:, shared:, executable:, pie:, debug:).apply!
 
-      Caotral::Linker::Writer.new(elf_obj:, output:, debug:, shared:, executable:, pie:).write
+      Caotral::Linker::Writer.new(elf_obj:, output:).write
       File.chmod(0755, output) if executable
       output
     end
