@@ -1,19 +1,8 @@
 class Caotral::Linker::Writer
   @elf_obj: Caotral::Binary::ELF
   @output: String
-  @debug: bool
-  @executable: bool
-  @shared: bool
-  @pie: bool
-  @program_headers: Array[Caotral::Binary::ELF::ProgramHeader]
-  @write_sections: Array[Caotral::Binary::ELF::Section]
 
-  attr_reader elf_obj: Caotral::Binary::ELF
-  attr_reader output: String
-  attr_reader debug: bool
-  attr_reader program_headers: Array[Caotral::Binary::ELF::ProgramHeader]
-
-  def self.write!: (elf_obj: Caotral::Binary::ELF, output: String, ?debug: bool, ?executable: bool, ?shared: bool) -> String
-  def initialize: (elf_obj: Caotral::Binary::ELF, output: String, ?debug: bool, ?executable: bool, ?shared: bool, ?pie: bool) -> void
+  def self.write!: (elf_obj: Caotral::Binary::ELF, output: String) -> String
+  def initialize: (elf_obj: Caotral::Binary::ELF, output: String) -> void
   def write: () -> String
 end

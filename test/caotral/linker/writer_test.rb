@@ -19,7 +19,7 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
     File.delete("relocated_exec") if File.exist?("relocated_exec")
   end
   def test_write
-    written_output = Caotral::Linker::Writer.write!(elf_obj: @elf_obj, output: "write.o", debug: false)
+    written_output = Caotral::Linker::Writer.write!(elf_obj: @elf_obj, output: "write.o")
     read_written_elf = Caotral::Binary::ELF::Reader.read!(input: written_output, debug: false)
     assert_equal @elf_obj.header.shoffset, read_written_elf.header.shoffset
     assert_equal 7, read_written_elf.sections.size
@@ -27,7 +27,7 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
   end
 
   def test_execute_written
-    Caotral::Linker::Writer.write!(elf_obj: @elf_obj, output: "write", debug: false)
+    Caotral::Linker::Writer.write!(elf_obj: @elf_obj, output: "write")
     File.chmod(0755, "./write")
     IO.popen("./write").close
     exit_code, handle_code = check_process($?.to_i)
@@ -44,7 +44,7 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
     metadata = builder.linker_metadata
     Caotral::Linker::Layout.new(elf:, shared: false, pie: false, executable: true).apply!
     Caotral::Linker::Finalizer.new(elf:, metadata:, shared: false, pie: false, executable: true, debug: false).apply!
-    Caotral::Linker::Writer.write!(elf_obj: elf, output: "relocated_exec", debug: false)
+    Caotral::Linker::Writer.write!(elf_obj: elf, output: "relocated_exec")
     File.chmod(0755, "./relocated_exec")
     IO.popen("./relocated_exec").close
     exit_code, _handle_code = check_process($?.to_i)
