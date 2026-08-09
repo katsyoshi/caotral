@@ -7,6 +7,8 @@ module Caotral
     class Layout
       attr_reader :debug, :shared, :executable, :pie
       LATE_SECTIONS = ["", ".shstrtab"].freeze
+      PF = Caotral::Binary::ELF::ProgramHeader::PF
+      LOAD_ALIGNMENT = 0x1000
 
       def initialize(elf:, shared:, executable:, pie:)
         @elf = elf
@@ -14,6 +16,7 @@ module Caotral
       end
 
       def apply!
+        classify_load_sections!
         build_program_headers!
         layout_sections!
         layout_section_headers!
@@ -23,19 +26,34 @@ module Caotral
       end
 
       private
+      def classify_load_sections!
+        allocated_sections = @elf.sections.select { |s| s.header.allocated? }
+        read_only_sections = allocated_sections.select { |s| !s.header.execinstr? && !s.header.writable? }
+        executable_sections = allocated_sections.select { |s| s.header.execinstr? && !s.header.writable? }
+        writable_sections = allocated_sections.select { |s| !s.header.execinstr? && s.header.writable? }
+        if allocated_sections.any? { |s| s.header.execinstr? && s.header.writable? }
+          raise Caotral::Linker::Error, "can not support alloc section write and executable"
+        end
+
+        @load_sections = {
+          R: read_only_sections,
+          RX: executable_sections,
+          RW: writable_sections,
+        }
+      end
+
       def build_program_headers!
-        lph = build_program_header(type: 1)
+        read_only = build_program_header(type: 1, flags: PF[:R])
+        executable = build_program_header(type: 1, flags: PF[:RX]) if @load_sections[:RX].any?
+        writable = build_program_header(type: 1, flags: PF[:RW]) if @load_sections[:RW].any?
+        lph = [read_only, executable, writable].compact
+
         iph = build_program_header(type: 3) if @elf.find_by_name(".interp")
         dph = build_program_header(type: 2) if @elf.find_by_name(".dynamic")
         pph = build_program_header(type: 6) if @pie
-        if @pie || @shared
-          gsph = build_program_header(
-            type: 0x6474e551,
-            flags: Caotral::Binary::ELF::ProgramHeader::PF[:RW]
-          )
-        end
+        gsph = build_program_header(type: 0x6474e551, flags: PF[:RW]) if dynamic?
 
-        @elf.program_headers.replace([pph, lph, iph, dph, gsph].compact)
+        @elf.program_headers.replace([pph, *lph, iph, dph, gsph].compact)
       end
 
       def build_program_header(type:, flags: 0)
@@ -44,14 +62,21 @@ module Caotral
         ph
       end
       def layout_sections!
-        header_end = (64 + (@elf.program_headers.size * 56))
-        first_section = @elf.sections.find { |s| s.section_name && !LATE_SECTIONS.include?(s.section_name) }
-        first_offset = first_section&.header&.offset.to_i || 0
-        @file_offset = [header_end, first_offset].max
+        @file_offset = header_end
 
-        @elf.sections.each do |section|
+        @load_sections.each do |flags, sections|
+          next if sections.empty?
+
+          @file_offset = align_up(@file_offset, LOAD_ALIGNMENT) unless flags == :R
+          sections.each do |section|
+            @file_offset = section.layout!(offset: @file_offset)
+          end
+        end
+
+        @elf.sections.reject { |s| s.header.allocated? }.each do |section|
           next if section.section_name.nil?
           next if LATE_SECTIONS.include?(section.section_name)
+
           @file_offset = section.layout!(offset: @file_offset)
         end
 
@@ -81,7 +106,6 @@ module Caotral
       def finalize_program_headers!
         text = @elf.find_by_name(".text")
         load_bias = text.nil? ? 0 : text.header.addr - text.header.offset
-        phdr = @elf.program_headers.any? { |ph| ph.type == :PHDR }
         @elf.program_headers.each do |ph|
           case ph.type
           when :PHDR
@@ -90,24 +114,21 @@ module Caotral
             paddr = vaddr
             filesz = @elf.program_headers.size * 56
             memsz = filesz
-            flags = Caotral::Binary::ELF::ProgramHeader::PF[:R]
+            flags = PF[:R]
           when :LOAD
-            text = @elf.find_by_name(".text")
-            next unless text
+            allocated_sections = @load_sections[ph.flags]
 
-            allocated_sections = @elf.sections.select { |s| s.header.allocated? }
-            segment_start = phdr ? 0 : allocated_sections.map { |s| s.header.offset }.min
-            segment_end = allocated_sections.map { |s| s.header.offset + s.header.size }.max
-
-            next unless segment_end
+            section_end = allocated_sections.map { |s| s.header.offset + s.header.size }.max
+            segment_start = ph.flags == :R ? 0 : allocated_sections.map { |s| s.header.offset }.min
+            segment_end = ph.flags == :R ? [header_end, section_end].compact.max : section_end
 
             offset = segment_start
             vaddr = load_bias + offset
             paddr = vaddr
             filesz = segment_end - segment_start
             memsz = filesz
-            flags = Caotral::Binary::ELF::ProgramHeader::PF[:RWX]
-            align = 0x1000
+            flags = PF[ph.flags]
+            align = LOAD_ALIGNMENT
           when :INTERP
             interp = @elf.find_by_name(".interp")
             raise Caotral::Linker::Error, "Missing .interp section" unless interp
@@ -115,7 +136,7 @@ module Caotral
             offset, vaddr, paddr, align = header.offset, header.addr, header.addr, 1
             filesz = interp.header.size
             memsz = filesz
-            flags = Caotral::Binary::ELF::ProgramHeader::PF[:R]
+            flags = PF[:R]
           when :DYNAMIC
             dynamic = @elf.find_by_name(".dynamic")
             raise Caotral::Linker::Error, "Missing .dynamic section" unless dynamic
@@ -123,12 +144,10 @@ module Caotral
             offset, vaddr, paddr, align = header.offset, header.addr, header.addr, header.addralign
             filesz = header.size
             memsz = filesz
-            flags = Caotral::Binary::ELF::ProgramHeader::PF[:RW]
+            flags = PF[:RW]
           when :GNU_STACK
             offset, vaddr, paddr, align = 0, 0, 0, 0
-            filesz = 0
-            memsz = 0
-            flags = Caotral::Binary::ELF::ProgramHeader::PF[:RW]
+            filesz, memsz, flags = 0, 0, PF[:RW]
           else
             raise Caotral::Linker::Error, "Not Implemented: #{ph.type} program header layout"
           end
@@ -151,7 +170,12 @@ module Caotral
           shoffset: @section_headers_offset
         )
       end
+      def align_up(val, align) = (val + align - 1) / align * align
       def dynamic? = @pie || @shared
+      def header_end
+        raise Error, "must have ELF header" unless Caotral::Binary::ELF::Header === @elf.header
+        @elf.header.build.bytesize + @elf.program_headers.sum { |ph| ph.build.bytesize }
+      end
     end
   end
 end

@@ -40,12 +40,12 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
   end
 
   def test_layout_with_text
-    text = build_dummy_section(name: ".text", offset: 0x1000)
+    text = build_dummy_section(name: ".text", offset: 0x1000, flags: flags(:text))
     elf.sections << text
     elf.sections << shstrtab
     layout = Caotral::Linker::Layout.new(elf:, shared: false, executable: true, pie: false)
     layout.apply!
-    assert_equal(1, elf.program_headers.size)
+    assert_equal(2, elf.program_headers.size)
     assert_equal(:LOAD, elf.program_headers[0].type)
     assert_equal(0x1000, text.header.offset)
   end
@@ -54,11 +54,15 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
     elf.sections << shstrtab
     layout = Caotral::Linker::Layout.new(elf:, shared: false, executable: false, pie: true)
     layout.apply!
+    pph = elf.program_headers.find { |ph| ph.type == :PHDR }
+    lph = elf.program_headers.find { |ph| ph.type == :LOAD }
+    iph = elf.program_headers.find { |ph| ph.type == :INTERP }
+    gph = elf.program_headers.find { |ph| ph.type == :GNU_STACK }
     assert_equal(4, elf.program_headers.size)
-    assert_equal(:PHDR, elf.program_headers[0].type)
-    assert_equal(:LOAD, elf.program_headers[1].type)
-    assert_equal(:INTERP, elf.program_headers[2].type)
-    assert_equal(:GNU_STACK, elf.program_headers[3].type)
+    assert_equal(:PHDR, pph.type)
+    assert_equal(:LOAD, lph.type)
+    assert_equal(:INTERP, iph.type)
+    assert_equal(:GNU_STACK, gph.type)
     assert_equal(:DYN, elf.header.type)
   end
 
@@ -74,39 +78,45 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
     elf.sections << shstrtab
     layout = Caotral::Linker::Layout.new(elf:, shared: true, executable: false, pie: false)
     layout.apply!
-    assert_equal(3, elf.program_headers.size)
-    assert_equal(:LOAD, elf.program_headers[0].type)
-    assert_equal(:DYNAMIC, elf.program_headers[1].type)
-    assert_equal(:GNU_STACK, elf.program_headers[2].type)
+    rph = elf.program_headers.find { |ph| ph.type == :LOAD && ph.flags == :R }
+    wph = elf.program_headers.find { |ph| ph.type == :LOAD && ph.flags == :RW }
+    dph = elf.program_headers.find { |ph| ph.type == :DYNAMIC }
+    gph = elf.program_headers.find { |ph| ph.type == :GNU_STACK }
+
+    assert_equal(4, elf.program_headers.size)
+    assert_equal(:LOAD, rph.type)
+    assert_equal(:LOAD, wph.type)
+    assert_equal(:DYNAMIC, dph.type)
+    assert_equal(:GNU_STACK, gph.type)
     assert_equal(:DYN, elf.header.type)
-    assert_equal(dynamic.header.offset, elf.program_headers[1].offset)
-    assert_equal(dynamic.header.addr, elf.program_headers[1].vaddr)
-    assert_equal(dynamic.header.addr, elf.program_headers[1].paddr)
-    assert_equal(dynamic.header.size, elf.program_headers[1].filesz)
-    assert_equal(dynamic.header.size, elf.program_headers[1].memsz)
-    assert_equal(dynamic.header.addralign, elf.program_headers[1].align)
-    assert_equal(:RW, elf.program_headers[1].flags)
+    assert_equal(dynamic.header.offset, dph.offset)
+    assert_equal(dynamic.header.addr, dph.vaddr)
+    assert_equal(dynamic.header.addr, dph.paddr)
+    assert_equal(dynamic.header.size, dph.filesz)
+    assert_equal(dynamic.header.size, dph.memsz)
+    assert_equal(dynamic.header.addralign, dph.align)
+    assert_equal(:RW, dph.flags)
   end
 
   def test_layout_sections
-    text = build_dummy_section(name: ".text", body: "abc".b, addralign: 16, flags: flags(:text), addr: 0x10)
+    text = build_dummy_section(name: ".text", body: "abc".b, addralign: 16, flags: flags(:text))
     data = build_dummy_section(name: ".data", body: "def".b, addralign: 8, flags: flags(:data))
     elf.sections << text
     elf.sections << data
     elf.sections << shstrtab
     layout = Caotral::Linker::Layout.new(elf:, shared: false, executable: true, pie: false)
     layout.apply!
+    xph = elf.program_headers.find { |ph| ph.type == :LOAD && ph.flags == :RX }
 
-    assert_equal(128, text.header.offset)
+    assert_equal(3, elf.program_headers.size)
+    assert_equal(0x1000, text.header.offset)
     assert_equal(3, text.header.size)
-    assert_equal(136, data.header.offset)
+    assert_equal(0x2000, data.header.offset)
     assert_equal(3, data.header.size)
-    assert_equal(139, shstrtab.header.offset)
+    assert_equal(0x2003, shstrtab.header.offset)
     assert_equal(22, shstrtab.header.size)
     assert_equal(".text\0.data\0.shstrtab\0", shstrtab.body.names)
-    assert_equal(0x10, text.header.addr)
-    assert_equal(0x18, data.header.addr)
-    assert_equal(text.header.offset, elf.program_headers[0].offset)
+    assert_equal(text.header.offset, xph.offset)
   end
 
   private

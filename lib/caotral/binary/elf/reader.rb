@@ -143,16 +143,16 @@ module Caotral
 
         def validate_relocations
           rela_dyn = @context.sections.find { |section| section.section_name.to_s == ".rela.dyn" }
-          pt_load = @context.program_headers.find { |ph| ph.type == :LOAD }
+          pt_loads = @context.program_headers.select { |ph| ph.type == :LOAD }
           dynamic = @context.sections.find { |section| section.section_name.to_s == ".dynamic" }
           rela_plt = @context.sections.find { |section| section.section_name.to_s == ".rela.plt" }
           rela_plt_exists = !rela_plt.body.empty?
           got_plt = @context.sections.find { |s| s.section_name.to_s == ".got.plt" }
           failed_messages = []
-          unless rela_dyn && pt_load && dynamic
+          unless rela_dyn && pt_loads.any? && dynamic
             data = [
               rela_dyn ? nil : ".rela.dyn section",
-              pt_load ? nil : "LOAD program header",
+              pt_loads.any? ? nil : "LOAD program header",
               dynamic ? nil : ".dynamic section"
             ].compact.join(", ")
             raise Caotral::Binary::ELF::Error, "Missing required relocations inputs: #{data}"
@@ -170,8 +170,11 @@ module Caotral
             end
           end
 
-          valid_range = (pt_load.vaddr...(pt_load.vaddr + pt_load.memsz))
-          unless rela_dyn.body.all? { |rel| valid_range.include?(rel.offset) }
+          within_load = ->(offset) do
+            pt_loads.any? { |ph| (ph.vaddr ... (ph.vaddr + ph.memsz)).include?(offset) }
+          end
+          valid_relocations = rela_dyn.body.all? { |rel| within_load.call(rel.offset) }
+          unless valid_relocations
             failed_messages << "Relocation entries in .rela.dyn exceed LOAD segment range"
           end
 
@@ -187,7 +190,7 @@ module Caotral
             failed_messages << "#{basemsg} DT_PLTGOT does not match .got.plt address" if got_plt && !plt_got
 
             rela_plt.body.each do |rel|
-              vr = valid_range.include?(rel.offset)
+              vr = within_load.call(rel.offset)
               js = rel.type_name == :AMD64_JUMP_SLOT
               failed_messages << "Relocation entries in .rela.plt exceed LOAD segment range" unless vr
               failed_messages << "Unexpected relocation type in .rela.plt: #{rel.type_name}" unless js
