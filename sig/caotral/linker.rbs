@@ -1,4 +1,12 @@
 class Caotral::Linker
+  type pending_relative_relocation = {
+    relocation: Caotral::Binary::ELF::Section::Rel,
+    target: Caotral::Binary::ELF::Section,
+    target_offset: Integer,
+    symbol: Caotral::Binary::ELF::Section::Symtab,
+    addend: Integer
+  }
+
   @inputs: Array[String]
   @output: String
   @linker: String

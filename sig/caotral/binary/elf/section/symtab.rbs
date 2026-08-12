@@ -13,5 +13,6 @@ class Caotral::Binary::ELF::Section::Symtab
 
   def name_offset: () -> Integer
   def info: () -> Integer
+  def shndx: () -> Integer
   def value: () -> Integer
 end

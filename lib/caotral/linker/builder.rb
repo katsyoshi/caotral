@@ -118,6 +118,7 @@ module Caotral
         sections = []
         rel_sections = []
         rel_texts = []
+        pending_relative_relocations = []
         elf.header = elf_obj.header.dup
         strtab_names = []
         text_offsets = {}
@@ -184,24 +185,22 @@ module Caotral
             section.body.each do |rel|
               sym = base_index.nil? ? rel.sym : base_index + rel.sym
               if rel.type == REL_TYPES[:AMD64_64]
-                base_offset = case section.section_name.to_s
-                              when /\.rela?\.text/
-                                vaddr + start_len + text_offsets.fetch(elf_obj.object_id, 0)
-                              when /\.rela?\.data/
-                                vaddr + text_offset + data_offsets.fetch(elf_obj.object_id, 0) + start_len
-                              else 0
-                              end
-                offset = rel.offset + base_offset
-                sym = symtab_section.body[sym_index = base_index.nil? ? rel.sym : base_index + rel.sym]
-                sym_addr = if sym.shndx == text_index
-                             vaddr + sym.value
-                           elsif sym.shndx == data_index
-                             vaddr + text_offset + sym.value + start_len
-                           else
-                             0
-                           end
-                addend = sym_addr - base_addr
-                rela_dyn_section.body << Caotral::Binary::ELF::Section::Rel.new.set!(offset:, info: (0 << 32) | REL_TYPES[:AMD64_RELATIVE], addend:)
+                relocation = Caotral::Binary::ELF::Section::Rel.new.set!(
+                  offset: 0,
+                  info: (0 << 32) | REL_TYPES[:AMD64_RELATIVE],
+                  addend: 0
+                )
+                symbol = symtab_section.body[sym]
+                addend = rel.addend? ? rel.addend : 0
+                target, target_offset =
+                  case section.section_name.to_s
+                  when /\.rela?\.text/
+                    [text_section, rel.offset + start_len + text_offsets.fetch(elf_obj.object_id, 0)]
+                  when /\.rela?\.data/
+                    [data_section, rel.offset + data_offsets.fetch(elf_obj.object_id, 0)]
+                  end
+                rela_dyn_section.body << relocation
+                pending_relative_relocations << { relocation:, target:, target_offset:, symbol:, addend: }
                 next
               elsif (undefined = symtab.body[rel.sym]&.shndx.to_i == 0) && ALLOW_RELOCATION_TYPES.include?(rel.type)
                 sym = base_index.to_i + rel.sym
@@ -425,6 +424,7 @@ module Caotral
 
         @linker_metadata[:got_plt_offsets] = got_plt_offsets
         @linker_metadata[:pending_text_relocations] = rel_texts
+        @linker_metadata[:pending_relative_relocations] = pending_relative_relocations
 
         elf
       end

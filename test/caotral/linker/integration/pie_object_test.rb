@@ -97,7 +97,7 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     elf = elf_obj.read
     IO.popen("./pie").close
     exit_code, handle_code = check_process($?.to_i)
-    assert_equal(60, exit_code)
+    assert_equal(42, exit_code)
     assert_equal(0, handle_code)
 
     section_names = elf.sections.map(&:section_name)
