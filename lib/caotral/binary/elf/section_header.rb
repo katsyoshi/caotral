@@ -56,6 +56,7 @@ module Caotral
         def allocated? = (@flags.pack("C*").unpack1("Q<") & SHF[:ALLOC]) != 0
         def writable? = (@flags.pack("C*").unpack1("Q<") & SHF[:WRITE]) != 0
         def execinstr? = (@flags.pack("C*").unpack1("Q<") & SHF[:EXECINSTR]) != 0
+        def nobits? = type == :nobits
 
         private def bytes = [@name, @type, @flags, @addr, @offset, @size, @link, @info, @addralign, @entsize]
       end
