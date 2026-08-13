@@ -26,4 +26,5 @@ class Caotral::Binary::ELF::SectionHeader
   def addr: () -> Integer
   def writable?: () -> bool
   def execinstr?: () -> bool
+  def nobits?: () -> bool
 end

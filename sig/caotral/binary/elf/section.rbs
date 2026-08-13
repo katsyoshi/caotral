@@ -8,4 +8,7 @@ class Caotral::Binary::ELF::Section
     body: untyped,
     section_name: String?
   ) -> void
+
+  def file_size: () -> Integer
+  def memory_size: () -> Integer
 end
