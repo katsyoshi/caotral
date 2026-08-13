@@ -97,7 +97,7 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     elf = elf_obj.read
     IO.popen("./pie").close
     exit_code, handle_code = check_process($?.to_i)
-    assert_equal(60, exit_code)
+    assert_equal(42, exit_code)
     assert_equal(0, handle_code)
 
     section_names = elf.sections.map(&:section_name)
@@ -117,5 +117,70 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     assert_equal(:AMD64, elf.header.arch)
     assert_not_equal(0, elf.header.entry)
     assert(elf_obj.validate_relocations)
+  end
+
+  def test_rela_data_pie_object
+    path = Pathname.new("sample/assembler/rela_data.s").to_s
+    IO.popen(["as", "-o", @inputs.first, path]).close
+
+    Caotral::Linker.link!(
+      inputs: @inputs,
+      output: @output,
+      linker: "self",
+      pie: true
+    )
+
+    elf_obj = Caotral::Binary::ELF::Reader.new(input: @output, debug: false)
+    elf = elf_obj.read
+    data = elf.find_by_name(".data")
+    rela_dyn = elf.find_by_name(".rela.dyn")
+    relocation = rela_dyn.body.first
+    rw_load = elf.program_headers.find {
+      |ph| ph.type == :LOAD && ph.flags == :RW
+    }
+
+    assert_equal(
+      data.header.addr,
+      relocation.offset,
+      "R_X86_64_RELATIVE target must follow the final .data address"
+    )
+    assert_equal(
+      data.header.addr + 8,
+      relocation.addend,
+      "R_X86_64_RELATIVE addend must point to value"
+    )
+    assert_operator(relocation.offset, :>=, rw_load.vaddr)
+    assert_operator(relocation.offset, :<, rw_load.vaddr + rw_load.memsz)
+
+    IO.popen(["./#{@output}"]).close
+    exit_code, handle_code = check_process($?.to_i)
+    assert_equal(42, exit_code)
+    assert_equal(0, handle_code)
+  end
+
+  def test_executable_large_rodata_pie_object
+    path = Pathname.new("sample/assembler/large_rodata.s").to_s
+    IO.popen(["as", "-o", @inputs.first, path]).close
+
+    Caotral::Linker.link!(
+      inputs: @inputs,
+      output: @output,
+      linker: "self",
+      pie: true
+    )
+
+    elf_reader = Caotral::Binary::ELF::Reader.new(input: @output, debug: false)
+    elf = elf_reader.read
+    text = elf.find_by_name(".text")
+    rodata = elf.find_by_name(".rodata")
+
+    assert_operator(text.header.offset, :>=, 0x3000)
+    assert_equal(text.header.addr, text.header.offset)
+    assert_equal(9216, rodata.header.size)
+
+    IO.popen(["./#{@output}"]).close
+    exit_code, handle_code = check_process($?.to_i)
+    assert_equal(42, exit_code)
+    assert_equal(0, handle_code)
   end
 end

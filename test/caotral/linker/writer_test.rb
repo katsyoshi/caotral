@@ -17,6 +17,7 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
     File.delete("write") if File.exist?("write")
     File.delete("relocatable.o") if File.exist?("relocatable.o")
     File.delete("relocated_exec") if File.exist?("relocated_exec")
+    File.delete("output") if File.exist?("output")
   end
   def test_write
     written_output = Caotral::Linker::Writer.write!(elf_obj: @elf_obj, output: "write.o")
@@ -51,10 +52,24 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
     assert_equal(0, exit_code)
   end
 
+  def test_writer_do_not_mutate_finalized_elf
+    before_elf_sections = snapshot(@elf_obj)
+    output = "output"
+    Caotral::Linker::Writer.new(elf_obj: @elf_obj, output:).write
+    assert_equal(before_elf_sections, snapshot(@elf_obj))
+  end
+
   private
   def check_process(status)
     exit_code = status >> 8
     handle_code = status & 0x7f
     [exit_code, handle_code]
+  end
+  def snapshot(elf)
+    {
+      header: elf.header.build,
+      program_header: elf.program_headers.map(&:build),
+      sections: elf.sections.map { |s| [s.section_name, s.header.build, s.build] }
+    }
   end
 end

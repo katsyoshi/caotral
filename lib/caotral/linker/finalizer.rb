@@ -18,6 +18,7 @@ module Caotral
         finalize_entry!
         finalize_plt_relocations!
         finalize_text_relocations!
+        finalize_relative_relocations!
         finalize_dynamic_sections! if dynamic?
         finalize_shared_sections! if dynamic? && plt
         finalize_section_headers!
@@ -71,6 +72,19 @@ module Caotral
             end
           end
           target.body = bytes
+        end
+      end
+
+      def finalize_relative_relocations!
+        pending_relative_relocations.each do |rrh|
+          symbol = rrh[:symbol]
+          symbol_section = @elf.sections[symbol.shndx]
+          target = rrh[:target]
+          relocation = rrh[:relocation]
+          relocation.set!(
+            offset: target.header.addr + rrh[:target_offset],
+            addend: symbol_section.header.addr + symbol.value + rrh[:addend]
+          )
         end
       end
 
@@ -183,6 +197,7 @@ module Caotral
       def rela_dyn = @rela_dyn ||= @elf.find_by_name(".rela.dyn")
       def shstrtab = @shstrtab ||= @elf.find_by_name(".shstrtab")
       def pending_text_relocations = @pending_text_relocations ||= @metadata.fetch(:pending_text_relocations, [])
+      def pending_relative_relocations = @pending_relative_relocations ||= @metadata.fetch(:pending_relative_relocations, [])
       def got_plt_offsets = @got_plt_offsets ||= @metadata.fetch(:got_plt_offsets, {})
       def dynamic? = (@shared || @pie)
     end

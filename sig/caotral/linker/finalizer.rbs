@@ -4,7 +4,13 @@ class Caotral::Linker::Finalizer
   @shared: bool
   @executable: bool
   @pie: bool
+  @pending_relative_relocations: Array[Caotral::Linker::pending_relative_relocation]?
 
   def initialize: (elf: Caotral::Binary::ELF, metadata: Hash[Symbol, untyped], shared: bool, executable: bool, pie: bool, debug: bool) -> void
   def apply!: () -> Caotral::Binary::ELF
+
+  private
+
+  def finalize_relative_relocations!: () -> void
+  def pending_relative_relocations: () -> Array[Caotral::Linker::pending_relative_relocation]
 end

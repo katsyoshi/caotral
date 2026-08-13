@@ -11,5 +11,5 @@ uintptr_t get_addr(void) {
 int foo = 42;
 
 int main(void) {
-  return (int)get_addr();
+  return *(int *)get_addr();
 }
