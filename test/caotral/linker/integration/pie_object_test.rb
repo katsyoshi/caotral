@@ -157,4 +157,30 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     assert_equal(42, exit_code)
     assert_equal(0, handle_code)
   end
+
+  def test_executable_large_rodata_pie_object
+    path = Pathname.new("sample/assembler/large_rodata.s").to_s
+    IO.popen(["as", "-o", @inputs.first, path]).close
+
+    Caotral::Linker.link!(
+      inputs: @inputs,
+      output: @output,
+      linker: "self",
+      pie: true
+    )
+
+    elf_reader = Caotral::Binary::ELF::Reader.new(input: @output, debug: false)
+    elf = elf_reader.read
+    text = elf.find_by_name(".text")
+    rodata = elf.find_by_name(".rodata")
+
+    assert_operator(text.header.offset, :>=, 0x3000)
+    assert_equal(text.header.addr, text.header.offset)
+    assert_equal(9216, rodata.header.size)
+
+    IO.popen(["./#{@output}"]).close
+    exit_code, handle_code = check_process($?.to_i)
+    assert_equal(42, exit_code)
+    assert_equal(0, handle_code)
+  end
 end

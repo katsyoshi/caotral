@@ -63,6 +63,8 @@ module Caotral
       end
       def layout_sections!
         @file_offset = header_end
+        text = @elf.find_by_name(".text")
+        @load_bias = text ? text.header.addr - text.header.offset : 0
 
         @load_sections.each do |flags, sections|
           next if sections.empty?
@@ -85,7 +87,7 @@ module Caotral
         @elf.sections.each do |section|
           next unless section.header.allocated?
 
-          addr = text.header.addr + (section.header.offset - text.header.offset)
+          addr = @load_bias + section.header.offset
           section.header.set!(addr:)
         end
       end
@@ -104,13 +106,11 @@ module Caotral
         @file_offset += @elf.sections.sum { |section| section.header.build.bytesize }
       end
       def finalize_program_headers!
-        text = @elf.find_by_name(".text")
-        load_bias = text.nil? ? 0 : text.header.addr - text.header.offset
         @elf.program_headers.each do |ph|
           case ph.type
           when :PHDR
             offset, align = 64, 8
-            vaddr = load_bias + offset
+            vaddr = @load_bias + offset
             paddr = vaddr
             filesz = @elf.program_headers.size * 56
             memsz = filesz
@@ -123,7 +123,7 @@ module Caotral
             segment_end = ph.flags == :R ? [header_end, section_end].compact.max : section_end
 
             offset = segment_start
-            vaddr = load_bias + offset
+            vaddr = @load_bias + offset
             paddr = vaddr
             filesz = segment_end - segment_start
             memsz = filesz
