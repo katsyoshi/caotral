@@ -88,6 +88,12 @@ module Caotral
           section_name: ".strtab",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
+        bss_section = Caotral::Binary::ELF::Section.new(
+          body: nil,
+          section_name: ".bss",
+          header: Caotral::Binary::ELF::SectionHeader.new
+                    .set!(type: SHT[:nobits], flags: SHF[:ALLOC] | SHF[:WRITE], addralign: 8)
+        )
         symtab_section = Caotral::Binary::ELF::Section.new(
           body: [],
           section_name: ".symtab",
@@ -119,14 +125,19 @@ module Caotral
         rel_sections = []
         rel_texts = []
         pending_relative_relocations = []
+        dynamic_symbol_pairs = []
         elf.header = elf_obj.header.dup
         strtab_names = []
         text_offsets = {}
         rodata_offsets = {}
+        bss_offsets = {}
         data_offsets = {}
         got_plt_offsets = {}
         text_offset = 0
         rodata_offset = 0
+        bss_offset = 0
+        bss_present = false
+        bss_addralign = 1
         data_offset = 0
         got_plt_offset = 24
         sym_by_elf = Hash.new { |h, k| h[k] = [] }
@@ -154,6 +165,15 @@ module Caotral
             data_offsets[elf_obj.object_id] = data_offset
             data_offset += data.body.bytesize
           end
+          bss = elf_obj.find_by_name(".bss")
+          unless bss.nil?
+            bss_present = true
+            alignment = [bss.header.addralign, 1].max
+            bss_offset = align_up(bss_offset, alignment)
+            bss_addralign = [bss_addralign, alignment].compact.max
+            bss_offsets[elf_obj.object_id] = bss_offset
+            bss_offset += bss.memory_size
+          end
           strtab = elf_obj.find_by_name(".strtab")
           strtab.body.names.split("\0").each { |name| strtab_names << name } unless strtab.nil?
           symtab = elf_obj.find_by_name(".symtab")
@@ -161,6 +181,7 @@ module Caotral
           unless symtab.nil?
             base_index = symtab_section.body.size
             text_index = elf_obj.sections.index(text) unless text.nil?
+            bss_index = elf_obj.sections.index(bss) unless bss.nil?
             data_index = elf_obj.sections.index(data) unless data.nil?
             rodata_index = elf_obj.sections.index(rodata) unless rodata.nil?
 
@@ -169,6 +190,7 @@ module Caotral
               name, info, other, shndx, value, size = st.build.unpack("L<CCS<Q<Q<")
               sym_by_elf[elf_obj] << sym
               value += text_offsets.fetch(elf_obj.object_id, 0) if shndx == text_index
+              value += bss_offsets.fetch(elf_obj.object_id, 0) if shndx == bss_index
               value += data_offsets.fetch(elf_obj.object_id, 0) if shndx == data_index
               value += rodata_offsets.fetch(elf_obj.object_id, 0) if shndx == rodata_index
               sym.set!(name:, info:, other:, shndx:, value:, size:)
@@ -278,7 +300,6 @@ module Caotral
           sections << plt_section
           sections << got_plt_section
         end
-        sections << strtab_section
         text_index = sections.index(text_section)
         symtab_section.body.each do |sym|
           next if sym.shndx == 0
@@ -297,12 +318,10 @@ module Caotral
         symtab_section.header.set!(
           type: 2,
           flags: 0,
-          link: elf.sections.index(strtab_section),
           info: local_count,
           addralign: 8,
           entsize: 24
         )
-
         sections += build_pie_sections if @pie
         if dynamic?
           @needed.each { |lib| dynstr.body.names += lib + "\0" if dynstr.body.offset_of(lib).nil? }
@@ -326,6 +345,7 @@ module Caotral
               name = dynstr.body.offset_of(copy_sym.name_string)
             end
             copy_sym.name_string = sym.name_string
+            dynamic_symbol_pairs << [copy_sym, sym]
             dynsym.body << copy_sym.set!(name:, shndx:, value: sym.value)
           end
           hash = Caotral::Binary::ELF::Section::Hash.new(nchain: dynsym.body.size)
@@ -344,7 +364,9 @@ module Caotral
 
           sections << dynamic_section
         end
+        sections << bss_section if bss_present
         sections << symtab_section
+        sections << strtab_section
 
         rel_sections.each { |s| sections << s.dup }
 
@@ -356,6 +378,8 @@ module Caotral
         )
 
         sections << shstrtab_section
+
+        bss_section.header.set!(size: bss_offset, addralign: bss_addralign)
 
         shstrtab_section_names = [*sections.map(&:section_name), "\0"].join("\0")
         shstrtab_section.body.names = shstrtab_section_names
@@ -375,6 +399,8 @@ module Caotral
             sym.set!(shndx:)
           end
         end
+
+        dynamic_symbol_pairs.each { |copy_sym, sym| copy_sym.set!(shndx: sym.shndx) }
 
         defined_global_index = {}
         symtab_section.body.each_with_index do |sym, index|
@@ -535,6 +561,7 @@ module Caotral
 
       def rel_type(section) = section.section_name&.start_with?(".rela.") ? 4 : 9
       def rel_entsize(section) = section.section_name&.start_with?(".rela.") ? 24 : 16
+      def align_up(val, align) = (val + align - 1) / align * align
 
       def dynamic? = @shared || @pie
     end

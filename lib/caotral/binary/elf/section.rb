@@ -22,13 +22,18 @@ module Caotral
         end
 
         def layout!(offset:)
-          size = build.bytesize
+          size = file_size
           align = [@header.addralign.to_i, 1].max
           offset = (offset + align - 1) / align * align
-          @header.set!(offset:, size:)
-
-          offset + size
+          if header.nobits?
+            header.set!(offset:)
+          else
+            header.set!(offset:, size:)
+          end
+          offset + file_size
         end
+        def file_size = header.nobits? ? 0 : build.bytesize
+        def memory_size = header.nobits? ? header.size : build.bytesize
       end
     end
   end
