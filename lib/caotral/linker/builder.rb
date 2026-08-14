@@ -125,6 +125,7 @@ module Caotral
         rel_sections = []
         rel_texts = []
         pending_relative_relocations = []
+        dynamic_symbol_pairs = []
         elf.header = elf_obj.header.dup
         strtab_names = []
         text_offsets = {}
@@ -135,6 +136,7 @@ module Caotral
         text_offset = 0
         rodata_offset = 0
         bss_offset = 0
+        bss_addralign = 1
         data_offset = 0
         got_plt_offset = 24
         sym_by_elf = Hash.new { |h, k| h[k] = [] }
@@ -164,6 +166,9 @@ module Caotral
           end
           bss = elf_obj.find_by_name(".bss")
           unless bss.nil?
+            alignment = [bss.header.addralign, 1].max
+            bss_offset = align_up(bss_offset, alignment)
+            bss_addralign = [bss_addralign, alignment].compact.max
             bss_offsets[elf_obj.object_id] = bss_offset
             bss_offset += bss.memory_size
           end
@@ -338,6 +343,7 @@ module Caotral
               name = dynstr.body.offset_of(copy_sym.name_string)
             end
             copy_sym.name_string = sym.name_string
+            dynamic_symbol_pairs << [copy_sym, sym]
             dynsym.body << copy_sym.set!(name:, shndx:, value: sym.value)
           end
           hash = Caotral::Binary::ELF::Section::Hash.new(nchain: dynsym.body.size)
@@ -371,7 +377,7 @@ module Caotral
 
         sections << shstrtab_section
 
-        bss_section.header.set!(size: bss_offset)
+        bss_section.header.set!(size: bss_offset, addralign: bss_addralign)
 
         shstrtab_section_names = [*sections.map(&:section_name), "\0"].join("\0")
         shstrtab_section.body.names = shstrtab_section_names
@@ -391,6 +397,8 @@ module Caotral
             sym.set!(shndx:)
           end
         end
+
+        dynamic_symbol_pairs.each { |copy_sym, sym| copy_sym.set!(shndx: sym.shndx) }
 
         defined_global_index = {}
         symtab_section.body.each_with_index do |sym, index|
@@ -551,6 +559,7 @@ module Caotral
 
       def rel_type(section) = section.section_name&.start_with?(".rela.") ? 4 : 9
       def rel_entsize(section) = section.section_name&.start_with?(".rela.") ? 24 : 16
+      def align_up(val, align) = (val + align - 1) / align * align
 
       def dynamic? = @shared || @pie
     end

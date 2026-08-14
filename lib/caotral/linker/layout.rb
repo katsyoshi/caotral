@@ -118,15 +118,23 @@ module Caotral
           when :LOAD
             allocated_sections = @load_sections[ph.flags]
 
-            section_end = allocated_sections.map { |s| s.header.offset + s.header.size }.max
+            memory_end = allocated_sections.map { |s| s.header.offset + s.memory_size }.max
+            file_end = allocated_sections
+                         .reject { |s| s.header.nobits? }
+                         .map { |s| s.header.offset + s.file_size }.max
             segment_start = ph.flags == :R ? 0 : allocated_sections.map { |s| s.header.offset }.min
-            segment_end = ph.flags == :R ? [header_end, section_end].compact.max : section_end
+            if ph.flags == :R
+              memory_end = [header_end, memory_end].compact.max
+              file_end = [header_end, file_end].compact.max
+            end
+            memory_end ||= segment_start
+            file_end ||= segment_start
 
             offset = segment_start
             vaddr = @load_bias + offset
             paddr = vaddr
-            filesz = segment_end - segment_start
-            memsz = filesz
+            filesz = file_end - segment_start
+            memsz = memory_end - segment_start
             flags = PF[ph.flags]
             align = LOAD_ALIGNMENT
           when :INTERP
