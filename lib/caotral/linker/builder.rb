@@ -136,6 +136,7 @@ module Caotral
         text_offset = 0
         rodata_offset = 0
         bss_offset = 0
+        bss_present = false
         bss_addralign = 1
         data_offset = 0
         got_plt_offset = 24
@@ -166,6 +167,7 @@ module Caotral
           end
           bss = elf_obj.find_by_name(".bss")
           unless bss.nil?
+            bss_present = true
             alignment = [bss.header.addralign, 1].max
             bss_offset = align_up(bss_offset, alignment)
             bss_addralign = [bss_addralign, alignment].compact.max
@@ -362,7 +364,7 @@ module Caotral
 
           sections << dynamic_section
         end
-        sections << bss_section if bss_offset > 0
+        sections << bss_section if bss_present
         sections << symtab_section
         sections << strtab_section
 

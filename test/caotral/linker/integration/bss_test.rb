@@ -104,4 +104,28 @@ class Caotral::Linker::BSSTest < Test::Unit::TestCase
     assert_equal(42, exit_code)
     assert_equal(0, handle_code)
   end
+
+  def test_zero_size_bss
+    @inputs = []
+    [
+      [Pathname.new("sample/assembler/empty_bss.s").to_s, "bss.o"],
+    ].each do |(path, input)|
+      IO.popen(["as", "-o", input, path]).close
+      @inputs << input
+    end
+    @output = "bss"
+
+    Caotral::Linker.link!(inputs:, output:, linker: "self")
+
+    reader = Caotral::Binary::ELF::Reader.new(input: output, debug: false)
+    elf = reader.read
+    bss = elf.find_by_name(".bss")
+    symbol = elf.find_by_name(".symtab").body.find { |sym| sym.name_string == "value" }
+
+    assert_not_nil(bss)
+    assert_equal(elf.index(".bss"), symbol.shndx)
+    assert_equal(0, bss.header.size)
+    assert_equal(8, bss.header.addralign)
+    assert_equal(0, symbol.value)
+  end
 end
