@@ -17,6 +17,7 @@ module Caotral
       SHT = Caotral::Binary::ELF::SectionHeader::SHT
       SHF = Caotral::Binary::ELF::SectionHeader::SHF
       SectionDynamic = Caotral::Binary::ELF::Section::Dynamic
+      SymbolTableMethods = Caotral::Binary::ELF::SymbolTable
       UNSUPPORTED_REL_TYPES = [
         REL_TYPES[:AMD64_GOTPCREL],
         REL_TYPES[:AMD64_GOTPCRELX],
@@ -101,6 +102,7 @@ module Caotral
           section_name: ".symtab",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
+        symtab_section.extend(SymbolTableMethods)
         shstrtab_section = Caotral::Binary::ELF::Section.new(
           body: Caotral::Binary::ELF::Section::Strtab.new("\0".b),
           section_name: ".shstrtab",
@@ -295,8 +297,8 @@ module Caotral
         strtab_section.body.names = strtab_names.to_a.sort.join("\0") + "\0"
         sections << null_section
 
-        _start = symtab_section.body.find { |sym| sym.name_string == "_start" }
-        entry_sym = _start || symtab_section.body.find { |sym| sym.name_string == "main" }
+        _start = symtab_section.find_defined_symbol("_start")
+        entry_sym = _start || symtab_section.find_defined_symbol("main")
 
         raise Caotral::Binary::ELF::Error, "main or _start function not found" if @executable && entry_sym.nil?
         if _start.nil?
@@ -520,6 +522,8 @@ module Caotral
           section_name: ".dynsym",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
+
+        dynsym_section.extend(SymbolTableMethods)
 
         dynsym_section.header.set!(info: 1, type: SHT[:dynsym], flags: SHF[:ALLOC], addralign: 8, entsize: 24)
 

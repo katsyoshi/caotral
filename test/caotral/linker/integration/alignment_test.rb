@@ -26,14 +26,14 @@ class Caotral::Linker::AlignmentTest < Test::Unit::TestCase
     Caotral::Linker.link!(inputs: @inputs, output: @output, linker: "self")
 
     elf = Caotral::Binary::ELF::Reader.read!(input: @output)
-    symtab = elf.find_by_name(".symtab").body
+    symtab = elf.find_by_name(".symtab")
     {
       ".text" => "aligned_function",
       ".rodata" => "aligned_rodata",
       ".data" => "aligned_data",
     }.each do |section_name, symbol_name|
       section = elf.find_by_name(section_name)
-      symbol = symtab.find { |sym| sym.name_string == symbol_name && sym.shndx != 0 }
+      symbol = symtab.find_defined_symbol(symbol_name)
 
       assert_equal(32, section.header.addralign)
       assert_equal(0, (section.header.addr + symbol.value) % 32)

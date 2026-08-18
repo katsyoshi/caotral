@@ -63,7 +63,7 @@ class Caotral::Linker::BSSTest < Test::Unit::TestCase
     reader = Caotral::Binary::ELF::Reader.new(input: output, debug: false)
     elf = reader.read
     bss = elf.find_by_name(".bss")
-    dynamic_symbol = elf.find_by_name(".dynsym").body.find { |sym| sym.name_string == "value" }
+    dynamic_symbol = elf.find_by_name(".dynsym").find_defined_symbol("value")
 
     assert_equal(elf.index(".bss"), dynamic_symbol.shndx)
     assert_equal(:nobits, bss.header.type)
@@ -92,7 +92,7 @@ class Caotral::Linker::BSSTest < Test::Unit::TestCase
     reader = Caotral::Binary::ELF::Reader.new(input: output, debug: false)
     elf = reader.read
     bss = elf.find_by_name(".bss")
-    aligned_symbol = elf.find_by_name(".symtab").body.find { |sym| sym.name_string == "aligned_value" }
+    aligned_symbol = elf.find_by_name(".symtab").find_defined_symbol("aligned_value")
 
     assert_equal(elf.index(".bss"), aligned_symbol.shndx)
     assert_equal(32, bss.header.size)
@@ -120,7 +120,7 @@ class Caotral::Linker::BSSTest < Test::Unit::TestCase
     reader = Caotral::Binary::ELF::Reader.new(input: output, debug: false)
     elf = reader.read
     bss = elf.find_by_name(".bss")
-    symbol = elf.find_by_name(".symtab").body.find { |sym| sym.name_string == "value" }
+    symbol = elf.find_by_name(".symtab").find_defined_symbol("value")
 
     assert_not_nil(bss)
     assert_equal(elf.index(".bss"), symbol.shndx)

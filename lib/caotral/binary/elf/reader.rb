@@ -6,6 +6,7 @@ module Caotral
       class Reader
         attr_reader :context
         def self.read!(input:, debug: false, linker_options: []) = new(input:, debug:, linker_options:).read
+        SymbolTable = Caotral::Binary::ELF::SymbolTable
 
         def initialize(input:, debug: false, linker_options: [])
           @input = decision(input)
@@ -99,7 +100,9 @@ module Caotral
                                size = sym_bin[16, 8].unpack1("Q<")
                                name_string = @context.sections[section.header.link]&.body&.lookup(name).to_s
 
-                               Caotral::Binary::ELF::Section::Symtab.new.set!(name:, info:, other:, shndx:, value:, size:, name_string:)
+                               symtab = Caotral::Binary::ELF::Section::Symtab.new
+                               symtab.set!(name:, info:, other:, shndx:, value:, size:, name_string:)
+                               symtab
                              end
                            when :rel, :rela
                              rela = type == :rela
@@ -126,6 +129,7 @@ module Caotral
                            when :progbits
                              body_bin
                            end
+            section.extend(SymbolTable) if [:symtab, :dynsym].include?(type)
           end
 
           strtab = @context.find_by_name(".strtab")
