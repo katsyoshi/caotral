@@ -5,6 +5,8 @@ module Caotral
   class Linker
     class Builder
       include Caotral::Binary::ELF::Utils
+      NULL_BIN = "\x00".b.freeze
+      NOP_BIN = "\x90".b.freeze
       REL_TYPES = Caotral::Binary::ELF::Section::Rel::TYPES
       DYNAMIC_TAGS = Caotral::Binary::ELF::Section::Dynamic::TAG_TYPES
       SYMTAB_BIND = { locals: 0, globals: 1, weaks: 2, }.freeze
@@ -135,11 +137,14 @@ module Caotral
         got_plt_offsets = {}
         text_offset = 0
         rodata_offset = 0
-        bss_offset = 0
-        bss_present = false
-        bss_addralign = 1
         data_offset = 0
+        bss_offset = 0
         got_plt_offset = 24
+        bss_present = false
+        text_addralign = 1
+        rodata_addralign = 1
+        data_addralign = 1
+        bss_addralign = 1
         sym_by_elf = Hash.new { |h, k| h[k] = [] }
         dynstr, dynsym = build_shared_dynamic_sections if dynamic?
 
@@ -148,22 +153,39 @@ module Caotral
         @elf_objs.each do |elf_obj|
           text = elf_obj.find_by_name(".text")
           unless text.nil?
+            alignment = [text.header.addralign, 1].max
+            aligned_offset = align_up(start_len + text_offset, alignment) - start_len
+            padding_size = aligned_offset - text_offset
+
+            text_section.body << (NOP_BIN * padding_size)
+            text_offsets[elf_obj.object_id] = aligned_offset
             text_section.body << text.body
-            text_offsets[elf_obj.object_id] = text_offset
-            size = text.body.bytesize
-            text_offset += size
+            text_offset = aligned_offset + text.build.bytesize
+            text_addralign = [text_addralign, alignment].max
           end
           rodata = elf_obj.find_by_name(".rodata")
           unless rodata.nil?
+            alignment = [rodata.header.addralign, 1].max
+            aligned_offset = align_up(rodata_offset, alignment)
+            padding_size = aligned_offset - rodata_offset
+
+            rodata_section.body << (NULL_BIN * padding_size)
+            rodata_offsets[elf_obj.object_id] = aligned_offset
             rodata_section.body << rodata.body
-            rodata_offsets[elf_obj.object_id] = rodata_offset
-            rodata_offset += rodata.body.bytesize
+            rodata_offset = aligned_offset + rodata.build.bytesize
+            rodata_addralign = [rodata_addralign, alignment].max
           end
           data = elf_obj.find_by_name(".data")
           unless data.nil?
+            alignment = [data.header.addralign, 1].max
+            aligned_offset = align_up(data_offset, alignment)
+            padding_size = aligned_offset - data_offset
+
+            data_section.body << (NULL_BIN * padding_size)
+            data_offsets[elf_obj.object_id] = aligned_offset
             data_section.body << data.body
-            data_offsets[elf_obj.object_id] = data_offset
-            data_offset += data.body.bytesize
+            data_offset = aligned_offset + data.build.bytesize
+            data_addralign = [data_addralign, alignment].max
           end
           bss = elf_obj.find_by_name(".bss")
           unless bss.nil?
@@ -289,12 +311,14 @@ module Caotral
           addr: vaddr,
           offset: exec_text_offset,
           size: text_section.body.bytesize,
-          addralign: 16
+          addralign: text_addralign
         )
 
         sections << text_section
         strtab_section.header.set!(type: 3, flags: 0, addralign: 1, entsize: 0)
+        rodata_section.header.set!(addralign: rodata_addralign)
         sections << rodata_section
+        data_section.header.set!(addralign: data_addralign)
         sections << data_section
         if dynamic?
           sections << plt_section
