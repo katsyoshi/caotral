@@ -1,0 +1,3 @@
+module Caotral::Binary::ELF::SymbolTable
+  def find_defined_symbol: (String) -> Caotral::Binary::ELF::Section::Symtab?
+end

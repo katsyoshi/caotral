@@ -5,6 +5,8 @@ module Caotral
   class Linker
     class Builder
       include Caotral::Binary::ELF::Utils
+      NULL_BIN = "\x00".b.freeze
+      NOP_BIN = "\x90".b.freeze
       REL_TYPES = Caotral::Binary::ELF::Section::Rel::TYPES
       DYNAMIC_TAGS = Caotral::Binary::ELF::Section::Dynamic::TAG_TYPES
       SYMTAB_BIND = { locals: 0, globals: 1, weaks: 2, }.freeze
@@ -15,6 +17,7 @@ module Caotral
       SHT = Caotral::Binary::ELF::SectionHeader::SHT
       SHF = Caotral::Binary::ELF::SectionHeader::SHF
       SectionDynamic = Caotral::Binary::ELF::Section::Dynamic
+      SymbolTableMethods = Caotral::Binary::ELF::SymbolTable
       UNSUPPORTED_REL_TYPES = [
         REL_TYPES[:AMD64_GOTPCREL],
         REL_TYPES[:AMD64_GOTPCRELX],
@@ -99,6 +102,7 @@ module Caotral
           section_name: ".symtab",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
+        symtab_section.extend(SymbolTableMethods)
         shstrtab_section = Caotral::Binary::ELF::Section.new(
           body: Caotral::Binary::ELF::Section::Strtab.new("\0".b),
           section_name: ".shstrtab",
@@ -135,35 +139,55 @@ module Caotral
         got_plt_offsets = {}
         text_offset = 0
         rodata_offset = 0
-        bss_offset = 0
-        bss_present = false
-        bss_addralign = 1
         data_offset = 0
+        bss_offset = 0
         got_plt_offset = 24
+        bss_present = false
+        text_addralign = 1
+        rodata_addralign = 1
+        data_addralign = 1
+        bss_addralign = 1
         sym_by_elf = Hash.new { |h, k| h[k] = [] }
         dynstr, dynsym = build_shared_dynamic_sections if dynamic?
 
-        start_len = 0 if @elf_objs.any? { |elf| elf.find_by_name(".symtab").body.find { |sym| sym.name_string == "_start" } }
+        start_len = 0 if @executable && @elf_objs.any? { |elf| elf.entry_start? }
 
         @elf_objs.each do |elf_obj|
           text = elf_obj.find_by_name(".text")
           unless text.nil?
+            alignment = [text.header.addralign, 1].max
+            aligned_offset = align_up(start_len + text_offset, alignment) - start_len
+            padding_size = aligned_offset - text_offset
+
+            text_section.body << (NOP_BIN * padding_size)
+            text_offsets[elf_obj.object_id] = aligned_offset
             text_section.body << text.body
-            text_offsets[elf_obj.object_id] = text_offset
-            size = text.body.bytesize
-            text_offset += size
+            text_offset = aligned_offset + text.build.bytesize
+            text_addralign = [text_addralign, alignment].max
           end
           rodata = elf_obj.find_by_name(".rodata")
           unless rodata.nil?
+            alignment = [rodata.header.addralign, 1].max
+            aligned_offset = align_up(rodata_offset, alignment)
+            padding_size = aligned_offset - rodata_offset
+
+            rodata_section.body << (NULL_BIN * padding_size)
+            rodata_offsets[elf_obj.object_id] = aligned_offset
             rodata_section.body << rodata.body
-            rodata_offsets[elf_obj.object_id] = rodata_offset
-            rodata_offset += rodata.body.bytesize
+            rodata_offset = aligned_offset + rodata.build.bytesize
+            rodata_addralign = [rodata_addralign, alignment].max
           end
           data = elf_obj.find_by_name(".data")
           unless data.nil?
+            alignment = [data.header.addralign, 1].max
+            aligned_offset = align_up(data_offset, alignment)
+            padding_size = aligned_offset - data_offset
+
+            data_section.body << (NULL_BIN * padding_size)
+            data_offsets[elf_obj.object_id] = aligned_offset
             data_section.body << data.body
-            data_offsets[elf_obj.object_id] = data_offset
-            data_offset += data.body.bytesize
+            data_offset = aligned_offset + data.build.bytesize
+            data_addralign = [data_addralign, alignment].max
           end
           bss = elf_obj.find_by_name(".bss")
           unless bss.nil?
@@ -257,8 +281,13 @@ module Caotral
               elsif UNSUPPORTED_REL_TYPES.include?(rel.type)
                 raise Caotral::Binary::ELF::Error, "unsupported relocation type: #{rel.type_name}"
               end
-              offset = rel.offset + text_offsets.fetch(elf_obj.object_id, 0)
-              offset += start_len if section.section_name.to_s.start_with?(".rela.text", ".rel.text")
+
+              offset = case section.section_name.to_s
+                       when ".rela.text", ".rel.text"
+                         rel.offset + start_len + text_offsets.fetch(elf_obj.object_id, 0)
+                       when ".rela.data", ".rel.data"
+                         rel.offset + data_offsets.fetch(elf_obj.object_id, 0)
+                       end
               addend = rel.addend? ? rel.addend : nil
               new_rel = Caotral::Binary::ELF::Section::Rel.new(addend: rel.addend?)
               info = (sym << 32) | rel.type
@@ -273,8 +302,8 @@ module Caotral
         strtab_section.body.names = strtab_names.to_a.sort.join("\0") + "\0"
         sections << null_section
 
-        _start = symtab_section.body.find { |sym| sym.name_string == "_start" }
-        entry_sym = _start || symtab_section.body.find { |sym| sym.name_string == "main" }
+        _start = symtab_section.find_defined_symbol("_start")
+        entry_sym = _start || symtab_section.find_defined_symbol("main")
 
         raise Caotral::Binary::ELF::Error, "main or _start function not found" if @executable && entry_sym.nil?
         if _start.nil?
@@ -289,12 +318,14 @@ module Caotral
           addr: vaddr,
           offset: exec_text_offset,
           size: text_section.body.bytesize,
-          addralign: 16
+          addralign: text_addralign
         )
 
         sections << text_section
         strtab_section.header.set!(type: 3, flags: 0, addralign: 1, entsize: 0)
+        rodata_section.header.set!(addralign: rodata_addralign)
         sections << rodata_section
+        data_section.header.set!(addralign: data_addralign)
         sections << data_section
         if dynamic?
           sections << plt_section
@@ -496,6 +527,8 @@ module Caotral
           section_name: ".dynsym",
           header: Caotral::Binary::ELF::SectionHeader.new
         )
+
+        dynsym_section.extend(SymbolTableMethods)
 
         dynsym_section.header.set!(info: 1, type: SHT[:dynsym], flags: SHF[:ALLOC], addralign: 8, entsize: 24)
 

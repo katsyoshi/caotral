@@ -27,7 +27,6 @@ module Caotral
 
       private
       def classify_load_sections!
-        allocated_sections = @elf.sections.select { |s| s.header.allocated? }
         read_only_sections = allocated_sections.select { |s| !s.header.execinstr? && !s.header.writable? }
         executable_sections = allocated_sections.select { |s| s.header.execinstr? && !s.header.writable? }
         writable_sections = allocated_sections.select { |s| !s.header.execinstr? && s.header.writable? }
@@ -64,7 +63,14 @@ module Caotral
       def layout_sections!
         @file_offset = header_end
         text = @elf.find_by_name(".text")
-        @load_bias = text ? text.header.addr - text.header.offset : 0
+        entry_offset = 0
+        @load_bias = 0
+        if text
+          entry_offset = @elf.header.entry - text.header.addr
+          requested_bias = text.header.addr - text.header.offset
+          max_alignment = allocated_sections.map { |s| [s.header.addralign, 1].max }.max
+          @load_bias = align_up(requested_bias, max_alignment)
+        end
 
         @load_sections.each do |flags, sections|
           next if sections.empty?
@@ -90,6 +96,8 @@ module Caotral
           addr = @load_bias + section.header.offset
           section.header.set!(addr:)
         end
+        @elf.header.set!(entry: text.header.addr + entry_offset) if @executable && text
+        @elf
       end
       def layout_section_headers!
         shstrtab = @elf.find_by_name(".shstrtab")
@@ -184,6 +192,7 @@ module Caotral
         raise Error, "must have ELF header" unless Caotral::Binary::ELF::Header === @elf.header
         @elf.header.build.bytesize + @elf.program_headers.sum { |ph| ph.build.bytesize }
       end
+      def allocated_sections = @elf.sections.select { |s| s.header.allocated? }
     end
   end
 end

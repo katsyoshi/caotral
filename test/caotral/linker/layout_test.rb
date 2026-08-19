@@ -119,6 +119,20 @@ class Caotral::Linker::LayoutTest < Test::Unit::TestCase
     assert_equal(text.header.offset, xph.offset)
   end
 
+  def test_layout_sections_with_huge_text_alignment
+    text = build_dummy_section(name: ".text", body: "abc".b, addralign: 0x800000, addr: 0x400000, flags: flags(:text))
+    elf.sections << text
+    elf.sections << shstrtab
+    elf.header.set!(entry: 0x400002)
+    layout = Caotral::Linker::Layout.new(elf:, shared: false, executable: true, pie: false)
+    entry_offset = elf.header.entry - text.header.addr
+    layout.apply!
+    text = elf.find_by_name(".text")
+
+    assert_equal(0, text.header.addr % text.header.addralign)
+    assert_equal(entry_offset, elf.header.entry - text.header.addr)
+  end
+
   private
   def build_dummy_section(name:, body: "".b, addralign: 1, offset: 0, flags: 0, addr: 0)
     header = Caotral::Binary::ELF::SectionHeader.new
