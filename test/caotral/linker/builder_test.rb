@@ -81,4 +81,26 @@ class Caotral::Linker::BuilderTest < Test::Unit::TestCase
     assert_equal(32, symbol.value)
     assert_equal(symbol.value, relocation.offset)
   end
+
+  def test_undefined_start_uses_synthetic_start
+    input = "undefined_start.o"
+    IO.popen(["as", "-o", input, "sample/assembler/undefined_start.s"]).close
+    input_elf = Caotral::Binary::ELF::Reader.read!(input:)
+    @elf_objs << input_elf
+    @inputs << input
+
+    input_start = input_elf.find_by_name(".symtab").body.find do |symbol|
+      symbol.name_string == "_start"
+    end
+
+    assert_equal(0, input_start.shndx)
+    assert_false(input_elf.entry_start?)
+
+    elf = Caotral::Linker::Builder.new(elf_objs:).build
+    text = elf.find_by_name(".text")
+    main = elf.find_by_name(".symtab").find_defined_symbol("main")
+
+    assert_equal(17, main.value)
+    assert_equal(main.value - 5, text.body.byteslice(1, 4).unpack1("l<"))
+  end
 end

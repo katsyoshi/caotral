@@ -150,7 +150,7 @@ module Caotral
         sym_by_elf = Hash.new { |h, k| h[k] = [] }
         dynstr, dynsym = build_shared_dynamic_sections if dynamic?
 
-        start_len = 0 if @elf_objs.any? { |elf| elf.find_by_name(".symtab").body.find { |sym| sym.name_string == "_start" } }
+        start_len = 0 if @executable && @elf_objs.any? { |elf| elf.entry_start? }
 
         @elf_objs.each do |elf_obj|
           text = elf_obj.find_by_name(".text")
