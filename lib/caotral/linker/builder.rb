@@ -281,8 +281,13 @@ module Caotral
               elsif UNSUPPORTED_REL_TYPES.include?(rel.type)
                 raise Caotral::Binary::ELF::Error, "unsupported relocation type: #{rel.type_name}"
               end
-              offset = rel.offset + text_offsets.fetch(elf_obj.object_id, 0)
-              offset += start_len if section.section_name.to_s.start_with?(".rela.text", ".rel.text")
+
+              offset = case section.section_name.to_s
+                       when ".rela.text", ".rel.text"
+                         rel.offset + start_len + text_offsets.fetch(elf_obj.object_id, 0)
+                       when ".rela.data", ".rel.data"
+                         rel.offset + data_offsets.fetch(elf_obj.object_id, 0)
+                       end
               addend = rel.addend? ? rel.addend : nil
               new_rel = Caotral::Binary::ELF::Section::Rel.new(addend: rel.addend?)
               info = (sym << 32) | rel.type

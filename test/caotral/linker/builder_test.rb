@@ -61,4 +61,24 @@ class Caotral::Linker::BuilderTest < Test::Unit::TestCase
     assert_equal([0x90] * 15, text.body.byteslice(17, 15).bytes)
     assert_equal(32, aligned_function.value)
   end
+
+  def test_align_data_relocation_offset
+    [
+      ["sample/assembler/alignment_prefix.s", "alignment_prefix_relocation.o"],
+      ["sample/assembler/aligned_data_relocation.s", "aligned_data_relocation.o"],
+    ].each do |(path, input)|
+      IO.popen(["as", "-o", input, path]).close
+      @elf_objs << Caotral::Binary::ELF::Reader.read!(input:)
+      @inputs << input
+    end
+
+    builder = Caotral::Linker::Builder.new(elf_objs:, executable: false)
+    elf = builder.build
+    symtab = elf.find_by_name(".symtab")
+    symbol = symtab.find_defined_symbol("aligned_data_reference")
+    relocation = elf.find_by_name(".rela.data").body.first
+
+    assert_equal(32, symbol.value)
+    assert_equal(symbol.value, relocation.offset)
+  end
 end
