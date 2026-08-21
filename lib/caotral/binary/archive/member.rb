@@ -1,19 +1,21 @@
-require_relative "header"
-
 module Caotral
   module Binary
     class Archive
       class Member
-        attr_reader :body, :header
+        attr_reader :elf, :offset, :name
 
-        def initialize(bin)
-          @header = Caotral::Binary::Archive::Header.new(bin.read(60))
-          size = @header.size
-          @body_bin = bin.read(@header.size)
-          bin.read(1) if size.odd?
+        def initialize(name:, body:, offset:)
+          @name = name
+          @body = StringIO.new(body)
+          @offset = offset
         end
 
-        def read! = @body = ""
+        def read!
+          reader = Caotral::Binary::ELF::Reader.new(input: @body)
+          reader.read
+          @elf = reader.context
+          self
+        end
       end
     end
   end
