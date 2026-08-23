@@ -10,6 +10,8 @@ module Caotral
           input = decision(path)
           @bin = StringIO.new(input.read)
           @archive = Caotral::Binary::Archive.new
+        ensure
+          input.close
         end
 
         def read!
@@ -33,10 +35,13 @@ module Caotral
                        raw_name.delete_suffix("/")
                      end
 
-              archive.members << Caotral::Binary::Archive::Member.new(name:, body:, offset:).read!
+              archive.members << Caotral::Binary::Archive::Member.new(name:, body:, offset:)
             end
             @bin.read(1) if size.odd?
           end
+          @archive
+        ensure
+          @bin.close
         end
 
         private
@@ -44,6 +49,8 @@ module Caotral
           case path
           when String, Pathname
             File.open(File.expand_path(path.to_s), "rb")
+          when StringIO
+            path
           else
             raise ArgumentError, "wrong input type"
           end

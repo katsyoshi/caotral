@@ -25,6 +25,9 @@ module Caotral
           @symbols = names.zip(offsets).map { |name, offset| Symbol.new(name:, offset:) }
           self
         end
+
+        def names = @symbols.map(&:name)
+        def offset_of(name) = @symbols.find { |symbol| symbol.name == name }&.offset
       end
     end
   end

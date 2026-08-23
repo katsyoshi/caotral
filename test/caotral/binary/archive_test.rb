@@ -1,31 +1,18 @@
 require_relative "../../test_suite"
 
 class Caotral::Binary::ArchiveTest < Test::Unit::TestCase
+  include CommonSetupHelper
   include BuildFixtureHelper
-
-  attr_reader :output, :inputs
-
-  def teardown = @garbage_box.each { |name| File.delete(name) if File.exist?(name) }
 
   def test_archive
     @output = "archive.a"
-    @garbage_box = [@output]
+    @generated = [@output]
     @inputs = []
-    [
+    inputs = [
       "sample/C/multi-file-link-a.c",
       "sample/C/add.c"
-    ].each do |input|
-      output = File.basename(input, ".c") + ".s"
-      @garbage_box << output
-      compile_fixture(output:, input:, options: ["-fno-pie"])
-      input = output
-      output = File.basename(input, ".s") + ".o"
-      @garbage_box << output
-      assemble_fixture(output:, input:)
-      @inputs << output
-    end
-
-    create_archive(output:, inputs:)
+    ]
+    create_archive(output: @output, inputs:)
     reader = Caotral::Binary::Archive::Reader.new(output)
     reader.read!
     archive = reader.archive

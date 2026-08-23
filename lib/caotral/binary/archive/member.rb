@@ -10,10 +10,12 @@ module Caotral
           @offset = offset
         end
 
-        def read!
+        def read
+          return self if @elf
           reader = Caotral::Binary::ELF::Reader.new(input: @body)
           reader.read
           @elf = reader.context
+          @body = nil
           self
         end
       end

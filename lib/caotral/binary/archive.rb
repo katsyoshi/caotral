@@ -16,6 +16,9 @@ module Caotral
         @symbol_tables = []
         @name_table = nil
       end
+
+      def symbol_offset(name) = @symbol_tables.map { |symbol_table| symbol_table.offset_of(name) }&.compact&.first
+      def find_member_by_offset(offset) = @members.find { |member| member.offset == offset }
     end
   end
 end
