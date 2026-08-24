@@ -8,14 +8,14 @@ require_relative "linker/writer"
 
 module Caotral
   class Linker
-    def self.link!(inputs:, output: "a.out", linker: "mold", debug: false, shared: false, executable: true, pie: false, needed: [])
-      new(inputs:, output:, linker:, debug:, shared:, executable:, pie:, needed:).link
+    def self.link!(inputs:, output: "a.out", linker: "mold", debug: false, shared: false, executable: true, pie: false, needed: [], archives: [])
+      new(inputs:, output:, linker:, debug:, shared:, executable:, pie:, needed:, archives:).link
     end
 
-    def initialize(inputs:, output: "a.out", linker: "mold", linker_options: [], executable: true, shared: false, pie: false, debug: false, needed: [])
+    def initialize(inputs:, output: "a.out", linker: "mold", linker_options: [], executable: true, shared: false, pie: false, debug: false, needed: [], archives: [])
       @inputs, @output, @linker = inputs, output, linker
       @options = linker_options
-      @needed = needed
+      @needed, @archives = needed, archives
       @executable = shared ? false : executable
       @debug, @shared, @pie = debug, shared, pie
     end
@@ -54,12 +54,13 @@ module Caotral
     def libpath = @libpath ||= File.dirname(Dir.glob("/usr/lib*/**/crti.o").last)
     def gcc_libpath = @gcc_libpath ||= File.dirname(Dir.glob("/usr/lib/gcc/x86_64-*/*/crtbegin.o").last)
 
-    def to_elf(inputs: @inputs, output: @output, debug: @debug, shared: @shared, executable: @executable, pie: @pie, needed: @needed)
+    def to_elf(inputs: @inputs, output: @output, debug: @debug, shared: @shared, executable: @executable, pie: @pie, needed: @needed, archives: @archives)
       raise Caotral::Binary::ELF::Error, "disallow both mode: shared and PIE" if shared && pie
 
       elf_objs = inputs.map { |input| Caotral::Binary::ELF::Reader.new(input:, debug:).read }
-      builder = Caotral::Linker::Builder.new(elf_objs:, debug:, shared:, executable:, pie:, needed:)
-      builder.resolve_symbols
+      builder = Caotral::Linker::Builder.new(elf_objs:, debug:, shared:, executable:, pie:, needed:, archives:)
+      builder.resolve_symbols!
+      builder.extract_archive_members! unless archives.empty?
       elf = builder.build
       metadata = builder.linker_metadata
       Caotral::Linker::Layout.new(elf:, shared:, executable:, pie:).apply!

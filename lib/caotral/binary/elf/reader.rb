@@ -209,6 +209,8 @@ module Caotral
           case input
           when String, Pathname
             File.open(File.expand_path(input.to_s), "rb")
+          when StringIO
+            input
           else
             raise ArgumentError, "wrong input type"
           end

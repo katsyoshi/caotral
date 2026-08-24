@@ -31,8 +31,9 @@ module Caotral
 
       attr_reader :symbols, :linker_metadata
 
-      def initialize(elf_objs:, executable: true, debug: false, shared: false, pie: false, needed: [])
+      def initialize(elf_objs:, executable: true, debug: false, shared: false, pie: false, needed: [], archives: [])
         @elf_objs = elf_objs
+        @archives = archives.map { |archive| Caotral::Binary::Archive::Reader.new(archive).read! }
         @executable, @debug, @shared, @pie, @needed = executable, debug, shared, pie, needed
         @symbols = {
           locals: Set.new,
@@ -486,32 +487,51 @@ module Caotral
         elf
       end
 
-      def resolve_symbols
-        @elf_objs.each do |elf_obj|
-          elf_obj.find_by_name(".symtab").body.each do |symtab|
-            name = symtab.name_string
-            next if name.empty?
-            info = symtab.info
-            bind = BIND_BY_VALUE.fetch(info >> 4)
-            if bind == :globals
-              if symtab.shndx == 0
-                @symbols[bind][:undefined] << name unless @symbols[bind][:defined].include?(name)
-              else
-                if @symbols[bind][:defined].keys.include?(name)
-                  raise Caotral::Binary::ELF::Error,"cannot add into globals: #{name}"
-                end
-                @symbols[bind][:undefined].delete(name)
-                @symbols[bind][:defined][name] = symtab.shndx
-              end
-            else
-              @symbols[bind] << name
-            end
+      def resolve_symbols! = @elf_objs.each { |elf_obj| resolve_symbol_for(elf_obj) }
+      def extract_archive_members!
+        resolved = Set[]
+        loop do
+          elfs = []
+          @symbols[:globals][:undefined].each do |symbol|
+            archive = implement_symbol_archive(symbol)
+            next if archive.nil?
+            offset = archive.symbol_offset(symbol)
+            member = archive.find_member_by_offset(offset)
+            next if member.nil?
+            next unless resolved.add?(member)
+            elfs << member.read.elf
           end
+          break if elfs.empty?
+          elfs.each { |elf| resolve_symbol_for(elf) }
+          @elf_objs += elfs
         end
-        @symbols
       end
 
       private
+
+      def implement_symbol_archive(symbol) = @archives.find { |archive| archive.symbol_tables.any? { |symbol_table| symbol_table.names.include?(symbol) } }
+
+      def resolve_symbol_for(elf_obj)
+        elf_obj.find_by_name(".symtab").body.each do |symtab|
+          name = symtab.name_string
+          next if name.empty?
+          info = symtab.info
+          bind = BIND_BY_VALUE.fetch(info >> 4)
+          if bind == :globals
+            if symtab.shndx == 0
+              @symbols[bind][:undefined] << name unless @symbols[bind][:defined].include?(name)
+            else
+              if @symbols[bind][:defined].keys.include?(name)
+                raise Caotral::Binary::ELF::Error,"cannot add into globals: #{name}"
+              end
+              @symbols[bind][:undefined].delete(name)
+              @symbols[bind][:defined][name] = symtab.shndx
+            end
+          else
+            @symbols[bind] << name
+          end
+        end
+      end
 
       def build_shared_dynamic_sections
         dynstr_section = Caotral::Binary::ELF::Section.new(
