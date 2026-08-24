@@ -8,14 +8,17 @@ module Caotral
 
         def initialize(path)
           input = decision(path)
-          @bin = StringIO.new(input.read)
-          @archive = Caotral::Binary::Archive.new
-        ensure
-          input.close
+          begin
+            @bin = StringIO.new(input.read)
+            @archive = Caotral::Binary::Archive.new
+          ensure
+            input.close
+          end
         end
 
         def read!
-          _magic = @bin.read(8)
+          magic = @bin.read(8)
+          raise Caotral::Binary::Archive::Error, "unsupported archive type" unless magic == "!<arch>\n"
           nt = nil
           until @bin.eof?
             offset = @bin.pos
