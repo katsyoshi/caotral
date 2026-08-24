@@ -15,4 +15,8 @@
 /node_modules
 /package*.json
 /*.md
-!/README.md
+
+# This project is coding-agent agnostic;
+# keep agent-specific configuration local.
+/.codex*
+/.claude*
