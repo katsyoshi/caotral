@@ -1,3 +1,4 @@
+require_relative "context/function"
 require_relative "context/variables"
 
 module Caotral

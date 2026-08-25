@@ -1,0 +1,18 @@
+class Caotral::Compiler::Context::Function
+  attr_reader name: Symbol?
+  attr_reader parameters: Array[Symbol]
+  attr_reader body: RubyVM::AbstractSyntaxTree::Node
+  attr_reader locals: Set[Symbol]
+
+  @name: Symbol?
+  @parameters: Array[Symbol]
+  @variables: Caotral::Compiler::Context::Variables
+  @body: RubyVM::AbstractSyntaxTree::Node
+
+  def initialize: (
+    name: Symbol?,
+    ?parameters: Array[Symbol],
+    ?locals: Array[Symbol],
+    body: RubyVM::AbstractSyntaxTree::Node
+  ) -> void
+end
