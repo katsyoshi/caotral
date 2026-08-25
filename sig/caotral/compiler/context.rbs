@@ -1,0 +1,20 @@
+class Caotral::Compiler::Context
+  attr_reader label_sequence: Integer
+  attr_reader discovered_methods: Set[Symbol]
+  attr_reader local_variables: Set[Symbol]
+
+  @label_sequence: Integer
+  @entry_emitted: bool
+  @emitted_methods: Set[Symbol]
+  @discovered_methods: Set[Symbol]
+  @local_variables: Set[Symbol]
+
+  def initialize: () -> void
+  def entry_emitted?: () -> bool
+  def mark_entry_emitted: () -> void
+  def mark_method_emitted: (Symbol name) -> void
+  def discover_method: (Symbol name) -> void
+  def register_local_variable: (Symbol name) -> void
+  def all_methods_emitted?: () -> bool
+  def increment_label_sequence: () -> void
+end

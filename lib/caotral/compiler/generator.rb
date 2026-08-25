@@ -1,17 +1,16 @@
 # frozen_string_literal: true
 
+require_relative "context"
 require_relative "emitter"
 
 module Caotral
   class Compiler
     class Generator
       REGISTER = %w(rdi rsi rdx rcx r8 r9)
-      attr_accessor :main
       attr_reader :precompile, :shared
       def initialize(input:, output: File.basename(input, "*") + ".s", debug: false, shared: false)
         @source, @precompile, @debug, @shared = input, output, debug, shared
-        @doned, @defined_methods, @defined_variables = Set.new, Set.new, Set.new
-        @seq, @main = 0, false
+        @context = Caotral::Compiler::Context.new
         @ast = RubyVM::AbstractSyntaxTree.parse_file(@source)
       end
 
@@ -22,13 +21,13 @@ module Caotral
 
         # prologue
         directive(".intel_syntax noprefix")
-        if @defined_methods.empty?
-          @main = true
+        if @context.discovered_methods.empty?
+          @context.mark_entry_emitted
           directive(".globl main")
           label("main")
           instruction("push", "rbp")
           instruction("mov", "rbp", "rsp")
-          instruction("sub", "rsp", @defined_variables.size * 8)
+          instruction("sub", "rsp", @context.local_variables.size * 8)
           to_asm(@ast)
           epilogue
         else
@@ -46,15 +45,15 @@ module Caotral
         variables, *_ = node.children
         case type
         when :SCOPE
-          variables.each { |v| @defined_variables << v }
+          variables.each { |v| @context.register_local_variable(v) }
         when :DEFN
-          @defined_methods << variables
+          @context.discover_method(variables)
         end
         node.children.each { |n| register_var_and_method(n) }
         nil
       end
 
-      def already_build_methods? = @defined_methods.sort == @doned.to_a.sort
+      def already_build_methods? = @context.all_methods_emitted?
 
       def epilogue
         instruction("mov", "rsp", "rbp")
@@ -68,7 +67,7 @@ module Caotral
       end
 
       def prologue_methods
-        @defined_methods.each do |name|
+        @context.discovered_methods.each do |name|
           directive(".globl #{name}")
           directive(".type #{name}, @function") if shared
         end
@@ -78,7 +77,7 @@ module Caotral
       def define_method_prologue(node)
         instruction("push", "rbp")
         instruction("mov", "rbp", "rsp")
-        unless @defined_variables.empty?
+        unless @context.local_variables.empty?
           instruction("sub", "rsp", lvar_offset(nil) * 8)
           _name, args, _block = node.children
           args.children.each_with_index do |_, i|
@@ -97,7 +96,7 @@ module Caotral
         end
         instruction("pop", "rax")
         ret
-        @doned << method
+        @context.mark_method_emitted(method)
         nil
       end
 
@@ -108,10 +107,10 @@ module Caotral
         instruction("idiv", "rdi")
         instruction("mov", "rax", 0)
         instruction("cmp", "rdi", 0)
-        instruction("jne", ".Lprecall#{@seq}")
+        instruction("jne", ".Lprecall#{sequence}")
         instruction("push", 0)
         instruction("mov", "rax", 1)
-        label(".Lprecall#{@seq}")
+        label(".Lprecall#{sequence}")
         instruction("push", "rax")
         _, name, *args = node.children
         args.each_with_index do |arg, i|
@@ -122,11 +121,11 @@ module Caotral
         instruction("call", name)
         instruction("pop", "rdi")
         instruction("cmp", "rdi", 0)
-        instruction("je", ".Lpostcall#{@seq}")
+        instruction("je", ".Lpostcall#{sequence}")
         instruction("pop", "rdi")
-        label(".Lpostcall#{@seq}")
+        label(".Lpostcall#{sequence}")
         instruction("push", "rax")
-        @seq += 1
+        @context.increment_label_sequence
         nil
       end
 
@@ -146,8 +145,8 @@ module Caotral
       end
 
       def lvar_offset(var)
-        return @defined_variables.size if var.nil?
-        @defined_variables.find_index(var).then do |i|
+        return @context.local_variables.size if var.nil?
+        @context.local_variables.find_index(var).then do |i|
           raise "unknown local variable...: #{var}" if i.nil?
           i + 1
         end
@@ -171,14 +170,14 @@ module Caotral
           return
         when :SCOPE
           node.children.each do |child|
-            if already_build_methods? && !@main
+            if already_build_methods? && !@context.entry_emitted?
               return if shared
               label("main")
               instruction("push", "rbp")
               instruction("mov", "rbp", "rsp")
               instruction("sub", "rsp", 0)
               instruction("push", "rax")
-              @main = true
+              @context.mark_entry_emitted
             end
             to_asm(child)
           end
@@ -216,38 +215,38 @@ module Caotral
           instruction("push", "rax")
           instruction("cmp", "rax", 0)
           if fblock
-            instruction("je", ".Lelse#{@seq}")
+            instruction("je", ".Lelse#{sequence}")
             to_asm(tblock, method_tree)
             instruction("pop", "rax")
-            instruction("jmp", ".Lend#{@seq}")
-            label(".Lelse#{@seq}")
+            instruction("jmp", ".Lend#{sequence}")
+            label(".Lelse#{sequence}")
             to_asm(fblock, method_tree)
             instruction("pop", "rax")
-            label(".Lend#{@seq}")
+            label(".Lend#{sequence}")
           else
             if method_tree
               to_asm(tblock, method_tree)
               ret
             else
-              instruction("je", ".Lend#{@seq}")
+              instruction("je", ".Lend#{sequence}")
               to_asm(tblock, method_tree)
-              label(".Lend#{@seq}")
+              label(".Lend#{sequence}")
             end
           end
-          @seq += 1
+          @context.increment_label_sequence
           return
         when :WHILE
           cond, tblock = node.children
-          label(".Lbegin#{@seq}")
+          label(".Lbegin#{sequence}")
           to_asm(cond, method_tree)
           instruction("pop", "rax")
           instruction("push", "rax")
           instruction("cmp", "rax", 0)
-          instruction("je", ".Lend#{@seq}")
+          instruction("je", ".Lend#{sequence}")
           to_asm(tblock, method_tree)
-          instruction("jmp", ".Lbegin#{@seq}")
-          label(".Lend#{@seq}")
-          @seq += 1
+          instruction("jmp", ".Lbegin#{sequence}")
+          label(".Lend#{sequence}")
+          @context.increment_label_sequence
           return
         when :OPCALL
           left, center, right = node.children
@@ -291,6 +290,7 @@ module Caotral
       def instruction(ope, *operands) = @emitter.instruction(ope, *operands)
       def label(name) = @emitter.label(name)
       def directive(row) = @emitter.directive(row)
+      def sequence = @context.label_sequence
     end
   end
 end

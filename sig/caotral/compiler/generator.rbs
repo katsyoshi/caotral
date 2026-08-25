@@ -1,18 +1,13 @@
 class Caotral::Compiler::Generator
   REGISTER: Array[String]
 
-  attr_accessor main: bool
   attr_reader precompile: String
   attr_reader shared: bool
 
-  @main: bool
+  @context: Caotral::Compiler::Context
   @debug: bool
-  @doned: Set[Symbol]
-  @defined_methods: Set[Symbol]
-  @defined_variables: Set[Symbol]
   @emitter: Caotral::Compiler::Emitter
   @precompile: String
-  @seq: Integer
   @shared: bool
   @ast: RubyVM::AbstractSyntaxTree::Node
   @source: String
@@ -41,4 +36,5 @@ class Caotral::Compiler::Generator
   def instruction: (String, *(String | Symbol | Integer)) -> void
   def label: (String | Symbol) -> void
   def directive: (String) -> void
+  def sequence: () -> Integer
 end
