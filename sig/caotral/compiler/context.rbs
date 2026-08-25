@@ -7,7 +7,7 @@ class Caotral::Compiler::Context
   @entry_emitted: bool
   @emitted_methods: Set[Symbol]
   @discovered_methods: Set[Symbol]
-  @local_variables: Set[Symbol]
+  @variables: Caotral::Compiler::Context::Variables
 
   def initialize: () -> void
   def entry_emitted?: () -> bool
