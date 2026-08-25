@@ -1,14 +1,17 @@
 class Caotral::Compiler::Generator
   REGISTER: Array[String]
 
-  # attr_reader
+  attr_accessor main: bool
   attr_reader precompile: String
+  attr_reader shared: bool
 
   @main: bool
   @debug: bool
   @doned: Set[Symbol]
   @defined_methods: Set[Symbol]
   @defined_variables: Set[Symbol]
+  @emitter: Caotral::Compiler::Emitter
+  @precompile: String
   @seq: Integer
   @shared: bool
   @ast: RubyVM::AbstractSyntaxTree::Node
@@ -19,18 +22,23 @@ class Caotral::Compiler::Generator
 
   # instance private methods
   def already_build_methods?: -> bool
-  def call_method: (RubyVM::AbstractSyntaxTree::Node, File, bool) -> void
+  def call_method: (RubyVM::AbstractSyntaxTree::Node, bool) -> void
+  def comp: (String) -> void
   def compile: () -> void
   def compile_shared_option: () -> Array[String]
-  def define_method_prologue: (RubyVM::AbstractSyntaxTree::Node, File) -> void
-  def epilogue: (File) -> void
-  def lvar: (Symbol, File) -> void
+  def define_method_prologue: (RubyVM::AbstractSyntaxTree::Node) -> void
+  def epilogue: () -> void
+  def lvar: (Symbol) -> void
   def lvar_offset: (Symbol | nil) -> Integer
-  def method: (Symbol, RubyVM::AbstractSyntaxTree::Node, File) -> void
-  def prologue: (RubyVM::AbstractSyntaxTree::Node, File) -> void
-  def prologue_methods: (File) -> void
+  def method: (Symbol, RubyVM::AbstractSyntaxTree::Node) -> void
+  def prologue_methods: () -> void
   def register_var_and_method: (RubyVM::AbstractSyntaxTree::Node?) -> void
-  def ret: (File) -> void
-  def to_asm: (RubyVM::AbstractSyntaxTree::Node, File, ?bool) -> void
-  def variable_or_method?: (Symbol) -> bool
+  def ret: () -> void
+  def to_asm: (RubyVM::AbstractSyntaxTree::Node?, ?bool) -> void
+
+  private
+
+  def instruction: (String, *(String | Symbol | Integer)) -> void
+  def label: (String | Symbol) -> void
+  def directive: (String) -> void
 end

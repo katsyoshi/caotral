@@ -1,0 +1,11 @@
+class Caotral::Compiler::Emitter
+  INDENT: String
+
+  @io: IO
+
+  def initialize: (IO io) -> void
+  def instruction: (String operation, *(String | Symbol | Integer) operands) -> void
+  def label: (String | Symbol name) -> void
+  def directive: (String row) -> void
+  def close: () -> void
+end

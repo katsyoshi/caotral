@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "emitter"
+
 module Caotral
   class Compiler
     class Generator
@@ -16,25 +18,26 @@ module Caotral
       def compile_shared_option = %w(-shared -fPIC)
       def compile
         register_var_and_method(@ast)
+        @emitter = Caotral::Compiler::Emitter.new(File.open(@precompile, "w"))
 
-        output = File.open(@precompile, "w")
         # prologue
-        output.puts "  .intel_syntax noprefix"
+        directive(".intel_syntax noprefix")
         if @defined_methods.empty?
           @main = true
-          output.puts "  .globl main"
-          output.puts "main:"
-          output.puts "  push rbp"
-          output.puts "  mov rbp, rsp"
-          output.puts "  sub rsp, #{@defined_variables.size * 8}"
-          to_asm(@ast, output)
-          epilogue(output)
+          directive(".globl main")
+          label("main")
+          instruction("push", "rbp")
+          instruction("mov", "rbp", "rsp")
+          instruction("sub", "rsp", @defined_variables.size * 8)
+          to_asm(@ast)
+          epilogue
         else
-          prologue_methods(output)
-          output.puts "  .globl main" unless @shared
-          to_asm(@ast, output)
+          prologue_methods
+          directive(".globl main") unless @shared
+          to_asm(@ast)
         end
-        output.close
+      ensure
+        @emitter&.close
       end
 
       def register_var_and_method(node)
@@ -53,92 +56,92 @@ module Caotral
 
       def already_build_methods? = @defined_methods.sort == @doned.to_a.sort
 
-      def epilogue(output)
-        output.puts "  mov rsp, rbp"
-        output.puts "  pop rbp"
+      def epilogue
+        instruction("mov", "rsp", "rbp")
+        instruction("pop", "rbp")
         unless @shared
-          output.puts "  mov rdi, rax"
-          output.puts "  mov rax, 0x3C"
-          output.puts "  syscall"
+          instruction("mov", "rdi", "rax")
+          instruction("mov", "rax", "0x3C")
+          instruction("syscall")
         end
-        output.puts "  ret"
+        instruction("ret")
       end
 
-      def prologue_methods(output)
+      def prologue_methods
         @defined_methods.each do |name|
-          output.puts ".globl #{name}"
-          output.puts ".type #{name}, @function" if shared
+          directive(".globl #{name}")
+          directive(".type #{name}, @function") if shared
         end
         nil
       end
 
-      def define_method_prologue(node, output)
-        output.puts "  push rbp"
-        output.puts "  mov rbp, rsp"
+      def define_method_prologue(node)
+        instruction("push", "rbp")
+        instruction("mov", "rbp", "rsp")
         unless @defined_variables.empty?
-          output.puts "  sub rsp, #{lvar_offset(nil) * 8}"
+          instruction("sub", "rsp", lvar_offset(nil) * 8)
           _name, args, _block = node.children
           args.children.each_with_index do |_, i|
-            output.puts "  mov [rbp-#{(i + 1) * 8}], #{REGISTER[i]}"
+            instruction("mov", "[rbp-#{(i + 1) * 8}]", REGISTER[i])
           end
         end
         nil
       end
 
-      def method(method, node, output)
-        output.puts "#{method}:"
-        define_method_prologue(node, output)
+      def method(method, node)
+        label(method)
+        define_method_prologue(node)
         node.children.each do |child|
           next unless child.kind_of?(RubyVM::AbstractSyntaxTree::Node)
-          to_asm(child, output, true)
+          to_asm(child, true)
         end
-        output.puts "  pop rax"
-        ret(output)
+        instruction("pop", "rax")
+        ret
         @doned << method
         nil
       end
 
-      def call_method(node, output, method_tree)
-        output.puts "  mov rax, rsp"
-        output.puts "  mov rdi, 16"
-        output.puts "  cqo"
-        output.puts "  idiv rdi"
-        output.puts "  mov rax, 0"
-        output.puts "  cmp rdi, 0"
-        output.puts "  jne .Lprecall#{@seq}"
-        output.puts "  push 0"
-        output.puts "  mov rax, 1"
-        output.puts ".Lprecall#{@seq}:"
-        output.puts "  push rax"
+      def call_method(node, method_tree)
+        instruction("mov", "rax", "rsp")
+        instruction("mov", "rdi", 16)
+        instruction("cqo")
+        instruction("idiv", "rdi")
+        instruction("mov", "rax", 0)
+        instruction("cmp", "rdi", 0)
+        instruction("jne", ".Lprecall#{@seq}")
+        instruction("push", 0)
+        instruction("mov", "rax", 1)
+        label(".Lprecall#{@seq}")
+        instruction("push", "rax")
         _, name, *args = node.children
         args.each_with_index do |arg, i|
-          to_asm(arg, output, method_tree)
-          output.puts "  pop #{REGISTER[i]}"
+          to_asm(arg, method_tree)
+          instruction("pop", REGISTER[i])
         end
 
-        output.puts "  call #{name}"
-        output.puts "  pop rdi"
-        output.puts "  cmp rdi, 0"
-        output.puts "  je .Lpostcall#{@seq}"
-        output.puts "  pop rdi"
-        output.puts ".Lpostcall#{@seq}:"
-        output.puts "  push rax"
+        instruction("call", name)
+        instruction("pop", "rdi")
+        instruction("cmp", "rdi", 0)
+        instruction("je", ".Lpostcall#{@seq}")
+        instruction("pop", "rdi")
+        label(".Lpostcall#{@seq}")
+        instruction("push", "rax")
         @seq += 1
         nil
       end
 
-      def comp(op, output)
-        output.puts "  cmp rax, rdi"
-        output.puts "  #{op} al"
-        output.puts "  movzb rax, al"
-        output.puts "  push rax"
+      def comp(op)
+        instruction("cmp", "rax", "rdi")
+        instruction(op, "al")
+        instruction("movzb", "rax", "al")
+        instruction("push", "rax")
         nil
       end
 
-      def lvar(var, output)
-        output.puts "  mov rax, rbp"
-        output.puts "  sub rax, #{lvar_offset(var) * 8}"
-        output.puts "  push rax"
+      def lvar(var)
+        instruction("mov", "rax", "rbp")
+        instruction("sub", "rax", lvar_offset(var) * 8)
+        instruction("push", "rax")
         nil
       end
 
@@ -150,139 +153,144 @@ module Caotral
         end
       end
 
-      def ret(output)
-        output.puts "  mov rsp, rbp"
-        output.puts "  pop rbp"
-        output.puts "  ret"
+      def ret
+        instruction("mov", "rsp", "rbp")
+        instruction("pop", "rbp")
+        instruction("ret")
       end
 
-      def to_asm(node, output, method_tree = false)
+      def to_asm(node, method_tree = false)
         return unless node.kind_of?(RubyVM::AbstractSyntaxTree::Node)
         type = node.type
         center = case type
         when :LIT, :INTEGER
-          output.puts "  push 0x#{node.children.last.to_s(16)}"
+          instruction("push", "0x#{node.children.last.to_s(16)}")
           return
         when :LIST, :BLOCK, :BEGIN
-          node.children.each { |n| to_asm(n, output, method_tree) }
+          node.children.each { |n| to_asm(n, method_tree) }
           return
         when :SCOPE
           node.children.each do |child|
             if already_build_methods? && !@main
               return if shared
-              output.puts "main:"
-              output.puts "  push rbp"
-              output.puts "  mov rbp, rsp"
-              output.puts "  sub rsp, 0"
-              output.puts "  push rax"
+              label("main")
+              instruction("push", "rbp")
+              instruction("mov", "rbp", "rsp")
+              instruction("sub", "rsp", 0)
+              instruction("push", "rax")
               @main = true
             end
-            to_asm(child, output)
+            to_asm(child)
           end
           return
         when :DEFN
           name, _ = node.children
-          method(name, node, output)
+          method(name, node)
           return
         when :LVAR
           return if method_tree
           name = node.children.last
-          lvar(name, output)
+          lvar(name)
           # lvar
-          output.puts "  pop rax"
-          output.puts "  mov rax, [rax]"
-          output.puts "  push rax"
+          instruction("pop", "rax")
+          instruction("mov", "rax", "[rax]")
+          instruction("push", "rax")
           return
         when :LASGN
           name, right = node.children
 
           # rvar
-          lvar(name, output)
-          to_asm(right, output, method_tree)
+          lvar(name)
+          to_asm(right, method_tree)
 
-          output.puts "  pop rdi"
-          output.puts "  pop rax"
-          output.puts "  mov [rax], rdi"
-          output.puts "  push rdi"
-          output.puts "  pop rax"
+          instruction("pop", "rdi")
+          instruction("pop", "rax")
+          instruction("mov", "[rax]", "rdi")
+          instruction("push", "rdi")
+          instruction("pop", "rax")
           return
         when :IF
           cond, tblock, fblock = node.children
-          to_asm(cond, output)
-          output.puts "  pop rax"
-          output.puts "  push rax"
-          output.puts "  cmp rax, 0"
+          to_asm(cond)
+          instruction("pop", "rax")
+          instruction("push", "rax")
+          instruction("cmp", "rax", 0)
           if fblock
-            output.puts "  je .Lelse#{@seq}"
-            to_asm(tblock, output, method_tree)
-            output.puts "  pop rax"
-            output.puts "  jmp .Lend#{@seq}"
-            output.puts ".Lelse#{@seq}:"
-            to_asm(fblock, output, method_tree)
-            output.puts "  pop rax"
-            output.puts ".Lend#{@seq}:"
+            instruction("je", ".Lelse#{@seq}")
+            to_asm(tblock, method_tree)
+            instruction("pop", "rax")
+            instruction("jmp", ".Lend#{@seq}")
+            label(".Lelse#{@seq}")
+            to_asm(fblock, method_tree)
+            instruction("pop", "rax")
+            label(".Lend#{@seq}")
           else
             if method_tree
-              to_asm(tblock, output, method_tree)
-              ret(output)
+              to_asm(tblock, method_tree)
+              ret
             else
-              output.puts "  je .Lend#{@seq}"
-              to_asm(tblock, output, method_tree)
-              output.puts ".Lend#{@seq}:"
+              instruction("je", ".Lend#{@seq}")
+              to_asm(tblock, method_tree)
+              label(".Lend#{@seq}")
             end
           end
           @seq += 1
           return
         when :WHILE
           cond, tblock = node.children
-          output.puts ".Lbegin#{@seq}:"
-          to_asm(cond, output, method_tree)
-          output.puts "  pop rax"
-          output.puts "  push rax"
-          output.puts "  cmp rax, 0"
-          output.puts "  je .Lend#{@seq}"
-          to_asm(tblock, output, method_tree)
-          output.puts "  jmp .Lbegin#{@seq}"
-          output.puts ".Lend#{@seq}:"
+          label(".Lbegin#{@seq}")
+          to_asm(cond, method_tree)
+          instruction("pop", "rax")
+          instruction("push", "rax")
+          instruction("cmp", "rax", 0)
+          instruction("je", ".Lend#{@seq}")
+          to_asm(tblock, method_tree)
+          instruction("jmp", ".Lbegin#{@seq}")
+          label(".Lend#{@seq}")
           @seq += 1
           return
         when :OPCALL
           left, center, right = node.children
-          to_asm(left, output, method_tree) unless left.nil?
+          to_asm(left, method_tree) unless left.nil?
           if left.nil?
-            call_method(node, output, method_tree)
+            call_method(node, method_tree)
           else
-            to_asm(right, output, method_tree)
-            output.puts "  pop rdi"
+            to_asm(right, method_tree)
+            instruction("pop", "rdi")
           end
-          output.puts "  pop rax"
+          instruction("pop", "rax")
           center
         end
 
         case center
         when :+
-          output.puts "  add rax, rdi"
-          output.puts "  push rax"
+          instruction("add", "rax", "rdi")
+          instruction("push", "rax")
         when :-
-          output.puts "  sub rax, rdi"
-          output.puts "  push rax"
+          instruction("sub", "rax", "rdi")
+          instruction("push", "rax")
         when :*
-          output.puts "  imul rax, rdi"
-          output.puts "  push rax"
+          instruction("imul", "rax", "rdi")
+          instruction("push", "rax")
         when :/
-          output.puts "  cqo"
-          output.puts "  idiv rdi"
-          output.puts "  push rax"
+          instruction("cqo")
+          instruction("idiv", "rdi")
+          instruction("push", "rax")
         when :==
-          comp("sete", output)
+          comp("sete")
         when :!=
-          comp("setne", output)
+          comp("setne")
         when :<
-          comp("setl", output)
+          comp("setl")
         when :<=
-          comp("setle", output)
+          comp("setle")
         end
       end
+
+      private
+      def instruction(ope, *operands) = @emitter.instruction(ope, *operands)
+      def label(name) = @emitter.label(name)
+      def directive(row) = @emitter.directive(row)
     end
   end
 end
