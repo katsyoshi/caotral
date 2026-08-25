@@ -27,7 +27,6 @@ class Caotral::Compiler::Generator
   def lvar_offset: (Symbol | nil) -> Integer
   def method: (Symbol, RubyVM::AbstractSyntaxTree::Node) -> void
   def prologue_methods: () -> void
-  def register_var_and_method: (RubyVM::AbstractSyntaxTree::Node?) -> void
   def ret: () -> void
   def to_asm: (RubyVM::AbstractSyntaxTree::Node?, ?bool) -> void
 

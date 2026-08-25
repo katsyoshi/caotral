@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "context"
+require_relative "analyzer"
 require_relative "emitter"
 
 module Caotral
@@ -10,13 +10,12 @@ module Caotral
       attr_reader :precompile, :shared
       def initialize(input:, output: File.basename(input, "*") + ".s", debug: false, shared: false)
         @source, @precompile, @debug, @shared = input, output, debug, shared
-        @context = Caotral::Compiler::Context.new
         @ast = RubyVM::AbstractSyntaxTree.parse_file(@source)
       end
 
       def compile_shared_option = %w(-shared -fPIC)
       def compile
-        register_var_and_method(@ast)
+        @context = Caotral::Compiler::Analyzer.analyze(@ast)
         @emitter = Caotral::Compiler::Emitter.new(File.open(@precompile, "w"))
 
         # prologue
@@ -37,20 +36,6 @@ module Caotral
         end
       ensure
         @emitter&.close
-      end
-
-      def register_var_and_method(node)
-        return unless node.kind_of?(RubyVM::AbstractSyntaxTree::Node)
-        type = node.type
-        variables, *_ = node.children
-        case type
-        when :SCOPE
-          variables.each { |v| @context.register_local_variable(v) }
-        when :DEFN
-          @context.discover_method(variables)
-        end
-        node.children.each { |n| register_var_and_method(n) }
-        nil
       end
 
       def already_build_methods? = @context.all_methods_emitted?

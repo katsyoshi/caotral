@@ -1,0 +1,20 @@
+class Caotral::Compiler::Analyzer
+  @ast: RubyVM::AbstractSyntaxTree::Node
+  @context: Caotral::Compiler::Context
+
+  def self.analyze: (
+    RubyVM::AbstractSyntaxTree::Node ast,
+    ?Caotral::Compiler::Context context
+  ) -> Caotral::Compiler::Context
+
+  def initialize: (
+    RubyVM::AbstractSyntaxTree::Node ast,
+    Caotral::Compiler::Context context
+  ) -> void
+
+  def analyze: () -> Caotral::Compiler::Context
+
+  private
+
+  def register_variables_and_methods: (RubyVM::AbstractSyntaxTree::Node? node) -> void
+end
