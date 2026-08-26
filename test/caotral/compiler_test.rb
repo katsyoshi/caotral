@@ -95,4 +95,15 @@ class Caotral::CompilerTest < Test::Unit::TestCase
     assert_equal(42, not_early_if.call(1))
     assert_equal(42, not_early_if.call(9))
   end
+
+  def test_rejects_more_than_six_required_positional_arguments
+    @file = "sample/max_arguments.rb"
+    error = assert_raise(NotImplementedError) do
+      Caotral.compile!(input: @file, output: @output, shared: true, linker: "mold", assembler: "as")
+    end
+    assert_equal(
+      "max_args has 7 required positional arguments; maximum supported is 6",
+      error.message
+    )
+  end
 end

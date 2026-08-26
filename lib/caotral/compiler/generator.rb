@@ -15,6 +15,7 @@ module Caotral
 
       def compile
         @context = Caotral::Compiler::Analyzer.analyze(@ast)
+        validate_method_argument_counts
         @emitter = Caotral::Compiler::Emitter.new(File.open(@precompile, "w"))
         entry = @context.entry
 
@@ -41,6 +42,20 @@ module Caotral
       private
       def compile_shared_option = %w(-shared -fPIC)
       def already_build_methods? = @context.all_methods_emitted?
+
+      def validate_method_argument_counts
+        errors = []
+        max = REGISTER.size
+        @context.functions.each do |name, function|
+          next unless function.parameters.size > max
+          parameter_size = function.parameters.size
+          errors << "#{name} has #{parameter_size} required positional arguments; maximum supported is #{max}"
+        end
+
+        unless errors.empty?
+          raise NotImplementedError, errors.join("\n")
+        end
+      end
 
       def epilogue
         instruction("mov", "rsp", "rbp")

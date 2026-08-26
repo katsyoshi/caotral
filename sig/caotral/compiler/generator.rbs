@@ -19,6 +19,7 @@ class Caotral::Compiler::Generator
 
   def compile_shared_option: () -> Array[String]
   def already_build_methods?: -> bool
+  def validate_method_argument_counts: () -> void
   def call_method: (RubyVM::AbstractSyntaxTree::Node, Caotral::Compiler::Context::Function) -> void
   def comp: (String) -> void
   def define_method_prologue: (Caotral::Compiler::Context::Function) -> void
