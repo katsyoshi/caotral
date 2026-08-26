@@ -19,7 +19,6 @@ class Caotral::Linker::ArchiveTest < Test::Unit::TestCase
     @inputs << "multi-file-link-b.o"
     archives = [output]
     Caotral::Linker.link!(output: @output, inputs: @inputs, archives:, linker: "self")
-    elf = Caotral::Binary::ELF::Reader.read!(input: @output)
     IO.popen("./#{@output}").close
     exit_code, handle_code = check_process($?.to_i)
     assert_equal(42, exit_code)
