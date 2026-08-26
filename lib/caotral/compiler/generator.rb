@@ -208,14 +208,9 @@ module Caotral
             instruction("pop", "rax")
             label(".Lend#{sequence}")
           else
-            if function&.name
-              to_asm(tblock, function)
-              ret
-            else
-              instruction("je", ".Lend#{sequence}")
-              to_asm(tblock, function)
-              label(".Lend#{sequence}")
-            end
+            instruction("je", ".Lend#{sequence}")
+            to_asm(tblock, function)
+            label(".Lend#{sequence}")
           end
           @context.increment_label_sequence
           return

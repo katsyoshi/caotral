@@ -79,4 +79,20 @@ class Caotral::CompilerTest < Test::Unit::TestCase
     )
     assert_equal(42, foo.call(40, 2))
   end
+
+  def test_sample_method_if_without_else_continues
+    @generated = ["libif.so", "libif.so.o", "libif.so.s"]
+    @file = "sample/not_early_return.rb"
+    @output = "./libif.so"
+    @caotral = Caotral.compile!(input: @file, output: @output, shared: true, linker: "mold", assembler: "as")
+    handle = Fiddle.dlopen(@output)
+    not_early_if = Fiddle::Function.new(
+      handle["not_early_return_if"],
+      [Fiddle::TYPE_LONG],
+      Fiddle::TYPE_LONG
+    )
+
+    assert_equal(42, not_early_if.call(1))
+    assert_equal(42, not_early_if.call(9))
+  end
 end
