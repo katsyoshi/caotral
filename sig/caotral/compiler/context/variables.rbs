@@ -1,0 +1,8 @@
+class Caotral::Compiler::Context::Variables
+  attr_reader locals: Set[Symbol]
+
+  @locals: Set[Symbol]
+
+  def initialize: () -> void
+  def register_local: (Symbol name) -> void
+end

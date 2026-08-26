@@ -1,36 +1,40 @@
 class Caotral::Compiler::Generator
   REGISTER: Array[String]
+  COUNT_OVER_ARGUMENT_ERROR: String
+  UNSUPPORTED_ARGUMENT_ERROR: String
 
-  # attr_reader
   attr_reader precompile: String
+  attr_reader shared: bool
 
-  @main: bool
+  @context: Caotral::Compiler::Context
   @debug: bool
-  @doned: Set[Symbol]
-  @defined_methods: Set[Symbol]
-  @defined_variables: Set[Symbol]
-  @seq: Integer
+  @emitter: Caotral::Compiler::Emitter
+  @precompile: String
   @shared: bool
   @ast: RubyVM::AbstractSyntaxTree::Node
   @source: String
 
-  # class methods
   def initialize: (input: String, ?output: String, ?debug: bool, ?shared: bool) -> void
-
-  # instance private methods
-  def already_build_methods?: -> bool
-  def call_method: (RubyVM::AbstractSyntaxTree::Node, File, bool) -> void
   def compile: () -> void
+
+  private
+
   def compile_shared_option: () -> Array[String]
-  def define_method_prologue: (RubyVM::AbstractSyntaxTree::Node, File) -> void
-  def epilogue: (File) -> void
-  def lvar: (Symbol, File) -> void
-  def lvar_offset: (Symbol | nil) -> Integer
-  def method: (Symbol, RubyVM::AbstractSyntaxTree::Node, File) -> void
-  def prologue: (RubyVM::AbstractSyntaxTree::Node, File) -> void
-  def prologue_methods: (File) -> void
-  def register_var_and_method: (RubyVM::AbstractSyntaxTree::Node?) -> void
-  def ret: (File) -> void
-  def to_asm: (RubyVM::AbstractSyntaxTree::Node, File, ?bool) -> void
-  def variable_or_method?: (Symbol) -> bool
+  def already_build_methods?: -> bool
+  def validate_method_definitions: () -> void
+  def collect_method_definition_errors: (RubyVM::AbstractSyntaxTree::Node?, Array[String]) -> void
+  def call_method: (RubyVM::AbstractSyntaxTree::Node, Caotral::Compiler::Context::Function) -> void
+  def comp: (String) -> void
+  def define_method_prologue: (Caotral::Compiler::Context::Function) -> void
+  def epilogue: () -> void
+  def lvar: (Symbol, Caotral::Compiler::Context::Function) -> void
+  def lvar_offset: (Symbol?, Caotral::Compiler::Context::Function) -> Integer
+  def parse_method: (Symbol, Caotral::Compiler::Context::Function) -> void
+  def prologue_methods: () -> void
+  def ret: () -> void
+  def to_asm: (RubyVM::AbstractSyntaxTree::Node?, Caotral::Compiler::Context::Function) -> void
+  def instruction: (String, *(String | Symbol | Integer)) -> void
+  def label: (String | Symbol) -> void
+  def directive: (String) -> void
+  def sequence: () -> Integer
 end
