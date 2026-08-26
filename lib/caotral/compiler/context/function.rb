@@ -14,6 +14,7 @@ module Caotral
         end
 
         def locals = @variables.locals
+        def variables = parameters + locals.to_a
       end
     end
   end

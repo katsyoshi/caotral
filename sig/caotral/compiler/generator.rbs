@@ -19,16 +19,16 @@ class Caotral::Compiler::Generator
 
   def compile_shared_option: () -> Array[String]
   def already_build_methods?: -> bool
-  def call_method: (RubyVM::AbstractSyntaxTree::Node, bool) -> void
+  def call_method: (RubyVM::AbstractSyntaxTree::Node, Caotral::Compiler::Context::Function) -> void
   def comp: (String) -> void
   def define_method_prologue: (Caotral::Compiler::Context::Function) -> void
   def epilogue: () -> void
-  def lvar: (Symbol) -> void
-  def lvar_offset: (Symbol | nil) -> Integer
+  def lvar: (Symbol, Caotral::Compiler::Context::Function) -> void
+  def lvar_offset: (Symbol?, Caotral::Compiler::Context::Function) -> Integer
   def parse_method: (Symbol, Caotral::Compiler::Context::Function) -> void
   def prologue_methods: () -> void
   def ret: () -> void
-  def to_asm: (RubyVM::AbstractSyntaxTree::Node?, ?bool) -> void
+  def to_asm: (RubyVM::AbstractSyntaxTree::Node?, Caotral::Compiler::Context::Function) -> void
   def instruction: (String, *(String | Symbol | Integer)) -> void
   def label: (String | Symbol) -> void
   def directive: (String) -> void

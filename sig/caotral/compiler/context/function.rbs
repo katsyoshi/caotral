@@ -15,4 +15,5 @@ class Caotral::Compiler::Context::Function
     ?locals: Array[Symbol],
     body: RubyVM::AbstractSyntaxTree::Node
   ) -> void
+  def variables: () -> Array[Symbol]
 end

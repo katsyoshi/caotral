@@ -13,5 +13,6 @@ class Caotral::Compiler::Context::FunctionTest < Test::Unit::TestCase
     assert_equal(Set[:z, :y], function.locals)
     assert_equal([:a, :b, :c], function.parameters)
     assert_equal(body, function.body)
+    assert_equal([:a, :b, :c, :z, :y], function.variables)
   end
 end

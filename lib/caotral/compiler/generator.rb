@@ -16,6 +16,7 @@ module Caotral
       def compile
         @context = Caotral::Compiler::Analyzer.analyze(@ast)
         @emitter = Caotral::Compiler::Emitter.new(File.open(@precompile, "w"))
+        entry = @context.entry
 
         # prologue
         directive(".intel_syntax noprefix")
@@ -25,13 +26,13 @@ module Caotral
           label("main")
           instruction("push", "rbp")
           instruction("mov", "rbp", "rsp")
-          instruction("sub", "rsp", @context.local_variables.size * 8)
-          to_asm(@ast)
+          instruction("sub", "rsp", entry.variables.size * 8)
+          to_asm(@ast, entry)
           epilogue
         else
           prologue_methods
           directive(".globl main") unless @shared
-          to_asm(@ast)
+          to_asm(@ast, entry)
         end
       ensure
         @emitter&.close
@@ -63,8 +64,8 @@ module Caotral
       def define_method_prologue(function)
         instruction("push", "rbp")
         instruction("mov", "rbp", "rsp")
-        unless @context.local_variables.empty?
-          instruction("sub", "rsp", lvar_offset(nil) * 8)
+        unless function.variables.empty?
+          instruction("sub", "rsp", lvar_offset(nil, function) * 8)
           function.parameters.each_with_index do |_, i|
             instruction("mov", "[rbp-#{(i + 1) * 8}]", REGISTER[i])
           end
@@ -76,7 +77,7 @@ module Caotral
         label(name)
         define_method_prologue(function)
 
-        to_asm(function.body, true)
+        to_asm(function.body, function)
 
         instruction("pop", "rax")
         ret
@@ -84,7 +85,7 @@ module Caotral
         nil
       end
 
-      def call_method(node, method_tree)
+      def call_method(node, function)
         instruction("mov", "rax", "rsp")
         instruction("mov", "rdi", 16)
         instruction("cqo")
@@ -98,7 +99,7 @@ module Caotral
         instruction("push", "rax")
         _, name, *args = node.children
         args.each_with_index do |arg, i|
-          to_asm(arg, method_tree)
+          to_asm(arg, function)
           instruction("pop", REGISTER[i])
         end
 
@@ -121,16 +122,16 @@ module Caotral
         nil
       end
 
-      def lvar(var)
+      def lvar(var, function)
         instruction("mov", "rax", "rbp")
-        instruction("sub", "rax", lvar_offset(var) * 8)
+        instruction("sub", "rax", lvar_offset(var, function) * 8)
         instruction("push", "rax")
         nil
       end
 
-      def lvar_offset(var)
-        return @context.local_variables.size if var.nil?
-        @context.local_variables.find_index(var).then do |i|
+      def lvar_offset(var, function)
+        return function.variables.size if var.nil?
+        function.variables.find_index(var).then do |i|
           raise "unknown local variable...: #{var}" if i.nil?
           i + 1
         end
@@ -142,7 +143,7 @@ module Caotral
         instruction("ret")
       end
 
-      def to_asm(node, method_tree = false)
+      def to_asm(node, function)
         return unless node.kind_of?(RubyVM::AbstractSyntaxTree::Node)
         type = node.type
         center = case type
@@ -150,7 +151,7 @@ module Caotral
           instruction("push", "0x#{node.children.last.to_s(16)}")
           return
         when :LIST, :BLOCK, :BEGIN
-          node.children.each { |n| to_asm(n, method_tree) }
+          node.children.each { |n| to_asm(n, function) }
           return
         when :SCOPE
           node.children.each do |child|
@@ -163,7 +164,7 @@ module Caotral
               instruction("push", "rax")
               @context.mark_entry_emitted
             end
-            to_asm(child)
+            to_asm(child, function)
           end
           return
         when :DEFN
@@ -171,9 +172,8 @@ module Caotral
           parse_method(name, @context.functions.fetch(name))
           return
         when :LVAR
-          return if method_tree
           name = node.children.last
-          lvar(name)
+          lvar(name, function)
           # lvar
           instruction("pop", "rax")
           instruction("mov", "rax", "[rax]")
@@ -183,8 +183,8 @@ module Caotral
           name, right = node.children
 
           # rvar
-          lvar(name)
-          to_asm(right, method_tree)
+          lvar(name, function)
+          to_asm(right, function)
 
           instruction("pop", "rdi")
           instruction("pop", "rax")
@@ -194,26 +194,26 @@ module Caotral
           return
         when :IF
           cond, tblock, fblock = node.children
-          to_asm(cond)
+          to_asm(cond, function)
           instruction("pop", "rax")
           instruction("push", "rax")
           instruction("cmp", "rax", 0)
           if fblock
             instruction("je", ".Lelse#{sequence}")
-            to_asm(tblock, method_tree)
+            to_asm(tblock, function)
             instruction("pop", "rax")
             instruction("jmp", ".Lend#{sequence}")
             label(".Lelse#{sequence}")
-            to_asm(fblock, method_tree)
+            to_asm(fblock, function)
             instruction("pop", "rax")
             label(".Lend#{sequence}")
           else
-            if method_tree
-              to_asm(tblock, method_tree)
+            if function&.name
+              to_asm(tblock, function)
               ret
             else
               instruction("je", ".Lend#{sequence}")
-              to_asm(tblock, method_tree)
+              to_asm(tblock, function)
               label(".Lend#{sequence}")
             end
           end
@@ -222,23 +222,23 @@ module Caotral
         when :WHILE
           cond, tblock = node.children
           label(".Lbegin#{sequence}")
-          to_asm(cond, method_tree)
+          to_asm(cond, function)
           instruction("pop", "rax")
           instruction("push", "rax")
           instruction("cmp", "rax", 0)
           instruction("je", ".Lend#{sequence}")
-          to_asm(tblock, method_tree)
+          to_asm(tblock, function)
           instruction("jmp", ".Lbegin#{sequence}")
           label(".Lend#{sequence}")
           @context.increment_label_sequence
           return
         when :OPCALL
           left, center, right = node.children
-          to_asm(left, method_tree) unless left.nil?
+          to_asm(left, function) unless left.nil?
           if left.nil?
-            call_method(node, method_tree)
+            call_method(node, function)
           else
-            to_asm(right, method_tree)
+            to_asm(right, function)
             instruction("pop", "rdi")
           end
           instruction("pop", "rax")
