@@ -7,6 +7,8 @@ module Caotral
   class Compiler
     class Generator
       REGISTER = %w(rdi rsi rdx rcx r8 r9)
+      COUNT_OVER_ARGUMENT_ERROR = "%s has %s required positional arguments; maximum supported is #{REGISTER.size}"
+      UNSUPPORTED_ARGUMENT_ERROR = "%s has unsupported parameters; only required positional parameters are supported"
       attr_reader :precompile, :shared
       def initialize(input:, output: File.basename(input, "*") + ".s", debug: false, shared: false)
         @source, @precompile, @debug, @shared = input, output, debug, shared
@@ -14,8 +16,8 @@ module Caotral
       end
 
       def compile
+        validate_method_definitions
         @context = Caotral::Compiler::Analyzer.analyze(@ast)
-        validate_method_argument_counts
         @emitter = Caotral::Compiler::Emitter.new(File.open(@precompile, "w"))
         entry = @context.entry
 
@@ -43,18 +45,27 @@ module Caotral
       def compile_shared_option = %w(-shared -fPIC)
       def already_build_methods? = @context.all_methods_emitted?
 
-      def validate_method_argument_counts
+      def validate_method_definitions
         errors = []
-        max = REGISTER.size
-        @context.functions.each do |name, function|
-          next unless function.parameters.size > max
-          parameter_size = function.parameters.size
-          errors << "#{name} has #{parameter_size} required positional arguments; maximum supported is #{max}"
-        end
+        collect_method_definition_errors(@ast, errors)
 
-        unless errors.empty?
-          raise NotImplementedError, errors.join("\n")
+        raise NotImplementedError, errors.join("\n") unless errors.empty?
+      end
+
+      def collect_method_definition_errors(node, errors)
+        return unless RubyVM::AbstractSyntaxTree::Node === node
+        if node.type == :DEFN
+          name, scope = node.children
+          _l, arguments, _b = scope.children
+          case arguments.children
+          in [Integer => count, nil, nil, nil, 0, nil, nil, nil, nil, nil]
+            errors << COUNT_OVER_ARGUMENT_ERROR % [name, count] if count > REGISTER.size
+          else
+            errors << UNSUPPORTED_ARGUMENT_ERROR % [name]
+          end
         end
+        node.children.each { |child| collect_method_definition_errors(child, errors) }
+        nil
       end
 
       def epilogue

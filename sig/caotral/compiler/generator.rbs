@@ -1,5 +1,7 @@
 class Caotral::Compiler::Generator
   REGISTER: Array[String]
+  COUNT_OVER_ARGUMENT_ERROR: String
+  UNSUPPORTED_ARGUMENT_ERROR: String
 
   attr_reader precompile: String
   attr_reader shared: bool
@@ -19,7 +21,8 @@ class Caotral::Compiler::Generator
 
   def compile_shared_option: () -> Array[String]
   def already_build_methods?: -> bool
-  def validate_method_argument_counts: () -> void
+  def validate_method_definitions: () -> void
+  def collect_method_definition_errors: (RubyVM::AbstractSyntaxTree::Node?, Array[String]) -> void
   def call_method: (RubyVM::AbstractSyntaxTree::Node, Caotral::Compiler::Context::Function) -> void
   def comp: (String) -> void
   def define_method_prologue: (Caotral::Compiler::Context::Function) -> void

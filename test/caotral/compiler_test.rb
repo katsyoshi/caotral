@@ -121,4 +121,25 @@ class Caotral::CompilerTest < Test::Unit::TestCase
 
     assert_equal(42, tla.call(41))
   end
+
+  def test_rejects_optional_arguments
+    @file = "sample/optional_arguments.rb"
+    error = assert_raise(NotImplementedError) do
+      Caotral.compile!(input: @file, output: @output, shared: true, linker: "mold", assembler: "as")
+    end
+    assert_equal(
+      "optional_arguments has unsupported parameters; only required positional parameters are supported",
+      error.message
+    )
+  end
+
+  def test_reports_all_method_definition_errors
+    @file = "sample/optional_and_too_many_arguments.rb"
+    error = assert_raise(NotImplementedError) do
+      Caotral.compile!(input: @file, output: @output, shared: true, linker: "mold", assembler: "as")
+    end
+    error_str = "max_args has 7 required positional arguments; maximum supported is 6\n"
+    error_str += "optional_arguments has unsupported parameters; only required positional parameters are supported"
+    assert_equal(error_str, error.message)
+  end
 end
