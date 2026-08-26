@@ -2,8 +2,7 @@ require_relative "../../test_suite"
 
 class Caotral::Compiler::AnalyzerTest < Test::Unit::TestCase
   def test_analyze_methods_and_local_variables
-    code = File.read("sample/method_and_variable.rb")
-    ast = RubyVM::AbstractSyntaxTree.parse(code)
+    ast = RubyVM::AbstractSyntaxTree.parse_file("sample/method_and_variable.rb")
     context = Caotral::Compiler::Analyzer.analyze(ast)
     entry = context.entry
     last_node = ast.children.last

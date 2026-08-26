@@ -13,7 +13,6 @@ module Caotral
         @ast = RubyVM::AbstractSyntaxTree.parse_file(@source)
       end
 
-      def compile_shared_option = %w(-shared -fPIC)
       def compile
         @context = Caotral::Compiler::Analyzer.analyze(@ast)
         @emitter = Caotral::Compiler::Emitter.new(File.open(@precompile, "w"))
@@ -38,6 +37,8 @@ module Caotral
         @emitter&.close
       end
 
+      private
+      def compile_shared_option = %w(-shared -fPIC)
       def already_build_methods? = @context.all_methods_emitted?
 
       def epilogue
@@ -59,29 +60,27 @@ module Caotral
         nil
       end
 
-      def define_method_prologue(node)
+      def define_method_prologue(function)
         instruction("push", "rbp")
         instruction("mov", "rbp", "rsp")
         unless @context.local_variables.empty?
           instruction("sub", "rsp", lvar_offset(nil) * 8)
-          _name, args, _block = node.children
-          args.children.each_with_index do |_, i|
+          function.parameters.each_with_index do |_, i|
             instruction("mov", "[rbp-#{(i + 1) * 8}]", REGISTER[i])
           end
         end
         nil
       end
 
-      def method(method, node)
-        label(method)
-        define_method_prologue(node)
-        node.children.each do |child|
-          next unless child.kind_of?(RubyVM::AbstractSyntaxTree::Node)
-          to_asm(child, true)
-        end
+      def parse_method(name, function)
+        label(name)
+        define_method_prologue(function)
+
+        to_asm(function.body, true)
+
         instruction("pop", "rax")
         ret
-        @context.mark_method_emitted(method)
+        @context.mark_method_emitted(name)
         nil
       end
 
@@ -169,7 +168,7 @@ module Caotral
           return
         when :DEFN
           name, _ = node.children
-          method(name, node)
+          parse_method(name, @context.functions.fetch(name))
           return
         when :LVAR
           return if method_tree
@@ -271,7 +270,6 @@ module Caotral
         end
       end
 
-      private
       def instruction(ope, *operands) = @emitter.instruction(ope, *operands)
       def label(name) = @emitter.label(name)
       def directive(row) = @emitter.directive(row)
