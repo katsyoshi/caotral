@@ -16,5 +16,6 @@ class Caotral::Compiler::Analyzer
 
   private
 
+  def register_entry: (RubyVM::AbstractSyntaxTree::Node scope) -> void
   def register_variables_and_methods: (RubyVM::AbstractSyntaxTree::Node? node) -> void
 end

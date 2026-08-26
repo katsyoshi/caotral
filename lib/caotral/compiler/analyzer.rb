@@ -13,6 +13,7 @@ module Caotral
       end
 
       def analyze
+        register_entry(@ast)
         register_variables_and_methods(@ast)
         @context
       end
@@ -30,6 +31,12 @@ module Caotral
         end
         node.children.each { |n| register_variables_and_methods(n) }
         nil
+      end
+
+      def register_entry(scope)
+        locals, _args, body = scope.children
+        entry = Caotral::Compiler::Context::Function.new(name: nil, locals:, body:)
+        @context.register_entry(entry)
       end
     end
   end

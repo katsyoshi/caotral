@@ -2,11 +2,13 @@ class Caotral::Compiler::Context
   attr_reader label_sequence: Integer
   attr_reader discovered_methods: Set[Symbol]
   attr_reader local_variables: Set[Symbol]
+  attr_reader entry: Caotral::Compiler::Context::Function?
 
   @label_sequence: Integer
   @entry_emitted: bool
   @emitted_methods: Set[Symbol]
   @discovered_methods: Set[Symbol]
+  @entry: Caotral::Compiler::Context::Function?
   @variables: Caotral::Compiler::Context::Variables
 
   def initialize: () -> void
@@ -17,4 +19,5 @@ class Caotral::Compiler::Context
   def register_local_variable: (Symbol name) -> void
   def all_methods_emitted?: () -> bool
   def increment_label_sequence: () -> void
+  def register_entry: (Caotral::Compiler::Context::Function function) -> void
 end
