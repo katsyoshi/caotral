@@ -18,4 +18,10 @@ class Caotral::Compiler::Analyzer
 
   def register_entry: (RubyVM::AbstractSyntaxTree::Node scope) -> void
   def register_variables_and_methods: (RubyVM::AbstractSyntaxTree::Node? node) -> void
+  def analyze_function_scope: (RubyVM::AbstractSyntaxTree::Node node) -> {
+    name: Symbol,
+    parameters: Array[Symbol],
+    locals: Array[Symbol],
+    body: RubyVM::AbstractSyntaxTree::Node
+  }
 end

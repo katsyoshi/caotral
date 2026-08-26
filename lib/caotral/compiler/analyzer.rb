@@ -28,6 +28,8 @@ module Caotral
           variables.each { |v| @context.register_local_variable(v) }
         when :DEFN
           @context.discover_method(variables)
+          function = Caotral::Compiler::Context::Function.new(**analyze_function_scope(node))
+          @context.register_function(function)
         end
         node.children.each { |n| register_variables_and_methods(n) }
         nil
@@ -37,6 +39,15 @@ module Caotral
         locals, _args, body = scope.children
         entry = Caotral::Compiler::Context::Function.new(name: nil, locals:, body:)
         @context.register_entry(entry)
+      end
+
+      def analyze_function_scope(node)
+        name, function_scope = node.children
+        locals, args, body = function_scope.children
+        parameter_count = args.children.first
+        parameters = locals.take(parameter_count)
+        locals = locals.drop(parameter_count)
+        { name:, parameters:, locals:, body: }
       end
     end
   end

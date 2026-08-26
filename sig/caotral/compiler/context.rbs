@@ -3,6 +3,7 @@ class Caotral::Compiler::Context
   attr_reader discovered_methods: Set[Symbol]
   attr_reader local_variables: Set[Symbol]
   attr_reader entry: Caotral::Compiler::Context::Function?
+  attr_reader functions: Hash[Symbol, Caotral::Compiler::Context::Function]
 
   @label_sequence: Integer
   @entry_emitted: bool
@@ -10,6 +11,7 @@ class Caotral::Compiler::Context
   @discovered_methods: Set[Symbol]
   @entry: Caotral::Compiler::Context::Function?
   @variables: Caotral::Compiler::Context::Variables
+  @functions: Hash[Symbol, Caotral::Compiler::Context::Function]
 
   def initialize: () -> void
   def entry_emitted?: () -> bool
@@ -20,4 +22,5 @@ class Caotral::Compiler::Context
   def all_methods_emitted?: () -> bool
   def increment_label_sequence: () -> void
   def register_entry: (Caotral::Compiler::Context::Function function) -> void
+  def register_function: (Caotral::Compiler::Context::Function function) -> void
 end

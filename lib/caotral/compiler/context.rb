@@ -4,7 +4,7 @@ require_relative "context/variables"
 module Caotral
   class Compiler
     class Context
-      attr_reader :discovered_methods, :label_sequence, :entry
+      attr_reader :discovered_methods, :label_sequence, :entry, :functions
       def initialize
         @label_sequence = 0
         @entry_emitted = false
@@ -12,6 +12,7 @@ module Caotral
         @discovered_methods = Set[]
         @entry = nil
         @variables = Caotral::Compiler::Context::Variables.new
+        @functions = {}
       end
 
       def entry_emitted? = @entry_emitted
@@ -23,6 +24,7 @@ module Caotral
       def increment_label_sequence = @label_sequence += 1
       def local_variables = @variables.locals
       def register_entry(function) = @entry = function
+      def register_function(function) = @functions[function.name] = function
     end
   end
 end

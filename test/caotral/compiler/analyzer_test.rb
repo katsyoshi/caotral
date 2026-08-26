@@ -17,6 +17,18 @@ class Caotral::Compiler::AnalyzerTest < Test::Unit::TestCase
     assert_equal(last_node.first_column, entry.body.first_column)
     assert_equal(last_node.last_lineno, entry.body.last_lineno)
     assert_equal(last_node.last_column, entry.body.last_column)
+    assert_equal(:foo, context.functions[:foo].name)
+  end
+
+  def test_analyze_method_with_parameters_and_local_variables
+    ast = RubyVM::AbstractSyntaxTree.parse_file("sample/args_and_local_variables.rb")
+    context = Caotral::Compiler::Analyzer.analyze(ast)
+    functions = context.functions
+    foo = functions[:foo]
+
+    assert_equal(:foo, foo.name)
+    assert_equal([:a, :b], foo.parameters)
+    assert_equal(Set[:c], foo.locals)
     assert_equal(Set[:foo], context.discovered_methods)
   end
 end
