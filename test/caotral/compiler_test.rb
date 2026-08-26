@@ -106,4 +106,19 @@ class Caotral::CompilerTest < Test::Unit::TestCase
       error.message
     )
   end
+
+  def test_sample_return_value_with_local_variable
+    @generated = ["libtla.so", "libtla.so.o", "libtla.so.s"]
+    @file = "sample/trailing_local_assignment.rb"
+    @output = "./libtla.so"
+    @caotral = Caotral.compile!(input: @file, output: @output, shared: true, linker: "mold", assembler: "as")
+    handle = Fiddle.dlopen(@output)
+    tla = Fiddle::Function.new(
+      handle["trailing_local_assignment"],
+      [Fiddle::TYPE_LONG],
+      Fiddle::TYPE_LONG
+    )
+
+    assert_equal(42, tla.call(41))
+  end
 end

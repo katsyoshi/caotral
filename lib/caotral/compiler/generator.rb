@@ -206,6 +206,7 @@ module Caotral
           instruction("mov", "[rax]", "rdi")
           instruction("push", "rdi")
           instruction("pop", "rax")
+          instruction("push", "rax")
           return
         when :IF
           cond, tblock, fblock = node.children
