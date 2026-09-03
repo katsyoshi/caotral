@@ -23,6 +23,8 @@ jobs:
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: ${{ matrix.ruby }}
+        rubygems: latest
+        bundler: latest
         bundler-cache: true
     - uses: rui314/setup-mold@v1
     - name: Install rbs
