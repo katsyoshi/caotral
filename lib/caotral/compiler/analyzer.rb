@@ -10,20 +10,27 @@ module Caotral
       def initialize(ast, context)
         @ast = ast
         @context = context
+        @execution = false
       end
 
       def analyze
-        register_entry(@ast)
-        register_variables_and_methods(@ast)
+        register_entry(@ast) if main?(@ast.children.last)
+        register_classes_variables_and_methods(@ast)
         @context
       end
 
       private
-      def register_variables_and_methods(node)
+      def register_classes_variables_and_methods(node, classname = nil)
         return unless node.kind_of?(RubyVM::AbstractSyntaxTree::Node)
         type = node.type
-        variables, *_ = node.children
+        variables, args, body = node.children
         case type
+        when :CLASS
+          name = variables.children.last
+          return if @context.classes[name] # skip dupricate class definition
+          klass = Caotral::Compiler::Context::Class.new(name:, body:)
+          @context.register_class(klass)
+          return
         when :SCOPE
           variables.each { |v| @context.register_local_variable(v) }
         when :DEFN
@@ -31,7 +38,7 @@ module Caotral
           function = Caotral::Compiler::Context::Function.new(**analyze_function_scope(node))
           @context.register_function(function)
         end
-        node.children.each { |n| register_variables_and_methods(n) }
+        node.children.each { |n| register_classes_variables_and_methods(n, classname) }
         nil
       end
 
@@ -39,6 +46,17 @@ module Caotral
         locals, _args, body = scope.children
         entry = Caotral::Compiler::Context::Function.new(name: nil, locals:, body:)
         @context.register_entry(entry)
+      end
+
+      def main?(node)
+        case node&.type
+        when nil, :BLOCK, :BEGIN
+          node.children.any? { |n| main?(n) }
+        when :CLASS, :DEFN
+          false
+        else
+          true
+        end
       end
 
       def analyze_function_scope(node)

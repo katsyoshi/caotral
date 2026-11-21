@@ -10,7 +10,7 @@ module Caotral
       COUNT_OVER_ARGUMENT_ERROR = "%s has %s required positional arguments; maximum supported is #{REGISTER.size}"
       UNSUPPORTED_ARGUMENT_ERROR = "%s has unsupported parameters; only required positional parameters are supported"
       attr_reader :precompile, :shared
-      def initialize(input:, output: File.basename(input, "*") + ".s", debug: false, shared: false)
+      def initialize(input:, output: File.basename(input, ".*") + ".s", debug: false, shared: false)
         @source, @precompile, @debug, @shared = input, output, debug, shared
         @ast = RubyVM::AbstractSyntaxTree.parse_file(@source)
       end
@@ -23,19 +23,26 @@ module Caotral
 
         # prologue
         directive(".intel_syntax noprefix")
-        if @context.discovered_methods.empty?
+        local_execution = !@context.entry.nil?
+        defined_classes = @context.classes.keys # temporally name only.
+          
+        directive(".section .text")
+        if local_execution
           @context.mark_entry_emitted
           directive(".globl main")
           label("main")
           instruction("push", "rbp")
           instruction("mov", "rbp", "rsp")
           instruction("sub", "rsp", entry.variables.size * 8)
-          to_asm(@ast, entry)
-          epilogue
         else
           prologue_methods
-          directive(".globl main") unless @shared
-          to_asm(@ast, entry)
+        end
+
+        to_asm(@ast, entry)
+        epilogue if local_execution
+        unless defined_classes.empty?
+          source = File.basename(@source, ".*")
+          init_classes(source, *defined_classes)
         end
       ensure
         @emitter&.close
@@ -182,7 +189,7 @@ module Caotral
         when :SCOPE
           node.children.each do |child|
             if already_build_methods? && !@context.entry_emitted?
-              return if shared
+              return if shared || @context.entry.nil?
               label("main")
               instruction("push", "rbp")
               instruction("mov", "rbp", "rsp")
@@ -192,6 +199,9 @@ module Caotral
             end
             to_asm(child, function)
           end
+          return
+        when :CLASS
+          # skip
           return
         when :DEFN
           name, _ = node.children
@@ -296,6 +306,26 @@ module Caotral
       def label(name) = @emitter.label(name)
       def directive(row) = @emitter.directive(row)
       def sequence = @context.label_sequence
+
+      def init_classes(source_name, *names)
+        name = "Init_#{source_name}"
+        directive(".globl #{name}")
+        label("#{name}")
+        instruction("sub", "rsp", 8)
+        names.each_with_index do |name, t|
+          instruction("lea", "rdi", "[rip + .L#{name}_name]")
+          instruction("mov", "rax", "QWORD PTR [rip + rb_cObject@GOTPCREL]")
+          instruction("mov", "rsi", "QWORD PTR [rax]")
+          instruction("call", "rb_define_class@PLT")
+        end
+        instruction("add", "rsp", 8)
+        instruction("ret")
+        directive(".section .rodata")
+        names.each do |name|
+          label(".L#{name}_name")
+          directive(%(#{Caotral::Compiler::Emitter::INDENT}.asciz "#{name}"))
+        end
+      end
     end
   end
 end
