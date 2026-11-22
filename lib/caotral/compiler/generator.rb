@@ -25,8 +25,9 @@ module Caotral
         directive(".intel_syntax noprefix")
         local_execution = !@context.entry.nil?
         defined_classes = @context.classes.keys # temporally name only.
-          
+
         directive(".section .text")
+        prologue_methods if shared
         func2asm
 
         if local_execution
@@ -36,8 +37,6 @@ module Caotral
           instruction("push", "rbp")
           instruction("mov", "rbp", "rsp")
           instruction("sub", "rsp", entry.variables.size * 8)
-        else
-          prologue_methods
         end
 
         to_asm(@ast, entry)
