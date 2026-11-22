@@ -42,7 +42,7 @@ module Caotral
         to_asm(@ast, entry)
         epilogue if local_execution
         unless defined_classes.empty?
-          source = File.basename(@source, ".*")
+          source = File.basename(@precompile, ".*")
           init_classes(source, *defined_classes)
         end
       ensure
@@ -311,8 +311,8 @@ module Caotral
       def directive(row) = @emitter.directive(row)
       def sequence = @context.label_sequence
 
-      def init_classes(source_name, *names)
-        name = "Init_#{source_name}"
+      def init_classes(base_name, *names)
+        name = "Init_#{base_name}"
         directive(".globl #{name}")
         label("#{name}")
         instruction("sub", "rsp", 8)

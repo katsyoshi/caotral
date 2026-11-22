@@ -13,7 +13,7 @@ class Caotral::Compiler::GenratorTest < Test::Unit::TestCase
   def test_compile_non_executable_ruby_file_with_class
     Caotral::Compiler::Generator.new(input: "sample/klass.rb", output:).compile
     asm = File.read(output)
-    assert_match("Init_klass:", asm)
+    assert_match("Init_test_generated:", asm)
     assert_match(".asciz \"Klass\"", asm)
   end
 

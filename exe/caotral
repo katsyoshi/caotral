@@ -66,11 +66,12 @@ if File.extname(input) == ".s"
   options[:compile] = false
 end
 
-basename = File.expand_path(File.basename(input, ".*"))
+basename_path = shared && options[:link] ? options[:output] || input : input
+basename = File.expand_path(File.basename(basename_path, ".*"))
 extname = File.extname(output) == ".so"
 
 output = basename + ".s"
-Caotral.compile(input:, output:, debug:) if options[:compile]
+Caotral.compile(input:, output:, debug:, shared:) if options[:compile]
 input, output = output, basename + ".o"
 if options[:assemble]
   input = ARGV.first unless options[:compile]
