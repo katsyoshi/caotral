@@ -27,6 +27,8 @@ module Caotral
         defined_classes = @context.classes.keys # temporally name only.
           
         directive(".section .text")
+        func2asm
+
         if local_execution
           @context.mark_entry_emitted
           directive(".globl main")
@@ -175,6 +177,13 @@ module Caotral
         instruction("pop", "rbp")
         instruction("ret")
       end
+      def need_main? = !(shared || @context.entry.nil?)
+
+      def func2asm
+        @context.functions.each do |name, function|
+          parse_method(name, function)
+        end
+      end
 
       def to_asm(node, function)
         return unless node.kind_of?(RubyVM::AbstractSyntaxTree::Node)
@@ -189,7 +198,7 @@ module Caotral
         when :SCOPE
           node.children.each do |child|
             if already_build_methods? && !@context.entry_emitted?
-              return if shared || @context.entry.nil?
+              return unless need_main?
               label("main")
               instruction("push", "rbp")
               instruction("mov", "rbp", "rsp")
@@ -200,12 +209,8 @@ module Caotral
             to_asm(child, function)
           end
           return
-        when :CLASS
+        when :CLASS, :DEFN
           # skip
-          return
-        when :DEFN
-          name, _ = node.children
-          parse_method(name, @context.functions.fetch(name))
           return
         when :LVAR
           name = node.children.last

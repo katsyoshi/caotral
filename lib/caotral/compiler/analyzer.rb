@@ -50,7 +50,9 @@ module Caotral
 
       def main?(node)
         case node&.type
-        when nil, :BLOCK, :BEGIN
+        when nil
+          false
+        when :BLOCK, :BEGIN
           node.children.any? { |n| main?(n) }
         when :CLASS, :DEFN
           false
