@@ -24,9 +24,8 @@ class Caotral::Linker::SymbolRemapTest < Test::Unit::TestCase
     assert_not_include(dynsym_names, "hidden_value")
     assert_not_include(dynsym_names, "symbol_remap_external_b.c")
     assert_empty(elf.find_by_name(".rela.plt").body)
-    _o, _e, status = Open3.capture3("./#{execute}")
-    ec, _hc = check_process(status.to_i)
-    assert_equal(ec, 42)
+    _stdout, stderr, status = Open3.capture3("./#{execute}")
+    assert_equal(42, status.exitstatus, stderr)
   end
 
   def test_remap_external_symbols_using_glibc
@@ -43,8 +42,7 @@ class Caotral::Linker::SymbolRemapTest < Test::Unit::TestCase
     assert_include(dynsym_names, "main")
     assert_include(dynsym_names, "value_from_b")
     assert_include(dynsym_names, "puts")
-    _o, _e, status = Open3.capture3("./#{execute}")
-    ec, _hc = check_process(status.to_i)
-    assert_equal(ec, 42)
+    _stdout, stderr, status = Open3.capture3("./#{execute}")
+    assert_equal(42, status.exitstatus, stderr)
   end
 end

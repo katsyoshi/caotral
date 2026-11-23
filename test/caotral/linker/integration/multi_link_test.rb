@@ -23,9 +23,7 @@ class Caotral::Linker::MultiFileLinkingTest < Test::Unit::TestCase
     end
     Caotral::Linker.link!(inputs:, output:, linker: "self")
     File.chmod(0755, "./#{output}")
-    IO.popen("./#{output}").close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(exit_code, 42)
-    assert_equal(handle_code, 0)
+    _stdout, stderr, status = Open3.capture3("./#{output}")
+    assert_equal(42, status.exitstatus, stderr)
   end
 end

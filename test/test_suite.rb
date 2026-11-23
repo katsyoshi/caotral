@@ -53,9 +53,5 @@ module BuildFixtureHelper
 end
 
 module TestProcessHelper
-  def check_process(status)
-    exit_code = status >> 8
-    handle_code = status & 0x7f
-    [exit_code, handle_code]
-  end
+  def supported_ruby_box? = defined?(Ruby::Box) && ENV["RUBY_BOX"] == "1"
 end

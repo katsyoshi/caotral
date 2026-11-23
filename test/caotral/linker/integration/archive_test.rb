@@ -19,10 +19,8 @@ class Caotral::Linker::ArchiveTest < Test::Unit::TestCase
     @inputs << "multi-file-link-b.o"
     archives = [output]
     Caotral::Linker.link!(output: @output, inputs: @inputs, archives:, linker: "self")
-    IO.popen("./#{@output}").close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(42, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3("./#{@output}")
+    assert_equal(42, status.exitstatus, stderr)
   end
 
   def test_extract_dependent_archive_member
@@ -39,9 +37,7 @@ class Caotral::Linker::ArchiveTest < Test::Unit::TestCase
     @inputs << "multi-file-link-b.o"
     archives = [output]
     Caotral::Linker.link!(output: @output, inputs: @inputs, archives:, linker: "self")
-    IO.popen("./#{@output}").close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(42, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3("./#{@output}")
+    assert_equal(42, status.exitstatus, stderr)
   end
 end

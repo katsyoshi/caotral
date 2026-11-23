@@ -7,13 +7,8 @@ require "steep/cli"
 
 task default: %i[test]
 
-def supported_ruby_box? = RUBY_VERSION >= "4.0.0" && ENV["RUBY_BOX"] == "1" && defined?(Ruby::Box)
-
 Rake::TestTask.new do |t|
   t.test_files = FileList['test/**/*_test.rb']
-  if supported_ruby_box?
-    t.test_files = FileList['test/caotral/linker/integration/fiddle_test.rb']
-  end
 end
 
 namespace :steep do

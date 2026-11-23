@@ -14,13 +14,16 @@ class Caotral::Linker::FiddleMethodTest < Test::Unit::TestCase
   end
 
   def test_sample_call_add_method
-    @generated = ["libtmp.so", "libtmp.so.o"]
+    library = "libtmp.so"
+    object = "libtmp.so.o"
+    @generated = [library, object]
     @file = "sample/C/add.c"
-    IO.popen(["gcc", "-fPIC", "-c", "-o", "libtmp.so.o", "%s" % @file]).close
-    Caotral::Linker.link!(inputs: ["libtmp.so.o"], output: "libtmp.so", linker: "self", shared: true, executable: false)
-    elf = Caotral::Binary::ELF::Reader.read!(input: "./libtmp.so")
+    IO.popen(["gcc", "-fPIC", "-c", "-o", object, @file]).close
+    Caotral::Linker.link!(inputs: [object], output: library, linker: "self", shared: true, executable: false)
+    elf = Caotral::Binary::ELF::Reader.read!(input: library)
     box = Ruby::Box.new
     box.require("./sample/fiddle_add.rb")
+    handles = box::X.handler.handlers
     assert_equal(10, box::X.add(3, 7))
     dynsym = elf.find_by_name(".dynsym")
     rela_plt = elf.find_by_name(".rela.plt")
@@ -34,7 +37,7 @@ class Caotral::Linker::FiddleMethodTest < Test::Unit::TestCase
     assert_equal(nil, dynamic.body.find { |dt| dt.plt_rel? })
     assert_equal(nil, dynamic.body.find { |dt| dt.plt_rel_size? })
     assert_equal(nil, dynamic.body.find { |dt| dt.jmp_rel? })
+  ensure
+    handles&.each(&:close)
   end
-
-  private def supported_ruby_box? = RUBY_VERSION >= "4.0.0" && ENV["RUBY_BOX"] == "1" && defined?(Ruby::Box)
 end
