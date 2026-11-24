@@ -2,16 +2,8 @@ require_relative "../../../test_suite"
 
 class Caotral::Linker::FiddleMethodTest < Test::Unit::TestCase
   include TestProcessHelper
-  def setup
-    @generated = []
-    omit("Ruby::Box is not supported in this environment") unless supported_ruby_box?
-  end
-
-  def teardown
-    @generated.each do |file|
-      File.delete(file) if File.exist?(file)
-    end
-  end
+  def setup = setup_ruby_box
+  def teardown = teardown_native_binary
 
   def test_sample_call_add_method
     library = "libtmp.so"
