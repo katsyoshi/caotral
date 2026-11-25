@@ -43,6 +43,9 @@ module Caotral
         epilogue if local_execution
         unless defined_classes.empty?
           source = File.basename(@precompile, ".*")
+          defined_classes.each do |c|
+            impl_class_instance_methods(c, @context.classes[c].functions)
+          end
           init_classes(source, *defined_classes)
         end
       ensure
@@ -95,13 +98,13 @@ module Caotral
         nil
       end
 
-      def define_method_prologue(function)
+      def define_method_prologue(function, arg_reg: REGISTER)
         instruction("push", "rbp")
         instruction("mov", "rbp", "rsp")
         unless function.variables.empty?
           instruction("sub", "rsp", lvar_offset(nil, function) * 8)
           function.parameters.each_with_index do |_, i|
-            instruction("mov", "[rbp-#{(i + 1) * 8}]", REGISTER[i])
+            instruction("mov", "[rbp-#{(i + 1) * 8}]", arg_reg[i])
           end
         end
         nil
@@ -310,6 +313,7 @@ module Caotral
       def label(name) = @emitter.label(name)
       def directive(row) = @emitter.directive(row)
       def sequence = @context.label_sequence
+      def class_instance_method_names(klass) = @context.classes[klass].functions.keys
 
       def init_classes(base_name, *names)
         name = "Init_#{base_name}"
@@ -321,6 +325,13 @@ module Caotral
           instruction("mov", "rax", "QWORD PTR [rip + rb_cObject@GOTPCREL]")
           instruction("mov", "rsi", "QWORD PTR [rax]")
           instruction("call", "rb_define_class@PLT")
+          class_instance_method_names(name).each do |fname|
+            instruction("mov", "rdi", "rax")
+            instruction("lea", "rsi", "[rip + .L#{name}_#{fname}_name]")
+            instruction("lea", "rdx", "[rip + .L#{name}___#{fname}]")
+            instruction("mov", "ecx", "1")
+            instruction("call", "rb_define_method@PLT")
+          end
         end
         instruction("add", "rsp", 8)
         instruction("ret")
@@ -328,7 +339,25 @@ module Caotral
         names.each do |name|
           label(".L#{name}_name")
           directive(%(#{Caotral::Compiler::Emitter::INDENT}.asciz "#{name}"))
+          class_instance_method_names(name).each do |fname|
+            label(".L#{name}_#{fname}_name")
+            directive(%(#{Caotral::Compiler::Emitter::INDENT}.asciz "#{fname}"))
+          end
         end
+        
+      end
+
+      def impl_class_instance_methods(class_name, functions)
+        functions.each do |name, function|
+          label(".L#{class_name}___#{name}")
+          define_method_prologue(function, arg_reg: REGISTER.drop(1))
+
+          to_asm(function.body, function)
+          
+          instruction("pop", "rax")
+          ret
+        end
+        nil
       end
     end
   end

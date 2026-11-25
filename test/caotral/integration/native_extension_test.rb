@@ -24,5 +24,7 @@ class Caotral::IntegrationNativeExtensionTest < Test::Unit::TestCase
     box.require "./libklass"
 
     assert_kind_of(Class, box::Klass)
+    v = Object.new
+    assert_same(v, box::Klass.new.identity(v))
   end
 end

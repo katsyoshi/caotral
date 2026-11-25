@@ -30,13 +30,20 @@ module Caotral
           return if @context.classes[name] # skip dupricate class definition
           klass = Caotral::Compiler::Context::Class.new(name:, body:)
           @context.register_class(klass)
+          register_classes_variables_and_methods(body, name)
           return
         when :SCOPE
           variables.each { |v| @context.register_local_variable(v) }
         when :DEFN
-          @context.discover_method(variables)
           function = Caotral::Compiler::Context::Function.new(**analyze_function_scope(node))
-          @context.register_function(function)
+          if classname
+            klass = @context.classes[classname]
+            klass.functions[function.name] = function
+            return
+          else
+            @context.discover_method(variables)
+            @context.register_function(function)
+          end
         end
         node.children.each { |n| register_classes_variables_and_methods(n, classname) }
         nil
