@@ -8,11 +8,11 @@ require_relative "linker/writer"
 
 module Caotral
   class Linker
-    def self.link!(inputs:, output: "a.out", linker: "mold", debug: false, shared: false, executable: true, pie: false, needed: [], archives: [])
+    def self.link!(inputs:, output: "a.out", linker: "self", debug: false, shared: false, executable: true, pie: false, needed: [], archives: [])
       new(inputs:, output:, linker:, debug:, shared:, executable:, pie:, needed:, archives:).link
     end
 
-    def initialize(inputs:, output: "a.out", linker: "mold", linker_options: [], executable: true, shared: false, pie: false, debug: false, needed: [], archives: [])
+    def initialize(inputs:, output: "a.out", linker: "self", linker_options: [], executable: true, shared: false, pie: false, debug: false, needed: [], archives: [])
       @inputs, @output, @linker = inputs, output, linker
       @options = linker_options
       @needed, @archives = needed, archives

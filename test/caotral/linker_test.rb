@@ -9,9 +9,9 @@ class Caotral::LinkerTest < Test::Unit::TestCase
   end
 
   def test_link_command
-    linker = Caotral::Linker.new(inputs: ["tmp.o"], output: "tmp")
+    linker = Caotral::Linker.new(inputs: ["tmp.o"], output: "tmp", linker: "mold")
     assert_match(%r|mold -o tmp -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 /.+/crt1.o /.+/crti.o /.+/crtbegin.o /.+/crtend.o /.+/libc.so /.+/crtn.o tmp.o|, linker.link_command)
-    linker = Caotral::Linker.new(inputs: ["tmp.o"], output: "tmp", shared: true)
+    linker = Caotral::Linker.new(inputs: ["tmp.o"], output: "tmp", shared: true, linker: "mold")
     assert_match(%r|mold -o tmp -m elf_x86_64 --shared /.+/crti.o /.+/crtbeginS.o /.+/crtendS.o /.+/libc.so /.+/crtn.o tmp.o|, linker.link_command)
   end
 end

@@ -55,7 +55,7 @@ end
 
 assembler, linker = nil, nil
 assembler = options[:assembler] || "self" 
-linker = options[:linker] || "mold"
+linker = options[:linker] || "self"
 debug = options[:debug] || false
 input = ARGV.first
 shared = options[:shared] || false

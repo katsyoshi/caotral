@@ -8,7 +8,7 @@ require_relative "caotral/linker"
 
 module Caotral
   module_function
-  def compile!(input:, assembler: "as", linker: "ld", output: "tmp", debug: false, compiler_options: ["-O0"], shared: false)
+  def compile!(input:, assembler: "as", linker: "self", output: "tmp", debug: false, compiler_options: ["-O0"], shared: false)
     d = File.expand_path(output)
     basename = "#{File.dirname(d)}/#{File.basename(d, ".*")}"
     execf = "#{basename}#{File.extname(d)}"
@@ -22,7 +22,7 @@ module Caotral
   def assemble(input:, output: "tmp.o", debug: false, shared: false, assembler: "as")
     Caotral::Assembler.assemble!(input:, output:, debug:, assembler:, shared:)
   end
-  def link(input:, output: "tmp", linker: "ld", debug: false, shared: false)
+  def link(input:, output: "tmp", linker: "self", debug: false, shared: false)
     inputs = Array === input ? input : [input]
     Caotral::Linker.link!(inputs:, output:, linker:, debug:, shared:)
   end
