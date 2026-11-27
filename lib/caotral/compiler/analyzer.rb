@@ -1,4 +1,5 @@
 require_relative "context"
+require_relative "error"
 
 module Caotral
   class Compiler
@@ -21,13 +22,17 @@ module Caotral
 
       private
       def register_classes_variables_and_methods(node, classname = nil)
-        return unless node.kind_of?(RubyVM::AbstractSyntaxTree::Node)
+        return unless ast_node?(node)
         type = node.type
         variables, args, body = node.children
         case type
         when :CLASS
           name = variables.children.last
           return if @context.classes[name] # skip dupricate class definition
+          errors = invalid_class_definitions(name, args, body)
+          unless errors.empty?
+            raise Compiler::Error, "unsupported class definitions!!: #{errors.join(",")}"
+          end
           klass = Caotral::Compiler::Context::Class.new(name:, body:)
           @context.register_class(klass)
           register_classes_variables_and_methods(body, name)
@@ -56,9 +61,9 @@ module Caotral
       end
 
       def main?(node)
+        return false unless ast_node?(node)
+
         case node&.type
-        when nil
-          false
         when :BLOCK, :BEGIN
           node.children.any? { |n| main?(n) }
         when :CLASS, :DEFN
@@ -66,6 +71,28 @@ module Caotral
         else
           true
         end
+      end
+
+      def invalid_class_definitions(name, args, child)
+        errors = []
+        errors << "#{name} has super #{args.children.first} class" if inheritanced?(args)
+        errors << "#{name} has inner classes" if inner_classes?(child)
+        errors
+      end
+
+      def inner_classes?(node)
+        return false unless ast_node?(node)
+        case node&.type
+        when :CLASS
+          true
+        else
+          node.children.any? { |n| inner_classes?(n) }
+        end
+      end
+      def inheritanced?(node)
+        return false unless ast_node?(node)
+
+        !node.children.last.nil?
       end
 
       def analyze_function_scope(node)
@@ -76,6 +103,8 @@ module Caotral
         locals = locals.drop(parameter_count)
         { name:, parameters:, locals:, body: }
       end
+
+      def ast_node?(node) = node.kind_of?(RubyVM::AbstractSyntaxTree::Node)
     end
   end
 end

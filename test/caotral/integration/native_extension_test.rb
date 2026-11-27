@@ -27,4 +27,28 @@ class Caotral::IntegrationNativeExtensionTest < Test::Unit::TestCase
     v = Object.new
     assert_same(v, box::Klass.new.identity(v))
   end
+
+
+  def test_integration_for_inner_class
+    assembly = "libinner.s"
+    object = "libinner.o"
+    library = "libinner.so"
+    @generated.concat([assembly, object, library])
+
+    error = assert_raise(Caotral::Compiler::Error) do
+      Caotral::Compiler::Generator.new(input: "sample/inner.rb", output: assembly, shared: true).compile
+    end
+    assert_match(/inner classes/, error.message)
+  end
+  def test_integration_for_inheritance_class
+    assembly = "libinner.s"
+    object = "libinner.o"
+    library = "libinner.so"
+    @generated.concat([assembly, object, library])
+
+    error = assert_raise(Caotral::Compiler::Error) do
+      Caotral::Compiler::Generator.new(input: "sample/inheritance.rb", output: assembly, shared: true).compile
+    end
+    assert_match(/has super String class/, error.message)
+  end
 end
