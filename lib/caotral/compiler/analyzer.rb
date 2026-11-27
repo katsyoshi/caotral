@@ -29,7 +29,7 @@ module Caotral
         when :CLASS
           name = variables.children.last
           return if @context.classes[name] # skip dupricate class definition
-          errors = invalid_class_definitions(name, args, body)
+          errors = invalid_class_and_method_definitions(name, args, body)
           unless errors.empty?
             raise Compiler::Error, "unsupported class definitions!!: #{errors.join(",")}"
           end
@@ -73,10 +73,11 @@ module Caotral
         end
       end
 
-      def invalid_class_definitions(name, args, child)
+      def invalid_class_and_method_definitions(name, args, child)
         errors = []
         errors << "#{name} has super #{args.children.first} class" if inheritanced?(args)
         errors << "#{name} has inner classes" if inner_classes?(child)
+        errors << "#{name} has invalid definition method" if premitive?(child)
         errors
       end
 
@@ -102,6 +103,16 @@ module Caotral
         parameters = locals.take(parameter_count)
         locals = locals.drop(parameter_count)
         { name:, parameters:, locals:, body: }
+      end
+
+      def premitive?(node)
+        return false unless ast_node?(node)
+        case node.type
+        when :INTEGER, :LIT, :STR, :FLOAT, :OPCALL
+          true
+        else
+          node.children.any? { |l| premitive?(l) }
+        end
       end
 
       def ast_node?(node) = node.kind_of?(RubyVM::AbstractSyntaxTree::Node)

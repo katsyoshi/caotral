@@ -325,11 +325,13 @@ module Caotral
           instruction("mov", "rax", "QWORD PTR [rip + rb_cObject@GOTPCREL]")
           instruction("mov", "rsi", "QWORD PTR [rax]")
           instruction("call", "rb_define_class@PLT")
-          class_instance_method_names(name).each do |fname|
-            instruction("mov", "rdi", "rax")
+          instance_method_names = class_instance_method_names(name)
+          instruction("mov", "[rsp]", "rax") unless instance_method_names.empty?
+          instance_method_names.each do |fname|
+            instruction("mov", "rdi", "[rsp]")
             instruction("lea", "rsi", "[rip + .L#{name}_#{fname}_name]")
             instruction("lea", "rdx", "[rip + .L#{name}___#{fname}]")
-            instruction("mov", "ecx", "1")
+            instruction("mov", "ecx", @context.classes[name].functions[fname].parameters.size)
             instruction("call", "rb_define_method@PLT")
           end
         end
@@ -353,7 +355,7 @@ module Caotral
           define_method_prologue(function, arg_reg: REGISTER.drop(1))
 
           to_asm(function.body, function)
-          
+
           instruction("pop", "rax")
           ret
         end
