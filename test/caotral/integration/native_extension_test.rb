@@ -27,6 +27,7 @@ class Caotral::IntegrationNativeExtensionTest < Test::Unit::TestCase
     v = Object.new
     assert_same(v, box::Klass.new.identity(v))
     assert_same(v, box::Klass.new.identities(nil, v))
+    assert_same(v, box::Klass.new.identity?(nil, Object.new, v))
   end
 
 

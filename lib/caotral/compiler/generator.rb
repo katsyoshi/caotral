@@ -327,10 +327,10 @@ module Caotral
           instruction("call", "rb_define_class@PLT")
           instance_method_names = class_instance_method_names(name)
           instruction("mov", "[rsp]", "rax") unless instance_method_names.empty?
-          instance_method_names.each do |fname|
+          instance_method_names.each_with_index do |fname, seq|
             instruction("mov", "rdi", "[rsp]")
-            instruction("lea", "rsi", "[rip + .L#{name}_#{fname}_name]")
-            instruction("lea", "rdx", "[rip + .L#{name}___#{fname}]")
+            instruction("lea", "rsi", "[rip + .L#{name}_#{seq}_name]")
+            instruction("lea", "rdx", "[rip + .L#{name}___#{seq}]")
             instruction("mov", "ecx", @context.classes[name].functions[fname].parameters.size)
             instruction("call", "rb_define_method@PLT")
           end
@@ -341,8 +341,8 @@ module Caotral
         names.each do |name|
           label(".L#{name}_name")
           directive(%(#{Caotral::Compiler::Emitter::INDENT}.asciz "#{name}"))
-          class_instance_method_names(name).each do |fname|
-            label(".L#{name}_#{fname}_name")
+          class_instance_method_names(name).each_with_index do |fname, seq|
+            label(".L#{name}_#{seq}_name")
             directive(%(#{Caotral::Compiler::Emitter::INDENT}.asciz "#{fname}"))
           end
         end
@@ -350,8 +350,8 @@ module Caotral
       end
 
       def impl_class_instance_methods(class_name, functions)
-        functions.each do |name, function|
-          label(".L#{class_name}___#{name}")
+        functions.each_with_index do |(name, function), seq|
+          label(".L#{class_name}___#{seq}")
           define_method_prologue(function, arg_reg: REGISTER.drop(1))
 
           to_asm(function.body, function)
