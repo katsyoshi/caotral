@@ -34,9 +34,8 @@ class LinkerNeededTest < Test::Unit::TestCase
 
     Caotral::Linker.link!(inputs: [@input], output: @output, linker: "self", pie: true, needed: ["libc.so.6"], executable: true)
 
-    IO.popen(["./#{@output}"]).close
-    _pid, exit_code = check_process($?.to_i)
-    assert_equal(0, exit_code)
+    _stdout, stderr, status = Open3.capture3("./#{@output}")
+    assert_equal(0, status.exitstatus, stderr)
   end
 
   def test_needed_in_shared_object
@@ -88,12 +87,9 @@ class LinkerNeededTest < Test::Unit::TestCase
 
     Caotral::Linker.link!(inputs: [@input], output: @output, linker: "self", pie: true, needed: ["libc.so.6"], executable: true)
 
-    io = IO.popen(["./#{@output}"])
-    stdout = io.read
-    io.close
-    _pid, exit_code = check_process($?.to_i)
+    stdout, stderr, status = Open3.capture3("./#{@output}")
     assert_equal("hello, world!!!\n", stdout)
-    assert_equal(0, exit_code)
+    assert_equal(0, status.exitstatus, stderr)
   end
 
   def test_start_in_shared_object

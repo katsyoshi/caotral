@@ -39,9 +39,7 @@ class Caotral::Linker::AlignmentTest < Test::Unit::TestCase
       assert_equal(0, (section.header.addr + symbol.value) % 32)
     end
 
-    _stdout, _stderr, status = Open3.capture3("./#{@output}")
-    exit_code, handle_code = check_process(status.to_i)
-    assert_equal(42, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3("./#{@output}")
+    assert_equal(42, status.exitstatus, stderr)
   end
 end

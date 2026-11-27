@@ -95,10 +95,8 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     Caotral::Linker.link!(inputs: @inputs, output: @output, linker: "self", pie: true)
     elf_obj = Caotral::Binary::ELF::Reader.new(input: @output, debug: false)
     elf = elf_obj.read
-    IO.popen("./pie").close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(42, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3("./pie")
+    assert_equal(42, status.exitstatus, stderr)
 
     section_names = elf.sections.map(&:section_name)
     program_header_types = elf.program_headers.map(&:type)
@@ -152,10 +150,8 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     assert_operator(relocation.offset, :>=, rw_load.vaddr)
     assert_operator(relocation.offset, :<, rw_load.vaddr + rw_load.memsz)
 
-    IO.popen(["./#{@output}"]).close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(42, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3("./#{@output}")
+    assert_equal(42, status.exitstatus, stderr)
   end
 
   def test_executable_large_rodata_pie_object
@@ -178,9 +174,7 @@ class Caotral::Linker::PIEObjectLinkingTest < Test::Unit::TestCase
     assert_equal(text.header.addr, text.header.offset)
     assert_equal(9216, rodata.header.size)
 
-    IO.popen(["./#{@output}"]).close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(42, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3("./#{@output}")
+    assert_equal(42, status.exitstatus, stderr)
   end
 end

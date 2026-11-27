@@ -57,7 +57,6 @@ assembler, linker = nil, nil
 assembler = options[:assembler] || "self" 
 linker = options[:linker] || "mold"
 debug = options[:debug] || false
-output = options[:output] || "a.out"
 input = ARGV.first
 shared = options[:shared] || false
 
@@ -66,11 +65,18 @@ if File.extname(input) == ".s"
   options[:compile] = false
 end
 
-basename = File.expand_path(File.basename(input, ".*"))
-extname = File.extname(output) == ".so"
+if options[:compile] && options[:assemble] && options[:link]
+  output = options[:output] || File.expand_path(File.basename(input, ".*"))
+  output += ".so" if shared && File.extname(output) != ".so"
+  Caotral.compile!(input:, output:, assembler:, linker:, debug:, shared:)
+  exit
+end
+
+basename_path = shared && options[:link] ? options[:output] || input : input
+basename = File.expand_path(File.basename(basename_path, ".*"))
 
 output = basename + ".s"
-Caotral.compile(input:, output:, debug:) if options[:compile]
+Caotral.compile(input:, output:, debug:, shared:) if options[:compile]
 input, output = output, basename + ".o"
 if options[:assemble]
   input = ARGV.first unless options[:compile]
@@ -80,7 +86,7 @@ end
 if options[:link]
   input, output = output, basename
   output = options[:output] || output
-  output += ".so" if options[:shared] && !extname
+  output += ".so" if shared && File.extname(output) != ".so"
   Caotral.link(input:, output:, debug:, shared:, linker:) if options[:link]
   File.delete(input) if File.exist?(input) && !debug && File.extname(input) != ".o"
 end

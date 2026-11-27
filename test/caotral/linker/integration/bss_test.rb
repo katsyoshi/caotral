@@ -23,10 +23,8 @@ class Caotral::Linker::BSSTest < Test::Unit::TestCase
     assert_equal(:nobits, bss.header.type)
     assert_equal(8, bss.header.size)
 
-    IO.popen(["./#{@output}"]).close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(42, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3("./#{@output}")
+    assert_equal(42, status.exitstatus, stderr)
   end
 
   def test_initialize_zero_bss
@@ -45,10 +43,8 @@ class Caotral::Linker::BSSTest < Test::Unit::TestCase
     assert_equal(:nobits, bss.header.type)
     assert_equal(32, bss.header.size)
 
-    IO.popen(["./#{@output}"]).close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(42, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3("./#{@output}")
+    assert_equal(42, status.exitstatus, stderr)
   end
 
   def test_initialize_zero_pie_bss
@@ -70,10 +66,8 @@ class Caotral::Linker::BSSTest < Test::Unit::TestCase
     assert_equal(32, bss.header.size)
     assert_equal(bss.header.addr + 24, dynamic_symbol.value)
 
-    IO.popen(["./#{@output}"]).close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(42, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3("./#{@output}")
+    assert_equal(42, status.exitstatus, stderr)
   end
 
   def test_multiple_bss
@@ -99,10 +93,8 @@ class Caotral::Linker::BSSTest < Test::Unit::TestCase
     assert_equal(16, bss.header.addralign)
     assert_equal(16, aligned_symbol.value)
 
-    IO.popen(["./#{@output}"]).close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(42, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3("./#{@output}")
+    assert_equal(42, status.exitstatus, stderr)
   end
 
   def test_zero_size_bss

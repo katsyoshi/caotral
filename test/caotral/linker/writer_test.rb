@@ -1,5 +1,6 @@
 require "caotral"
 require "test/unit"
+require "open3"
 class Caotral::Linker::WriterTest < Test::Unit::TestCase
   def setup
     Caotral.assemble(input: "sample/assembler/plus.s", assembler: "self", output: "plus.o")
@@ -30,10 +31,8 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
   def test_execute_written
     Caotral::Linker::Writer.write!(elf_obj: @elf_obj, output: "write")
     File.chmod(0755, "./write")
-    IO.popen("./write").close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(9, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3("./write")
+    assert_equal(9, status.exitstatus, stderr)
   end
 
   def test_relocation_write_and_execute
@@ -47,9 +46,8 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
     Caotral::Linker::Finalizer.new(elf:, metadata:, shared: false, pie: false, executable: true, debug: false).apply!
     Caotral::Linker::Writer.write!(elf_obj: elf, output: "relocated_exec")
     File.chmod(0755, "./relocated_exec")
-    IO.popen("./relocated_exec").close
-    exit_code, _handle_code = check_process($?.to_i)
-    assert_equal(0, exit_code)
+    _stdout, stderr, status = Open3.capture3("./relocated_exec")
+    assert_equal(0, status.exitstatus, stderr)
   end
 
   def test_writer_do_not_mutate_finalized_elf
@@ -60,11 +58,6 @@ class Caotral::Linker::WriterTest < Test::Unit::TestCase
   end
 
   private
-  def check_process(status)
-    exit_code = status >> 8
-    handle_code = status & 0x7f
-    [exit_code, handle_code]
-  end
   def snapshot(elf)
     {
       header: elf.header.build,

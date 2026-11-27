@@ -1,4 +1,5 @@
 require_relative "context"
+require_relative "error"
 
 module Caotral
   class Compiler
@@ -10,28 +11,46 @@ module Caotral
       def initialize(ast, context)
         @ast = ast
         @context = context
+        @execution = false
       end
 
       def analyze
-        register_entry(@ast)
-        register_variables_and_methods(@ast)
+        register_entry(@ast) if main?(@ast.children.last)
+        register_classes_variables_and_methods(@ast)
         @context
       end
 
       private
-      def register_variables_and_methods(node)
-        return unless node.kind_of?(RubyVM::AbstractSyntaxTree::Node)
+      def register_classes_variables_and_methods(node, classname = nil)
+        return unless ast_node?(node)
         type = node.type
-        variables, *_ = node.children
+        variables, args, body = node.children
         case type
+        when :CLASS
+          name = variables.children.last
+          return if @context.classes[name] # skip dupricate class definition
+          errors = invalid_class_and_method_definitions(name, args, body)
+          unless errors.empty?
+            raise Compiler::Error, "unsupported class definitions!!: #{errors.join(",")}"
+          end
+          klass = Caotral::Compiler::Context::Class.new(name:, body:)
+          @context.register_class(klass)
+          register_classes_variables_and_methods(body, name)
+          return
         when :SCOPE
           variables.each { |v| @context.register_local_variable(v) }
         when :DEFN
-          @context.discover_method(variables)
           function = Caotral::Compiler::Context::Function.new(**analyze_function_scope(node))
-          @context.register_function(function)
+          if classname
+            klass = @context.classes[classname]
+            klass.functions[function.name] = function
+            return
+          else
+            @context.discover_method(variables)
+            @context.register_function(function)
+          end
         end
-        node.children.each { |n| register_variables_and_methods(n) }
+        node.children.each { |n| register_classes_variables_and_methods(n, classname) }
         nil
       end
 
@@ -39,6 +58,42 @@ module Caotral
         locals, _args, body = scope.children
         entry = Caotral::Compiler::Context::Function.new(name: nil, locals:, body:)
         @context.register_entry(entry)
+      end
+
+      def main?(node)
+        return false unless ast_node?(node)
+
+        case node&.type
+        when :BLOCK, :BEGIN
+          node.children.any? { |n| main?(n) }
+        when :CLASS, :DEFN
+          false
+        else
+          true
+        end
+      end
+
+      def invalid_class_and_method_definitions(name, args, child)
+        errors = []
+        errors << "#{name} has super #{args.children.first} class" if inheritanced?(args)
+        errors << "#{name} has inner classes" if inner_classes?(child)
+        errors << "#{name} has invalid definition method" if premitive?(child)
+        errors
+      end
+
+      def inner_classes?(node)
+        return false unless ast_node?(node)
+        case node&.type
+        when :CLASS
+          true
+        else
+          node.children.any? { |n| inner_classes?(n) }
+        end
+      end
+      def inheritanced?(node)
+        return false unless ast_node?(node)
+
+        !node.children.last.nil?
       end
 
       def analyze_function_scope(node)
@@ -49,6 +104,18 @@ module Caotral
         locals = locals.drop(parameter_count)
         { name:, parameters:, locals:, body: }
       end
+
+      def premitive?(node)
+        return false unless ast_node?(node)
+        case node.type
+        when :INTEGER, :LIT, :STR, :FLOAT, :OPCALL
+          true
+        else
+          node.children.any? { |l| premitive?(l) }
+        end
+      end
+
+      def ast_node?(node) = node.kind_of?(RubyVM::AbstractSyntaxTree::Node)
     end
   end
 end

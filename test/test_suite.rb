@@ -53,9 +53,15 @@ module BuildFixtureHelper
 end
 
 module TestProcessHelper
-  def check_process(status)
-    exit_code = status >> 8
-    handle_code = status & 0x7f
-    [exit_code, handle_code]
+  SUPPORTED_RUBY_BOX = defined?(Ruby::Box) && ENV["RUBY_BOX"] == "1"
+  def setup_ruby_box
+    @generated = []
+    omit_unsupported_ruby_box
   end
+
+  def omit_unsupported_ruby_box
+    omit("Ruby::Box is not supported in this environment") unless SUPPORTED_RUBY_BOX
+  end
+
+  def teardown_native_binary = @generated.each { |g| File.delete(g) if File.exist?(g) }
 end

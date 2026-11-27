@@ -17,7 +17,7 @@ module Caotral
     link(input: [basename+".o"], output: execf, linker:, debug:, shared:)
   end
   def compile(input:, output: "tmp.s", debug: false, shared: false)
-    Caotral::Compiler.compile!(input:, output:, debug:)
+    Caotral::Compiler.compile!(input:, output:, debug:, shared:)
   end
   def assemble(input:, output: "tmp.o", debug: false, shared: false, assembler: "as")
     Caotral::Assembler.assemble!(input:, output:, debug:, assembler:, shared:)

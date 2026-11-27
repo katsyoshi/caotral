@@ -14,47 +14,37 @@ class Caotral::CompilerTest < Test::Unit::TestCase
     @file = "sample/plus.rb"
     @caotral = Caotral.compile!(input: @file, assembler: "self", linker: "self")
     File.chmod(755, @output)
-    IO.popen(@output).close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(9, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3(@output)
+    assert_equal(9, status.exitstatus, stderr)
   end
 
   def test_sample_variable
     @file = "sample/variable.rb"
     @caotral = Caotral.compile!(input: @file, assembler: "self", linker: "self")
     File.chmod(755, @output)
-    IO.popen(@output).close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(1, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3(@output)
+    assert_equal(1, status.exitstatus, stderr)
   end
 
   def test_sample_if
     @file = "sample/if.rb"
     @caotral = Caotral.compile!(input: @file)
-    IO.popen(@output).close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(1, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3(@output)
+    assert_equal(1, status.exitstatus, stderr)
   end
 
   def test_sample_else
     @file = "sample/else.rb"
     @caotral = Caotral.compile!(input: @file)
-    IO.popen(@output).close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(2, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3(@output)
+    assert_equal(2, status.exitstatus, stderr)
   end
 
   def test_sample_while
     @file = "sample/while.rb"
     @caotral = Caotral.compile!(input: @file)
-    IO.popen(@output).close
-    exit_code, handle_code = check_process($?.to_i)
-    assert_equal(55, exit_code)
-    assert_equal(0, handle_code)
+    _stdout, stderr, status = Open3.capture3(@output)
+    assert_equal(55, status.exitstatus, stderr)
   end
 
   def test_sample_call_method
@@ -63,7 +53,10 @@ class Caotral::CompilerTest < Test::Unit::TestCase
     @output = "./libtmp.so"
     @caotral = Caotral.compile!(input: @file, output: @output, shared: true, linker: "mold", assembler: "as")
     require './sample/fiddle.rb'
+    handles = X.handler.handlers
     assert_equal(10, X.aibo)
+  ensure
+    handles&.each(&:close)
   end
 
   def test_sample_call_method_with_arguments

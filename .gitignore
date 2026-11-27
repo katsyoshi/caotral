@@ -15,6 +15,7 @@
 /node_modules
 /package*.json
 /*.md
+/.local/
 
 # This project is coding-agent agnostic;
 # keep agent-specific configuration local.

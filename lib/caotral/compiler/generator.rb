@@ -10,7 +10,7 @@ module Caotral
       COUNT_OVER_ARGUMENT_ERROR = "%s has %s required positional arguments; maximum supported is #{REGISTER.size}"
       UNSUPPORTED_ARGUMENT_ERROR = "%s has unsupported parameters; only required positional parameters are supported"
       attr_reader :precompile, :shared
-      def initialize(input:, output: File.basename(input, "*") + ".s", debug: false, shared: false)
+      def initialize(input:, output: File.basename(input, ".*") + ".s", debug: false, shared: false)
         @source, @precompile, @debug, @shared = input, output, debug, shared
         @ast = RubyVM::AbstractSyntaxTree.parse_file(@source)
       end
@@ -23,19 +23,30 @@ module Caotral
 
         # prologue
         directive(".intel_syntax noprefix")
-        if @context.discovered_methods.empty?
+        local_execution = !@context.entry.nil?
+        defined_classes = @context.classes.keys # temporally name only.
+
+        directive(".section .text")
+        prologue_methods if shared
+        func2asm
+
+        if local_execution
           @context.mark_entry_emitted
           directive(".globl main")
           label("main")
           instruction("push", "rbp")
           instruction("mov", "rbp", "rsp")
           instruction("sub", "rsp", entry.variables.size * 8)
-          to_asm(@ast, entry)
-          epilogue
-        else
-          prologue_methods
-          directive(".globl main") unless @shared
-          to_asm(@ast, entry)
+        end
+
+        to_asm(@ast, entry)
+        epilogue if local_execution
+        unless defined_classes.empty?
+          source = File.basename(@precompile, ".*")
+          defined_classes.each do |c|
+            impl_class_instance_methods(c, @context.classes[c].functions)
+          end
+          init_classes(source, *defined_classes)
         end
       ensure
         @emitter&.close
@@ -87,13 +98,13 @@ module Caotral
         nil
       end
 
-      def define_method_prologue(function)
+      def define_method_prologue(function, arg_reg: REGISTER)
         instruction("push", "rbp")
         instruction("mov", "rbp", "rsp")
         unless function.variables.empty?
           instruction("sub", "rsp", lvar_offset(nil, function) * 8)
           function.parameters.each_with_index do |_, i|
-            instruction("mov", "[rbp-#{(i + 1) * 8}]", REGISTER[i])
+            instruction("mov", "[rbp-#{(i + 1) * 8}]", arg_reg[i])
           end
         end
         nil
@@ -168,6 +179,13 @@ module Caotral
         instruction("pop", "rbp")
         instruction("ret")
       end
+      def need_main? = !(shared || @context.entry.nil?)
+
+      def func2asm
+        @context.functions.each do |name, function|
+          parse_method(name, function)
+        end
+      end
 
       def to_asm(node, function)
         return unless node.kind_of?(RubyVM::AbstractSyntaxTree::Node)
@@ -182,7 +200,7 @@ module Caotral
         when :SCOPE
           node.children.each do |child|
             if already_build_methods? && !@context.entry_emitted?
-              return if shared
+              return unless need_main?
               label("main")
               instruction("push", "rbp")
               instruction("mov", "rbp", "rsp")
@@ -193,9 +211,8 @@ module Caotral
             to_asm(child, function)
           end
           return
-        when :DEFN
-          name, _ = node.children
-          parse_method(name, @context.functions.fetch(name))
+        when :CLASS, :DEFN
+          # skip
           return
         when :LVAR
           name = node.children.last
@@ -296,6 +313,54 @@ module Caotral
       def label(name) = @emitter.label(name)
       def directive(row) = @emitter.directive(row)
       def sequence = @context.label_sequence
+      def class_instance_method_names(klass) = @context.classes[klass].functions.keys
+
+      def init_classes(base_name, *names)
+        name = "Init_#{base_name}"
+        directive(".globl #{name}")
+        label("#{name}")
+        instruction("sub", "rsp", 8)
+        names.each_with_index do |name, t|
+          instruction("lea", "rdi", "[rip + .L#{name}_name]")
+          instruction("mov", "rax", "QWORD PTR [rip + rb_cObject@GOTPCREL]")
+          instruction("mov", "rsi", "QWORD PTR [rax]")
+          instruction("call", "rb_define_class@PLT")
+          instance_method_names = class_instance_method_names(name)
+          instruction("mov", "[rsp]", "rax") unless instance_method_names.empty?
+          instance_method_names.each_with_index do |fname, seq|
+            instruction("mov", "rdi", "[rsp]")
+            instruction("lea", "rsi", "[rip + .L#{name}_#{seq}_name]")
+            instruction("lea", "rdx", "[rip + .L#{name}___#{seq}]")
+            instruction("mov", "ecx", @context.classes[name].functions[fname].parameters.size)
+            instruction("call", "rb_define_method@PLT")
+          end
+        end
+        instruction("add", "rsp", 8)
+        instruction("ret")
+        directive(".section .rodata")
+        names.each do |name|
+          label(".L#{name}_name")
+          directive(%(#{Caotral::Compiler::Emitter::INDENT}.asciz "#{name}"))
+          class_instance_method_names(name).each_with_index do |fname, seq|
+            label(".L#{name}_#{seq}_name")
+            directive(%(#{Caotral::Compiler::Emitter::INDENT}.asciz "#{fname}"))
+          end
+        end
+        
+      end
+
+      def impl_class_instance_methods(class_name, functions)
+        functions.each_with_index do |(name, function), seq|
+          label(".L#{class_name}___#{seq}")
+          define_method_prologue(function, arg_reg: REGISTER.drop(1))
+
+          to_asm(function.body, function)
+
+          instruction("pop", "rax")
+          ret
+        end
+        nil
+      end
     end
   end
 end
